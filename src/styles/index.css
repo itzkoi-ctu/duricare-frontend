@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+:root {
+  /* Màu chủ đạo thương hiệu CTU */
+  --color-navy: #00569D;
+  /* Xanh đậm chuẩn logo CTU */
+  --color-blue: #144194;
+  /* Xanh thương hiệu CTU cho Hover/Accent */
+
+  /* Màu trạng thái cảm biến (Tươi rõ, dễ nhìn ngoài trời) */
+  --color-teal: #22C55E;
+  /* Xanh lá - Cảm biến AN TOÀN / ĐỦ NƯỚC */
+  --color-amber: #EAB308;
+  /* Vàng/Cam - CẢNH BÁO / PIN YẾU */
+  --color-coral: #EF4444;
+  /* Đỏ - NGUY HIỂM / MẤT KẾT NỐI */
+
+  /* Màu nền và giao diện (Bento Grid) */
+  --color-gray: #64748B;
+  /* Xám icon/text phụ */
+  --color-bg: #F8FAFC;
+  /* Nền web xám cực nhẹ (đỡ lóa mắt hơn trắng tinh) */
+  --color-surface: #FFFFFF;
+  /* Nền của các ô thẻ Bento (Nổi bật trên nền bg) */
+  --color-text: #0F172A;
+  /* Chữ đen đậm để nông dân dễ đọc */
+  --color-border: #E2E8F0;
+  /* Đường viền mảnh */
+}
+
+.dark {
+  /* Chế độ ban đêm - Hạ độ chói để bảo vệ mắt */
+  --color-navy: #38BDF8;
+  /* Xanh CTU dạng sáng (Light Blue) cho darkmode */
+  --color-blue: #60A5FA;
+
+  /* Trạng thái cảm biến trong tối (Giảm độ chói nhưng giữ rõ màu) */
+  --color-teal: #4ADE80;
+  --color-amber: #FACC15;
+  --color-coral: #F87171;
+
+  /* Nền tối phát quang công nghệ */
+  --color-bg: #0F172A;
+  /* Xanh đen sâu Slate 900 */
+  --color-surface: #1E293B;
+  /* Khối bento màu Slate 800 */
+  --color-text: #F1F5F9;
+  /* Chữ trắng sáng */
+  --color-border: #334155;
+}
+
+
+@theme {
+  --color-navy: var(--color-navy);
+  --color-blue: var(--color-blue);
+  --color-teal: var(--color-teal);
+  --color-amber: var(--color-amber);
+  --color-coral: var(--color-coral);
+  --color-gray: var(--color-gray);
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-text: var(--color-text);
+  --color-border: var(--color-border);
+}
+
+/* Base styles */
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  margin: 0;
+}
+
+/* Smooth theme transitions for all themed elements */
+*,
+*::before,
+*::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
