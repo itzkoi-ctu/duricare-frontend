@@ -1,3 +1,5 @@
+import { useLanguage } from '../i18n/useLanguage';
+import { t } from '../i18n';
 import type { AlertSource } from '../types/alert';
 
 interface AlertBadgeProps {
@@ -7,12 +9,11 @@ interface AlertBadgeProps {
 }
 
 export default function AlertBadge({ count, dominantSource }: AlertBadgeProps) {
+  useLanguage();
   if (count === 0) {
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full
-                        text-xs font-medium bg-teal/10 text-teal">
-        ✓ Không có cảnh báo
-      </span>
+                        text-xs font-medium bg-teal/10 text-teal"> {t("✓ Không có cảnh báo")} </span>
     );
   }
 
@@ -30,7 +31,6 @@ export default function AlertBadge({ count, dominantSource }: AlertBadgeProps) {
     >
       <span className={`w-2 h-2 rounded-full animate-pulse
                         ${isHard ? 'bg-coral' : 'bg-amber'}`} />
-      {count} cảnh báo
-    </span>
+      {count} {t("cảnh báo", [count])} </span>
   );
 }

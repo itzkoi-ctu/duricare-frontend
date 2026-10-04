@@ -1,3 +1,5 @@
+import { useLanguage } from '../i18n/useLanguage';
+import { t } from '../i18n';
 import type { WeatherOverview } from '../types/overview';
 import { getWeatherInfo } from '../utils/weatherLabels';
 
@@ -6,6 +8,7 @@ interface WeatherCardProps {
 }
 
 export default function WeatherCard({ weather }: WeatherCardProps) {
+  useLanguage();
   if (!weather) {
     return null;
   }
@@ -21,9 +24,7 @@ export default function WeatherCard({ weather }: WeatherCardProps) {
             <span className="material-symbols-outlined text-[18px] text-amber">
               {info.icon}
             </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-gray">
-              Thời tiết thực địa
-            </span>
+            <span className="text-xs font-bold uppercase tracking-wider text-gray"> {t("Thời tiết thực địa")} </span>
           </div>
 
           <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-bg border border-border text-text">
@@ -37,11 +38,11 @@ export default function WeatherCard({ weather }: WeatherCardProps) {
             <span className="text-2xl md:text-3xl font-extrabold text-text tracking-tight">
               {weather.temperature}°C
             </span>
-            <span className="text-xs text-gray font-medium">Cần Thơ</span>
+            <span className="text-xs text-gray font-medium">{t("Cần Thơ")}</span>
           </div>
 
           <div className="text-right">
-            <span className="text-xs text-gray block">Độ ẩm KK</span>
+            <span className="text-xs text-gray block">{t("Độ ẩm KK")}</span>
             <span className="text-sm font-bold text-text">{weather.humidity}%</span>
           </div>
         </div>
@@ -49,14 +50,14 @@ export default function WeatherCard({ weather }: WeatherCardProps) {
         {/* Rain indicators grid */}
         <div className="mt-3 grid grid-cols-2 gap-2 p-2 rounded-xl bg-bg border border-border/60 text-xs">
           <div>
-            <span className="text-gray text-[10px] block">Xác suất mưa ngày</span>
+            <span className="text-gray text-[10px] block">{t("Xác suất mưa ngày")}</span>
             <span className="font-semibold text-text flex items-center gap-1 mt-0.5">
               <span className="material-symbols-outlined text-[13px] text-blue">rainy</span>
               {weather.precipitationProbabilityToday}%
             </span>
           </div>
           <div>
-            <span className="text-gray text-[10px] block">Lượng mưa 48h tới</span>
+            <span className="text-gray text-[10px] block">{t("Lượng mưa 48h tới")}</span>
             <span className="font-semibold text-text flex items-center gap-1 mt-0.5">
               <span className="material-symbols-outlined text-[13px] text-teal">water_drop</span>
               {weather.expectedRainMm48h} mm
@@ -68,7 +69,7 @@ export default function WeatherCard({ weather }: WeatherCardProps) {
       {/* Footer Info */}
       <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-between text-[10px] text-gray">
         <span className="truncate max-w-[140px]">{weather.source}</span>
-        <span className="text-teal font-medium">Trực tiếp</span>
+        <span className="text-teal font-medium">{t("Trực tiếp")}</span>
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 export interface WeatherInfo {
   label: string;
   icon: string;
@@ -32,7 +34,8 @@ const DEFAULT_WEATHER: WeatherInfo = {
 };
 
 export function getWeatherInfo(code: number): WeatherInfo {
-  return WEATHER_MAP[code] || DEFAULT_WEATHER;
+  const info = WEATHER_MAP[code] || DEFAULT_WEATHER;
+  return { ...info, label: t(info.label), description: t(info.description) };
 }
 
 export function getWeatherLabel(code: number): string {

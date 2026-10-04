@@ -1,3 +1,5 @@
+import { useLanguage } from '../i18n/useLanguage';
+import { t } from '../i18n';
 import { Link } from 'react-router-dom';
 import type { ZoneOverview } from '../types/overview';
 
@@ -10,6 +12,7 @@ export default function AttentionSummaryCard({
   totalUnresolvedAlerts,
   zones,
 }: AttentionSummaryCardProps) {
+  useLanguage();
   const problemZones = zones.filter((z) => {
     const hasAlerts = z.alerts.hard + z.alerts.agentic > 0;
     const hasAbnormalMetric =
@@ -38,9 +41,7 @@ export default function AttentionSummaryCard({
                 hasIssues ? 'bg-coral animate-pulse' : 'bg-teal'
               }`}
             />
-            <span className="text-xs font-bold uppercase tracking-wider text-gray">
-              Khu vực cần chú ý
-            </span>
+            <span className="text-xs font-bold uppercase tracking-wider text-gray"> {t("Khu vực cần chú ý")} </span>
           </div>
 
           <span
@@ -48,7 +49,7 @@ export default function AttentionSummaryCard({
               hasIssues ? 'bg-coral/15 text-coral' : 'bg-teal/15 text-teal'
             }`}
           >
-            {hasIssues ? `${totalUnresolvedAlerts} cảnh báo` : 'Tất cả ổn định'}
+            {hasIssues ? t("{0} cảnh báo", [totalUnresolvedAlerts]) : t("Tất cả ổn định")}
           </span>
         </div>
 
@@ -56,14 +57,14 @@ export default function AttentionSummaryCard({
         <div className="mt-2">
           <h3 className="text-lg md:text-xl font-extrabold text-text tracking-tight">
             {hasIssues
-              ? `${problemZones.length} khu vực cần kiểm tra`
-              : 'Nông trại hoạt động tốt'}
+              ? t("{0} khu vực cần kiểm tra", [problemZones.length])
+              : t("Nông trại hoạt động tốt")}
           </h3>
 
           <p className="text-xs text-gray mt-1 line-clamp-2 leading-relaxed">
             {hasIssues
-              ? problemZones.map((z) => `${z.name} (${z.alerts.hard + z.alerts.agentic} sự kiện)`).join(' • ')
-              : 'Các chỉ số nhiệt độ, độ ẩm không khí và độ ẩm đất đều nằm trong ngưỡng sinh trưởng tối ưu.'}
+              ? problemZones.map((z) => t("{0} ({1} sự kiện)", [z.name, z.alerts.hard + z.alerts.agentic])).join(' • ')
+              : t("Các chỉ số nhiệt độ, độ ẩm không khí và độ ẩm đất đều nằm trong ngưỡng sinh trưởng tối ưu.")}
           </p>
         </div>
       </div>
@@ -71,7 +72,7 @@ export default function AttentionSummaryCard({
       {/* Footer Action */}
       <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
         <span className="text-[11px] text-gray">
-          {hasIssues ? 'Xử lý ngay các bất thường' : 'Giám sát liên tục'}
+          {hasIssues ? t("Xử lý ngay các bất thường") : t("Giám sát liên tục")}
         </span>
         <Link
           to="/alerts"
@@ -79,7 +80,7 @@ export default function AttentionSummaryCard({
             hasIssues ? 'text-coral' : 'text-teal'
           }`}
         >
-          <span>Xem cảnh báo</span>
+          <span>{t("Xem cảnh báo")}</span>
           <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
         </Link>
       </div>

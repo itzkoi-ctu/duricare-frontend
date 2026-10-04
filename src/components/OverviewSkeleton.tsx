@@ -1,4 +1,6 @@
+import { useLanguage } from '../i18n/useLanguage';
 export default function OverviewSkeleton() {
+  useLanguage();
   return (
     <div className="space-y-6 animate-pulse">
       {/* Top Header skeleton */}
@@ -6,7 +8,7 @@ export default function OverviewSkeleton() {
         <div className="space-y-2">
           <div className="h-4 w-48 bg-border/60 rounded" />
           <div className="h-7 w-64 bg-border/80 rounded" />
-          <div className="h-4 w-96 bg-border/50 rounded" />
+          <div className="h-4 w-96 max-w-full bg-border/50 rounded" />
         </div>
         <div className="h-10 w-44 bg-border/60 rounded-xl" />
       </div>
