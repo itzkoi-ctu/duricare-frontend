@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { MetricStatus } from '../types/overview';
 
 export type MetricKey = 'temperature' | 'humidity' | 'soilMoisture';
@@ -5,7 +6,7 @@ export type MetricKey = 'temperature' | 'humidity' | 'soilMoisture';
 export const METRIC_NAMES: Record<MetricKey, { label: string; icon: string }> = {
   temperature: { label: 'Nhiệt độ', icon: 'device_thermostat' },
   humidity: { label: 'Ẩm KK', icon: 'water_drop' },
-  soilMoisture: { label: 'Ẩm đất', icon: 'grass' },
+  soilMoisture: { label: 'Ẩm đất', icon: 'water_drop' },
 };
 
 export const METRIC_STATUS_DICTIONARY: Record<MetricKey, Record<MetricStatus, string>> = {
@@ -73,7 +74,7 @@ export const STATUS_STYLES: Record<MetricStatus, StatusStyle> = {
 };
 
 export function getStatusLabel(metric: MetricKey, status: MetricStatus): string {
-  return METRIC_STATUS_DICTIONARY[metric]?.[status] ?? status;
+  return t(METRIC_STATUS_DICTIONARY[metric]?.[status] ?? status);
 }
 
 export function formatTimeHHmm(dateInput: string | Date | null): string {
@@ -93,7 +94,7 @@ export function formatMetricValue(value: number | null, unit: string, status: Me
     return '--';
   }
   const formatted = Number.isInteger(value) ? value.toString() : value.toFixed(1);
-  return `${formatted}${unit}`;
+  return `${formatted}${unit === 'C' ? '°C' : unit}`;
 }
 
 export function formatTargetHint(targetMin: number | null, targetMax: number | null, unit: string): string | null {
@@ -102,18 +103,18 @@ export function formatTargetHint(targetMin: number | null, targetMax: number | n
   }
   const u = unit === '%' ? '%' : '°C';
   if (targetMin !== null && targetMax !== null) {
-    return `Mục tiêu ${targetMin}–${targetMax}${u}`;
+    return t("Mục tiêu {0}–{1}{2}", [targetMin, targetMax, u]);
   }
   if (targetMin !== null) {
-    return `Mục tiêu ≥${targetMin}${u}`;
+    return t("Mục tiêu ≥{0}{1}", [targetMin, u]);
   }
-  return `Mục tiêu ≤${targetMax}${u}`;
+  return t("Mục tiêu ≤{0}{1}", [targetMax, u]);
 }
 
 export function formatNoSignalHint(recordedAt: string | null): string {
   if (!recordedAt) {
-    return 'Chưa nhận được dữ liệu';
+    return t("Chưa nhận được dữ liệu");
   }
   const time = formatTimeHHmm(recordedAt);
-  return time ? `Chưa nhận dữ liệu từ ${time}` : 'Chưa nhận được dữ liệu';
+  return time ? t("Chưa nhận dữ liệu từ {0}", [time]) : t("Chưa nhận được dữ liệu");
 }

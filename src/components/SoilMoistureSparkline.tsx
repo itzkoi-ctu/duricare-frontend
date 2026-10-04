@@ -1,3 +1,5 @@
+import { useLanguage } from '../i18n/useLanguage';
+import { t } from '../i18n';
 import type { MetricStatus } from '../types/overview';
 
 interface SoilMoistureSparklineProps {
@@ -15,6 +17,7 @@ export default function SoilMoistureSparkline({
   status,
   unit = '%',
 }: SoilMoistureSparklineProps) {
+  useLanguage();
   if (!data || data.length < 2) {
     return null;
   }
@@ -70,13 +73,10 @@ export default function SoilMoistureSparkline({
     <div className="mt-3 pt-2.5 border-t border-border/50">
       <div className="flex items-center justify-between text-[11px] mb-1">
         <span className="text-gray font-medium flex items-center gap-1">
-          <span className="material-symbols-outlined text-[13px] text-teal">show_chart</span>
-          Xu hướng ẩm đất
-        </span>
+          <span className="material-symbols-outlined text-[13px] text-teal">show_chart</span> {t("Xu hướng ẩm đất")} </span>
         <div className="flex items-center gap-2">
           {hasBand && (
-            <span className="text-gray text-[10px]">
-              Dải mục tiêu: {targetMin}–{targetMax}{unit}
+            <span className="text-gray text-[10px]"> {t("Dải mục tiêu:")} {targetMin}–{targetMax}{unit}
             </span>
           )}
           <span className={`font-bold ${colorClass}`}>

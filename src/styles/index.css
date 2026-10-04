@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   /* Màu chủ đạo thương hiệu CTU */
@@ -29,6 +30,7 @@
 }
 
 .dark {
+  --color-gray: #94A3B8;
   /* Chế độ ban đêm - Hạ độ chói để bảo vệ mắt */
   --color-navy: #38BDF8;
   /* Xanh CTU dạng sáng (Light Blue) cho darkmode */

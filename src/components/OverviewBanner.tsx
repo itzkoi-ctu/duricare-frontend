@@ -1,3 +1,5 @@
+import { useLanguage } from '../i18n/useLanguage';
+import { t } from '../i18n';
 import { Link } from 'react-router-dom';
 import type { ZoneOverview } from '../types/overview';
 
@@ -11,44 +13,45 @@ function getZoneIssues(zone: ZoneOverview): string[] {
   const { temperature, humidity, soilMoisture } = zone.metrics;
 
   if (temperature.status === 'SENSOR_ERROR') {
-    issues.push(`lỗi cảm biến nhiệt độ ${temperature.value !== null ? `(${temperature.value}°C)` : ''}`.trim());
+    issues.push(t("lỗi cảm biến nhiệt độ {0}", [temperature.value !== null ? `(${temperature.value}°C)` : '']).trim());
   } else if (temperature.status === 'HIGH') {
-    issues.push(`nhiệt độ cao ${temperature.value !== null ? `${temperature.value}°C` : ''}`.trim());
+    issues.push(t("nhiệt độ cao {0}", [temperature.value !== null ? `${temperature.value}°C` : '']).trim());
   } else if (temperature.status === 'LOW') {
-    issues.push(`nhiệt độ thấp ${temperature.value !== null ? `${temperature.value}°C` : ''}`.trim());
+    issues.push(t("nhiệt độ thấp {0}", [temperature.value !== null ? `${temperature.value}°C` : '']).trim());
   } else if (temperature.status === 'NO_SIGNAL') {
-    issues.push('mất tín hiệu nhiệt độ');
+    issues.push(t("mất tín hiệu nhiệt độ"));
   }
 
   if (humidity.status === 'HIGH') {
-    issues.push(`độ ẩm KK cao ${humidity.value !== null ? `(${humidity.value}%)` : ''}`.trim());
+    issues.push(t("độ ẩm KK cao {0}", [humidity.value !== null ? `(${humidity.value}%)` : '']).trim());
   } else if (humidity.status === 'LOW') {
-    issues.push(`độ ẩm KK hơi khô ${humidity.value !== null ? `(${humidity.value}%)` : ''}`.trim());
+    issues.push(t("độ ẩm KK hơi khô {0}", [humidity.value !== null ? `(${humidity.value}%)` : '']).trim());
   } else if (humidity.status === 'SENSOR_ERROR') {
-    issues.push('lỗi cảm biến ẩm KK');
+    issues.push(t("lỗi cảm biến ẩm KK"));
   } else if (humidity.status === 'NO_SIGNAL') {
-    issues.push('mất tín hiệu ẩm KK');
+    issues.push(t("mất tín hiệu ẩm KK"));
   }
 
   if (soilMoisture.status === 'HIGH') {
-    issues.push(`độ ẩm đất vượt ngưỡng ${soilMoisture.value !== null ? `(${soilMoisture.value}%)` : ''}`.trim());
+    issues.push(t("độ ẩm đất vượt ngưỡng {0}", [soilMoisture.value !== null ? `(${soilMoisture.value}%)` : '']).trim());
   } else if (soilMoisture.status === 'LOW') {
-    issues.push(`độ ẩm đất dưới ngưỡng ${soilMoisture.value !== null ? `(${soilMoisture.value}%)` : ''}`.trim());
+    issues.push(t("độ ẩm đất dưới ngưỡng {0}", [soilMoisture.value !== null ? `(${soilMoisture.value}%)` : '']).trim());
   } else if (soilMoisture.status === 'SENSOR_ERROR') {
-    issues.push('lỗi cảm biến ẩm đất');
+    issues.push(t("lỗi cảm biến ẩm đất"));
   } else if (soilMoisture.status === 'NO_SIGNAL') {
-    issues.push('mất tín hiệu ẩm đất');
+    issues.push(t("mất tín hiệu ẩm đất"));
   }
 
   const alertSum = zone.alerts.hard + zone.alerts.agentic;
   if (alertSum > 0 && issues.length === 0) {
-    issues.push(`${alertSum} cảnh báo chưa xử lý`);
+    issues.push(t("{0} cảnh báo chưa xử lý", [alertSum]));
   }
 
   return issues;
 }
 
 export default function OverviewBanner({ zones, totalUnresolvedAlerts }: OverviewBannerProps) {
+  useLanguage();
   const problemZones = zones.filter((zone) => {
     const hasAlerts = zone.alerts.hard + zone.alerts.agentic > 0;
     const hasAbnormalMetric =
@@ -61,20 +64,20 @@ export default function OverviewBanner({ zones, totalUnresolvedAlerts }: Overvie
   const hasProblems = problemZones.length > 0;
 
   // Compose banner text dynamically from actual data
-  let bannerTitle = 'Tất cả các khu vực đang hoạt động ổn định';
+  let bannerTitle = t("Tất cả các khu vực đang hoạt động ổn định");
   let bannerDescription =
-    'Các chỉ số nhiệt độ, độ ẩm không khí và độ ẩm đất mô rễ đều nằm trong ngưỡng an toàn.';
+    t("Các chỉ số nhiệt độ, độ ẩm không khí và độ ẩm đất mô rễ đều nằm trong ngưỡng an toàn.");
 
   if (hasProblems) {
-    bannerTitle = `${problemZones.length} khu vực cần kiểm tra khẩn cấp`;
+    bannerTitle = t("{0} khu vực cần kiểm tra khẩn cấp", [problemZones.length]);
     const details = problemZones
       .map((z) => {
         const issues = getZoneIssues(z);
-        const reasonText = issues.length > 0 ? issues.join(', ') : 'có bất thường';
+        const reasonText = issues.length > 0 ? issues.join(', ') : t("có bất thường");
         return `${z.name} (${reasonText})`;
       })
-      .join(' và ');
-    bannerDescription = `Phát hiện bất thường tại ${details}.`;
+      .join(` ${t('và')} `);
+    bannerDescription = t("Phát hiện bất thường tại {0}.", [details]);
   }
 
   return (
@@ -113,7 +116,7 @@ export default function OverviewBanner({ zones, totalUnresolvedAlerts }: Overvie
                 hasProblems ? 'text-coral' : 'text-teal'
               }`}
             >
-              {hasProblems ? 'Cảnh báo trạm đo vi khí hậu' : 'Trạng thái trạm đo'}
+              {hasProblems ? t("Cảnh báo trạm đo vi khí hậu") : t("Trạng thái trạm đo")}
             </span>
           </div>
 
@@ -124,8 +127,7 @@ export default function OverviewBanner({ zones, totalUnresolvedAlerts }: Overvie
                 : 'bg-teal/15 text-teal'
             }`}
           >
-            {totalUnresolvedAlerts} sự kiện
-          </span>
+            {totalUnresolvedAlerts} {t("sự kiện", [totalUnresolvedAlerts])} </span>
         </div>
 
         {/* Dynamic Title */}
@@ -146,7 +148,7 @@ export default function OverviewBanner({ zones, totalUnresolvedAlerts }: Overvie
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-navy text-white text-sm font-semibold hover:bg-navy/90 active:scale-98 transition-all shadow-sm cursor-pointer"
         >
           <span className="material-symbols-outlined text-[18px]">warning</span>
-          <span>Xem cảnh báo</span>
+          <span>{t("Xem cảnh báo")}</span>
         </Link>
       </div>
     </div>
