@@ -1,0 +1,42 @@
+[
+  {
+    "id": 405,
+    "type": "AGENTIC_ASSESSMENT",
+    "severity": "WARNING",
+    "source": "AGENTIC",
+    "message": "[modelUsed=gemini/gemini-3.1-flash-lite] Dựa trên dữ liệu cảm biến mới nhất tại zoneA: độ ẩm đất là 100.0%, độ ẩm không khí là 40.0%, và nhiệt độ là 24.0°C. Theo tài liệu kỹ thuật cho giai đoạn RA_HOA, độ ẩm đất mục tiêu cần duy trì trong khoảng 70-80%. Giá trị 100.0% hiện tại cao hơn đáng kể so với ngưỡng tối đa 80.0% được quy định. Mặc dù hệ thống đã có cảnh báo cũ từ tháng 8, tình trạng độ ẩm đất quá cao hiện tại vẫn cần được xử lý để đảm bảo quá trình ra hoa. Dự báo thời tiết có khả năng mưa trong 48 giờ tới (8.9mm), điều này có thể làm trầm trọng thêm tình trạng dư thừa nước.",
+    "createdAt": "2026-10-01T03:41:42.070749Z",
+    "resolved": false,
+    "zoneCode": "zoneA"
+  },
+  {
+    "id": 397,
+    "type": "SOIL_TOO_WET",
+    "severity": "WARNING",
+    "source": "HARD",
+    "message": "Độ ẩm đất 100.0 % vượt ngưỡng 80.0% (giai đoạn KIEN_THIET_CO_BAN) - kiểm tra hệ thống thoát nước",
+    "createdAt": "2026-09-29T04:51:30.018610Z",
+    "resolved": false,
+    "zoneCode": "ZONE-02"
+  },
+  {
+    "id": 395,
+    "type": "AIR_HUMIDITY",
+    "severity": "INFO",
+    "source": "HARD",
+    "message": "Độ ẩm không khí 40.0 nằm ngoài khoảng bình thường [75.0, 85.0]",
+    "createdAt": "2026-09-28T11:38:22.265064Z",
+    "resolved": false,
+    "zoneCode": "ZONE-02"
+  },
+  {
+    "id": 17,
+    "type": "SOIL_TOO_WET",
+    "severity": "WARNING",
+    "source": "HARD",
+    "message": "Độ ẩm đất 85.0 % vượt ngưỡng 80.0% (giai đoạn PHAT_TRIEN_TRAI) - kiểm tra hệ thống thoát nước",
+    "createdAt": "2026-08-22T06:14:08.688258Z",
+    "resolved": false,
+    "zoneCode": "zoneA"
+  }
+]

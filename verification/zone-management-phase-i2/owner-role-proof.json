@@ -1,0 +1,20 @@
+[
+  {
+    "requested": "/settings/zones?farmId=3",
+    "landed": "http://localhost:5173/",
+    "adminNavLinks": 0,
+    "roleVisible": true
+  },
+  {
+    "requested": "/settings/zones/new",
+    "landed": "http://localhost:5173/",
+    "message": "Bạn không có quyền truy cập trang này",
+    "adminNavLinks": 0
+  },
+  {
+    "requested": "/settings/zones/UI-I2-20261003/edit",
+    "landed": "http://localhost:5173/",
+    "editForms": 0,
+    "adminNavLinks": 0
+  }
+]

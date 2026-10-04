@@ -1,0 +1,10 @@
+{
+  "allChatTimeouts30s": true,
+  "compactHasOldQuestion": false,
+  "compactMessages": 2,
+  "fullHistoryMessages": 4,
+  "markdownStrongRendered": true,
+  "rawErrorDetailsVisible": false,
+  "rawModelPrefixVisible": false,
+  "sameQuestionRetry": true
+}

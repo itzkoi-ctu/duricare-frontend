@@ -1,0 +1,61 @@
+{
+  "metricText": "device_thermostatNhiệt độ24°CLý tưởngMục tiêu 24–30°Cwater_dropẨm KK77%Ổn địnhMục tiêu 75–85%water_dropẨm đất76%Đủ ẩm rễMục tiêu 70–80%",
+  "overview": {
+    "farmName": "Vuon nha",
+    "generatedAt": "2026-10-03T08:37:17.079206600Z",
+    "latestInsight": null,
+    "totalUnresolvedAlerts": 0,
+    "weather": {
+      "expectedRainMm48h": 30.4,
+      "fetchedAt": "2026-10-03T08:36:07.547098600Z",
+      "humidity": 82,
+      "precipitationProbabilityToday": 100,
+      "source": "Open-Meteo",
+      "temperature": 28.2,
+      "weatherCode": 96
+    },
+    "zones": [
+      {
+        "alerts": {
+          "agentic": 0,
+          "hard": 0
+        },
+        "code": "zoneA",
+        "growthStage": "RA_HOA",
+        "metrics": {
+          "humidity": {
+            "recordedAt": "2026-10-03T08:36:58.787703Z",
+            "status": "NORMAL",
+            "targetMax": 85,
+            "targetMin": 75,
+            "unit": "%",
+            "value": 77
+          },
+          "soilMoisture": {
+            "recordedAt": "2026-10-03T08:36:59.723960Z",
+            "status": "NORMAL",
+            "targetMax": 80,
+            "targetMin": 70,
+            "unit": "%",
+            "value": 76
+          },
+          "temperature": {
+            "recordedAt": "2026-10-03T08:36:57.840335Z",
+            "status": "NORMAL",
+            "targetMax": 30,
+            "targetMin": 24,
+            "unit": "C",
+            "value": 24
+          }
+        },
+        "name": "Khu A",
+        "variety": "Ri6"
+      }
+    ]
+  },
+  "statuses": [
+    "NORMAL",
+    "NORMAL",
+    "NORMAL"
+  ]
+}

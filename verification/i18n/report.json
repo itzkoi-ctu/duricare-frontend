@@ -1,0 +1,12 @@
+{
+  "checks": [
+    "Login, validation, shared sensor/weather/growth labels, original content preserved",
+    "Preference persists after reload; session remains active",
+    "Desktop/mobile switching, synchronized controls, no horizontal overflow",
+    "Alert filters and original messages preserved; resolution errors switch immediately",
+    "Zone charts and care action labels translate; care notes preserved",
+    "AI welcome/suggestions translate; draft and conversation survive switching",
+    "Not-found route translated; no browser runtime errors"
+  ],
+  "pageErrors": []
+}

@@ -1,0 +1,452 @@
+{
+  "captures": [
+    {
+      "name": "375px-light",
+      "generatedAt": "2026-10-01T05:00:49.168715Z",
+      "counts": {
+        "normal": 1,
+        "error": 0,
+        "warning": 2,
+        "noSignal": 6
+      },
+      "geometry": {
+        "headerBottom": 56,
+        "scrollViewportTop": 56,
+        "scrollTop": 383
+      },
+      "zoneMetricsMatch": true
+    },
+    {
+      "name": "375px-dark",
+      "generatedAt": "2026-10-01T05:00:53.331434900Z",
+      "counts": {
+        "normal": 1,
+        "error": 0,
+        "warning": 2,
+        "noSignal": 6
+      },
+      "geometry": {
+        "headerBottom": 56,
+        "scrollViewportTop": 56,
+        "scrollTop": 383
+      },
+      "zoneMetricsMatch": true
+    },
+    {
+      "name": "1440px-light",
+      "generatedAt": "2026-10-01T05:00:56.704542600Z",
+      "counts": {
+        "normal": 1,
+        "error": 0,
+        "warning": 2,
+        "noSignal": 6
+      },
+      "zoneMetricsMatch": true
+    },
+    {
+      "name": "1440px-dark",
+      "generatedAt": "2026-10-01T05:01:00.233895700Z",
+      "counts": {
+        "normal": 1,
+        "error": 0,
+        "warning": 2,
+        "noSignal": 6
+      },
+      "zoneMetricsMatch": true
+    }
+  ],
+  "themeChecks": [
+    {
+      "dark": false,
+      "stored": "light",
+      "controls": [
+        {
+          "theme": "light",
+          "path": "M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+        },
+        {
+          "theme": "light",
+          "path": "M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+        }
+      ]
+    },
+    {
+      "dark": true,
+      "stored": "dark",
+      "controls": [
+        {
+          "theme": "dark",
+          "path": "M20.354 15.354A9 9 0 018.646 3.646 9.005 9.005 0 0012 21a9.005 9.005 0 008.354-5.646z"
+        },
+        {
+          "theme": "dark",
+          "path": "M20.354 15.354A9 9 0 018.646 3.646 9.005 9.005 0 0012 21a9.005 9.005 0 008.354-5.646z"
+        }
+      ]
+    },
+    {
+      "dark": false,
+      "stored": "light",
+      "controls": [
+        {
+          "theme": "light",
+          "path": "M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+        },
+        {
+          "theme": "light",
+          "path": "M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+        }
+      ]
+    },
+    {
+      "dark": true,
+      "stored": "dark",
+      "controls": [
+        {
+          "theme": "dark",
+          "path": "M20.354 15.354A9 9 0 018.646 3.646 9.005 9.005 0 0012 21a9.005 9.005 0 008.354-5.646z"
+        },
+        {
+          "theme": "dark",
+          "path": "M20.354 15.354A9 9 0 018.646 3.646 9.005 9.005 0 0012 21a9.005 9.005 0 008.354-5.646z"
+        }
+      ]
+    },
+    {
+      "dark": false,
+      "stored": "light",
+      "controls": [
+        {
+          "theme": "light",
+          "path": "M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+        },
+        {
+          "theme": "light",
+          "path": "M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+        }
+      ]
+    },
+    {
+      "dark": false,
+      "stored": "light",
+      "controls": [
+        {
+          "theme": "light",
+          "path": "M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+        },
+        {
+          "theme": "light",
+          "path": "M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+        }
+      ]
+    }
+  ],
+  "consoleErrors": [],
+  "states": {
+    "loading": "passed",
+    "error": "passed",
+    "empty": "passed"
+  },
+  "statusLabels": [
+    {
+      "theme": "light",
+      "status": "NORMAL",
+      "labels": [
+        {
+          "label": "Lý tưởng",
+          "width": 50.296875,
+          "textWidth": 42.296875,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Ổn định",
+          "width": 45.765625,
+          "textWidth": 37.765625,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Đủ ẩm rễ",
+          "width": 51.53125,
+          "textWidth": 43.53125,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        }
+      ]
+    },
+    {
+      "theme": "light",
+      "status": "LOW",
+      "labels": [
+        {
+          "label": "Hơi lạnh",
+          "width": 47.640625,
+          "textWidth": 39.640625,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Hơi khô",
+          "width": 44.828125,
+          "textWidth": 36.828125,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Thấp hơn ngưỡng",
+          "width": 94.125,
+          "textWidth": 86.125,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        }
+      ]
+    },
+    {
+      "theme": "light",
+      "status": "HIGH",
+      "labels": [
+        {
+          "label": "Nóng",
+          "width": 34.3125,
+          "textWidth": 26.3125,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Quá ẩm",
+          "width": 45.109375,
+          "textWidth": 37.109375,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Cao hơn ngưỡng",
+          "width": 88.453125,
+          "textWidth": 80.453125,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        }
+      ]
+    },
+    {
+      "theme": "light",
+      "status": "SENSOR_ERROR",
+      "labels": [
+        {
+          "label": "Lỗi cảm biến",
+          "width": 69.25,
+          "textWidth": 61.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Lỗi cảm biến",
+          "width": 69.25,
+          "textWidth": 61.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Lỗi cảm biến",
+          "width": 69.25,
+          "textWidth": 61.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        }
+      ]
+    },
+    {
+      "theme": "light",
+      "status": "NO_SIGNAL",
+      "labels": [
+        {
+          "label": "Mất tín hiệu",
+          "width": 65.25,
+          "textWidth": 57.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Mất tín hiệu",
+          "width": 65.25,
+          "textWidth": 57.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Mất tín hiệu",
+          "width": 65.25,
+          "textWidth": 57.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "status": "NORMAL",
+      "labels": [
+        {
+          "label": "Lý tưởng",
+          "width": 50.296875,
+          "textWidth": 42.296875,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Ổn định",
+          "width": 45.765625,
+          "textWidth": 37.765625,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Đủ ẩm rễ",
+          "width": 51.53125,
+          "textWidth": 43.53125,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "status": "LOW",
+      "labels": [
+        {
+          "label": "Hơi lạnh",
+          "width": 47.640625,
+          "textWidth": 39.640625,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Hơi khô",
+          "width": 44.828125,
+          "textWidth": 36.828125,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Thấp hơn ngưỡng",
+          "width": 94.125,
+          "textWidth": 86.125,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "status": "HIGH",
+      "labels": [
+        {
+          "label": "Nóng",
+          "width": 34.3125,
+          "textWidth": 26.3125,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Quá ẩm",
+          "width": 45.109375,
+          "textWidth": 37.109375,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Cao hơn ngưỡng",
+          "width": 88.453125,
+          "textWidth": 80.453125,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "status": "SENSOR_ERROR",
+      "labels": [
+        {
+          "label": "Lỗi cảm biến",
+          "width": 69.25,
+          "textWidth": 61.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Lỗi cảm biến",
+          "width": 69.25,
+          "textWidth": 61.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Lỗi cảm biến",
+          "width": 69.25,
+          "textWidth": 61.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "status": "NO_SIGNAL",
+      "labels": [
+        {
+          "label": "Mất tín hiệu",
+          "width": 65.25,
+          "textWidth": 57.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Mất tín hiệu",
+          "width": 65.25,
+          "textWidth": 57.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        },
+        {
+          "label": "Mất tín hiệu",
+          "width": 65.25,
+          "textWidth": 57.25,
+          "fits": true,
+          "withinViewport": true,
+          "ellipsis": "clip"
+        }
+      ]
+    }
+  ]
+}

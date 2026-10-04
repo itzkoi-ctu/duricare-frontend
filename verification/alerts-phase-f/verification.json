@@ -1,0 +1,59 @@
+{
+  "screenshots": [
+    {
+      "name": "375px-light",
+      "sources": [
+        "AGENTIC",
+        "HARD"
+      ],
+      "fromCache": false
+    },
+    {
+      "name": "375px-dark",
+      "sources": [
+        "AGENTIC",
+        "HARD"
+      ],
+      "fromCache": false
+    },
+    {
+      "name": "1440px-light",
+      "sources": [
+        "AGENTIC",
+        "HARD"
+      ],
+      "fromCache": false
+    },
+    {
+      "name": "1440px-dark",
+      "sources": [
+        "AGENTIC",
+        "HARD"
+      ],
+      "fromCache": false
+    }
+  ],
+  "consoleErrors": [],
+  "checks": {
+    "newestFirst": true,
+    "clientSideFilters": true,
+    "sixtySecondRefresh": "60s timer registered; invoked callback and observed live GET",
+    "optimisticRemovalAndFailureRollback": true,
+    "zoneQueryOnMount": true,
+    "liveResolve": {
+      "id": 16,
+      "zoneCode": "zoneA",
+      "status": 200,
+      "resolved": true,
+      "before": 5,
+      "after": 4
+    },
+    "loading": true,
+    "error": true,
+    "empty": true,
+    "filtered-empty": true
+  },
+  "expectedFailureConsole": [
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "fields": [
+    {
+      "type": "text",
+      "value": "Vườn sầu riêng A"
+    },
+    {
+      "type": "hidden",
+      "value": "<redacted>"
+    },
+    {
+      "type": "text",
+      "value": "Khu kiểm thử I-2"
+    },
+    {
+      "type": "text",
+      "value": "UI-I2-20261003"
+    },
+    {
+      "type": "number",
+      "value": "100"
+    },
+    {
+      "type": "text",
+      "value": "Đất phù sa"
+    },
+    {
+      "type": "text",
+      "value": "Monthong"
+    },
+    {
+      "type": "date",
+      "value": "2026-09-15"
+    }
+  ],
+  "stageControl": false,
+  "treeResponses": [
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": {
+        "growthStage": "KIEN_THIET_CO_BAN",
+        "id": 5,
+        "plantingDate": "2026-10-03",
+        "variety": "Ri6",
+        "zoneCode": "UI-I2-20261003",
+        "zoneId": 6
+      },
+      "status": 200,
+      "url": "http://localhost:8386/api/trees/5"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": {
+        "growthStage": "KIEN_THIET_CO_BAN",
+        "id": 5,
+        "plantingDate": "2026-10-03",
+        "variety": "Ri6",
+        "zoneCode": "UI-I2-20261003",
+        "zoneId": 6
+      },
+      "status": 200,
+      "url": "http://localhost:8386/api/trees/5"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": {
+        "growthStage": "KIEN_THIET_CO_BAN",
+        "id": 5,
+        "plantingDate": "2026-09-15",
+        "variety": "Monthong",
+        "zoneCode": "UI-I2-20261003",
+        "zoneId": 6
+      },
+      "status": 200,
+      "url": "http://localhost:8386/api/trees/5"
+    }
+  ]
+}

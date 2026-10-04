@@ -1,0 +1,1 @@
+[{"id":1,"method":"GET","path":"/alerts","status":401,"bearer":true,"csrf":false,"retry":false},{"id":2,"method":"GET","path":"/auth/csrf","status":200,"bearer":false,"csrf":false,"retry":false},{"id":3,"method":"POST","path":"/auth/refresh","status":401,"bearer":false,"csrf":true,"retry":false}]

@@ -1,0 +1,9 @@
+Độ ẩm đất tại zoneA hiện tại là bao nhiêu? Hãy dùng getSensorData và trả lời ngắn gọn trong 2 câu.
+
+13:54
+
+Độ ẩm đất tại zoneA hiện tại là 87%. Các thông số khác bao gồm nhiệt độ 24°C và độ ẩm không khí 40%.
+
+Trả lời bởi Gemini
+
+13:54

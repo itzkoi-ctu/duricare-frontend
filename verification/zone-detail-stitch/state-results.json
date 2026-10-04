@@ -1,0 +1,100 @@
+{
+  "notePreserved": true,
+  "safeErrorOnly": true,
+  "chartEmptyVisible": true,
+  "retrySaved": true,
+  "formClosedAfterRetry": true,
+  "statusLabels": [
+    {
+      "label": "Lý tưởng",
+      "outsideCard": false,
+      "status": "NORMAL",
+      "truncated": false
+    },
+    {
+      "label": "Ổn định",
+      "outsideCard": false,
+      "status": "NORMAL",
+      "truncated": false
+    },
+    {
+      "label": "Đủ ẩm rễ",
+      "outsideCard": false,
+      "status": "NORMAL",
+      "truncated": false
+    },
+    {
+      "label": "Hơi lạnh",
+      "outsideCard": false,
+      "status": "LOW",
+      "truncated": false
+    },
+    {
+      "label": "Hơi khô",
+      "outsideCard": false,
+      "status": "LOW",
+      "truncated": false
+    },
+    {
+      "label": "Thấp hơn ngưỡng",
+      "outsideCard": false,
+      "status": "LOW",
+      "truncated": false
+    },
+    {
+      "label": "Nóng",
+      "outsideCard": false,
+      "status": "HIGH",
+      "truncated": false
+    },
+    {
+      "label": "Quá ẩm",
+      "outsideCard": false,
+      "status": "HIGH",
+      "truncated": false
+    },
+    {
+      "label": "Cao hơn ngưỡng",
+      "outsideCard": false,
+      "status": "HIGH",
+      "truncated": false
+    },
+    {
+      "label": "Lỗi cảm biến",
+      "outsideCard": false,
+      "status": "SENSOR_ERROR",
+      "truncated": false
+    },
+    {
+      "label": "Lỗi cảm biến",
+      "outsideCard": false,
+      "status": "SENSOR_ERROR",
+      "truncated": false
+    },
+    {
+      "label": "Lỗi cảm biến",
+      "outsideCard": false,
+      "status": "SENSOR_ERROR",
+      "truncated": false
+    },
+    {
+      "label": "Mất tín hiệu",
+      "outsideCard": false,
+      "status": "NO_SIGNAL",
+      "truncated": false
+    },
+    {
+      "label": "Mất tín hiệu",
+      "outsideCard": false,
+      "status": "NO_SIGNAL",
+      "truncated": false
+    },
+    {
+      "label": "Mất tín hiệu",
+      "outsideCard": false,
+      "status": "NO_SIGNAL",
+      "truncated": false
+    }
+  ],
+  "chartRetryHandled": true
+}

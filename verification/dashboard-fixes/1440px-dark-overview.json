@@ -1,0 +1,131 @@
+{
+  "farmName": "Vườn sầu riêng A",
+  "generatedAt": "2026-10-01T05:01:00.233895700Z",
+  "totalUnresolvedAlerts": 5,
+  "weather": {
+    "temperature": 31.5,
+    "humidity": 71,
+    "weatherCode": 1,
+    "precipitationProbabilityToday": 69,
+    "expectedRainMm48h": 8.9,
+    "fetchedAt": "2026-10-01T04:55:08.957729100Z",
+    "source": "Open-Meteo"
+  },
+  "zones": [
+    {
+      "code": "ZONE-01",
+      "name": "Khu A (Lô 1)",
+      "growthStage": "KIEN_THIET_CO_BAN",
+      "variety": "Ri6",
+      "plantingDate": "2024-01-15",
+      "metrics": {
+        "temperature": {
+          "value": null,
+          "unit": "C",
+          "recordedAt": null,
+          "status": "NO_SIGNAL",
+          "targetMin": 24,
+          "targetMax": 30
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%",
+          "recordedAt": null,
+          "status": "NO_SIGNAL",
+          "targetMin": 75,
+          "targetMax": 85
+        },
+        "soilMoisture": {
+          "value": null,
+          "unit": "%",
+          "recordedAt": null,
+          "status": "NO_SIGNAL",
+          "targetMin": 65,
+          "targetMax": 80
+        }
+      },
+      "alerts": {
+        "hard": 0,
+        "agentic": 0
+      }
+    },
+    {
+      "code": "ZONE-02",
+      "name": "Khu B",
+      "growthStage": "KIEN_THIET_CO_BAN",
+      "variety": "Monthong",
+      "plantingDate": "2026-08-22",
+      "metrics": {
+        "temperature": {
+          "value": 29.9,
+          "unit": "C",
+          "recordedAt": "2026-09-30T13:14:22.114092Z",
+          "status": "NO_SIGNAL",
+          "targetMin": 24,
+          "targetMax": 30
+        },
+        "humidity": {
+          "value": 55,
+          "unit": "%",
+          "recordedAt": "2026-09-30T13:14:23.444106Z",
+          "status": "NO_SIGNAL",
+          "targetMin": 75,
+          "targetMax": 85
+        },
+        "soilMoisture": {
+          "value": 100,
+          "unit": "%",
+          "recordedAt": "2026-09-30T13:14:24.971343Z",
+          "status": "NO_SIGNAL",
+          "targetMin": 65,
+          "targetMax": 80
+        }
+      },
+      "alerts": {
+        "hard": 2,
+        "agentic": 0
+      }
+    },
+    {
+      "code": "zoneA",
+      "name": "Khu A",
+      "growthStage": "RA_HOA",
+      "variety": "Ri6",
+      "metrics": {
+        "temperature": {
+          "value": 24,
+          "unit": "C",
+          "recordedAt": "2026-10-01T04:57:58.836825Z",
+          "status": "NORMAL",
+          "targetMin": 24,
+          "targetMax": 30
+        },
+        "humidity": {
+          "value": 40,
+          "unit": "%",
+          "recordedAt": "2026-10-01T04:58:00.054753Z",
+          "status": "LOW",
+          "targetMin": 75,
+          "targetMax": 85
+        },
+        "soilMoisture": {
+          "value": 100,
+          "unit": "%",
+          "recordedAt": "2026-10-01T04:58:02.603658Z",
+          "status": "HIGH",
+          "targetMin": 70,
+          "targetMax": 80
+        }
+      },
+      "alerts": {
+        "hard": 2,
+        "agentic": 1
+      }
+    }
+  ],
+  "latestInsight": {
+    "zoneCode": "zoneA",
+    "message": "[modelUsed=gemini/gemini-3.1-flash-lite] Dựa trên dữ liệu cảm biến mới nhất tại zoneA: độ ẩm đất là 100.0%, độ ẩm không khí là 40.0%, và nhiệt độ là 24.0°C. Theo tài liệu kỹ thuật cho giai đoạn RA_HOA, độ ẩm đất mục tiêu cần duy trì trong khoảng 70-80%. Giá trị 100.0% hiện tại cao hơn đáng kể so với ngưỡng tối đa 80.0% được quy định. Mặc dù hệ thống đã có cảnh báo cũ từ tháng 8, tình trạng độ ẩm đất quá cao hiện tại vẫn cần được xử lý để đảm bảo quá trình ra hoa. Dự báo thời tiết có khả năng mưa trong 48 giờ tới (8.9mm), điều này có thể làm trầm trọng thêm tình trạng dư thừa nước.",
+    "createdAt": "2026-10-01T03:41:42.070749Z"
+  }
+}

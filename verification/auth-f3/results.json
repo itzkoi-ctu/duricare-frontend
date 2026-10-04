@@ -1,0 +1,21 @@
+{
+  "signedOutZoneVisit": {
+    "requested": "/zones/zoneA",
+    "result": "/login"
+  },
+  "loginReturn": "/zones/zoneA",
+  "authenticatedLoginVisit": "/",
+  "ownerAdminRoute": {
+    "requested": "/__verify/admin",
+    "result": "/",
+    "adminContentCount": 0,
+    "message": "Bạn không có quyền truy cập trang này",
+    "temporaryRouteRemoved": true
+  },
+  "build": "passed",
+  "lint": {
+    "errors": 0,
+    "existingWarnings": 8
+  },
+  "finalConsoleErrors": 0
+}

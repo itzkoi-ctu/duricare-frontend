@@ -1,0 +1,89 @@
+[
+  {
+    "period": "LAST_24_HOURS",
+    "charts": [
+      {
+        "bandCount": 1,
+        "first": 1790941677922,
+        "last": 1791016013488,
+        "points": 154,
+        "title": "Nhiệt độ không khí"
+      },
+      {
+        "bandCount": 1,
+        "first": 1790941679346,
+        "last": 1791016014921,
+        "points": 154,
+        "title": "Độ ẩm không khí"
+      },
+      {
+        "bandCount": 1,
+        "first": 1790941681693,
+        "last": 1791016016453,
+        "points": 154,
+        "title": "Độ ẩm đất"
+      }
+    ],
+    "from": "2026-10-02T08:29:16.945Z",
+    "label": "Dữ liệu từ 15:29 02-10 đến 15:29 03-10",
+    "to": "2026-10-03T08:29:16.945Z"
+  },
+  {
+    "period": "TODAY",
+    "charts": [
+      {
+        "bandCount": 1,
+        "first": 1790995182178,
+        "last": 1791016013488,
+        "points": 28,
+        "title": "Nhiệt độ không khí"
+      },
+      {
+        "bandCount": 1,
+        "first": 1790995188718,
+        "last": 1791016014921,
+        "points": 28,
+        "title": "Độ ẩm không khí"
+      },
+      {
+        "bandCount": 1,
+        "first": 1790995200596,
+        "last": 1791016016453,
+        "points": 28,
+        "title": "Độ ẩm đất"
+      }
+    ],
+    "from": "2026-10-02T17:00:00.000Z",
+    "label": "Dữ liệu từ 00:00 03-10 đến 15:29 03-10",
+    "to": "2026-10-03T08:29:45.616Z"
+  },
+  {
+    "period": "LAST_7_DAYS",
+    "charts": [
+      {
+        "bandCount": 1,
+        "first": 1790606125332,
+        "last": 1791016013488,
+        "points": 263,
+        "title": "Nhiệt độ không khí"
+      },
+      {
+        "bandCount": 1,
+        "first": 1790606127481,
+        "last": 1791016014921,
+        "points": 263,
+        "title": "Độ ẩm không khí"
+      },
+      {
+        "bandCount": 1,
+        "first": 1790606128416,
+        "last": 1791016016453,
+        "points": 263,
+        "title": "Độ ẩm đất"
+      }
+    ],
+    "from": "2026-09-26T08:29:54.134Z",
+    "label": "Dữ liệu từ 15:29 26-09 đến 15:29 03-10",
+    "to": "2026-10-03T08:29:54.134Z"
+  }
+]

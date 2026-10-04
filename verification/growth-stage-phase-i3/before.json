@@ -1,0 +1,846 @@
+{
+  "charts": [
+    {
+      "points": "0",
+      "text": "Nhiệt độ không khí (°C)Mục tiêu 24–30°C",
+      "title": "Nhiệt độ không khí"
+    },
+    {
+      "points": "0",
+      "text": "Độ ẩm không khí (%)Mục tiêu 75–85%",
+      "title": "Độ ẩm không khí"
+    },
+    {
+      "points": "0",
+      "text": "Độ ẩm đất (%)Mục tiêu 65–80%",
+      "title": "Độ ẩm đất"
+    }
+  ],
+  "header": "arrow_backQuay lại tổng quanKhu kiểm thử I-2UI-I2-20261003🌱 Kiến thiết cơ bảneditĐổi giai đoạn ✓ Không có cảnh báo device_thermostatNhiệt độ--Mất tín hiệuMục tiêu 24–30°CChưa nhận được dữ liệuwater_dropẨm KK--Mất tín hiệuMục tiêu 75–85%Chưa nhận được dữ liệuwater_dropẨm đất--Mất tín hiệuMục tiêu 65–80%Chưa nhận được dữ liệu",
+  "trace": [
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [
+        {
+          "area": null,
+          "code": "zoneA",
+          "farmId": 1,
+          "farmName": "Vuon nha",
+          "growthStage": "PHAT_TRIEN_TRAI",
+          "id": 1,
+          "name": "Khu A",
+          "representativeTreeId": 1,
+          "soilType": null
+        },
+        {
+          "area": 6500000,
+          "code": "ZONE-02",
+          "farmId": 3,
+          "farmName": "Vườn sầu riêng A",
+          "growthStage": "KIEN_THIET_CO_BAN",
+          "id": 3,
+          "name": "Khu B",
+          "representativeTreeId": 3,
+          "soilType": "Đất ẩm"
+        },
+        {
+          "area": 500,
+          "code": "ZONE-01",
+          "farmId": 3,
+          "farmName": "Vườn sầu riêng A",
+          "growthStage": "KIEN_THIET_CO_BAN",
+          "id": 2,
+          "name": "Khu A (Lô 1)",
+          "representativeTreeId": 2,
+          "soilType": "Đất phù sa"
+        },
+        {
+          "area": 100,
+          "code": "UI-I2-20261003",
+          "farmId": 3,
+          "farmName": "Vườn sầu riêng A",
+          "growthStage": "RA_HOA",
+          "id": 6,
+          "name": "Khu kiểm thử I-2",
+          "representativeTreeId": 5,
+          "soilType": "Đất phù sa"
+        }
+      ],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/TEMPERATURE/readings?from=2026-10-02T12:08:08.812Z&to=2026-10-03T12:08:08.812Z"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/HUMIDITY/readings?from=2026-10-02T12:08:08.812Z&to=2026-10-03T12:08:08.812Z"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/SOIL_MOISTURE/readings?from=2026-10-02T12:08:08.812Z&to=2026-10-03T12:08:08.812Z"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": {
+        "farmName": "Vườn sầu riêng A",
+        "generatedAt": "2026-10-03T12:08:10.231102700Z",
+        "latestInsight": {
+          "createdAt": "2026-10-03T06:30:55.109766Z",
+          "message": "[modelUsed=gemini/gemini-3.1-flash-lite] Dữ liệu cảm biến mới nhất tại ZONE-02 cho thấy độ ẩm đất là 100.0%, vượt xa ngưỡng mục tiêu 65-80% cho giai đoạn kiến thiết cơ bản. Hệ thống đã có cảnh báo HARD (SOIL_TOO_WET) từ ngày 29/09/2026. Với dự báo có mưa trong 48 giờ tới (tổng lượng mưa dự kiến 24.8mm), tình trạng úng nước có nguy cơ kéo dài. Do cảnh báo cũ vẫn chưa được giải quyết và điều kiện thời tiết không thuận lợi, cần một cảnh báo mới để nhắc nhở kiểm tra hệ thống thoát nước khẩn cấp.",
+          "zoneCode": "ZONE-02"
+        },
+        "totalUnresolvedAlerts": 4,
+        "weather": {
+          "expectedRainMm48h": 30.4,
+          "fetchedAt": "2026-10-03T12:08:10.359233200Z",
+          "humidity": 99,
+          "precipitationProbabilityToday": 100,
+          "source": "Open-Meteo",
+          "temperature": 26,
+          "weatherCode": 3
+        },
+        "zones": [
+          {
+            "alerts": {
+              "agentic": 0,
+              "hard": 0
+            },
+            "code": "UI-I2-20261003",
+            "growthStage": "RA_HOA",
+            "metrics": {
+              "humidity": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": null
+              },
+              "soilMoisture": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 70,
+                "unit": "%",
+                "value": null
+              },
+              "temperature": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": null
+              }
+            },
+            "name": "Khu kiểm thử I-2",
+            "plantingDate": "2026-09-15",
+            "variety": "Monthong"
+          },
+          {
+            "alerts": {
+              "agentic": 1,
+              "hard": 0
+            },
+            "code": "ZONE-01",
+            "growthStage": "KIEN_THIET_CO_BAN",
+            "metrics": {
+              "humidity": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": null
+              },
+              "soilMoisture": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 65,
+                "unit": "%",
+                "value": null
+              },
+              "temperature": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": null
+              }
+            },
+            "name": "Khu A (Lô 1)",
+            "plantingDate": "2024-01-15",
+            "variety": "Ri6"
+          },
+          {
+            "alerts": {
+              "agentic": 1,
+              "hard": 2
+            },
+            "code": "ZONE-02",
+            "growthStage": "KIEN_THIET_CO_BAN",
+            "metrics": {
+              "humidity": {
+                "recordedAt": "2026-09-30T13:14:23.444106Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": 55
+              },
+              "soilMoisture": {
+                "recordedAt": "2026-09-30T13:14:24.971343Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 65,
+                "unit": "%",
+                "value": 100
+              },
+              "temperature": {
+                "recordedAt": "2026-09-30T13:14:22.114092Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": 29.9
+              }
+            },
+            "name": "Khu B",
+            "plantingDate": "2026-08-22",
+            "variety": "Monthong"
+          }
+        ]
+      },
+      "status": 200,
+      "url": "http://localhost:8386/api/overview?farmId=3"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [
+        {
+          "area": null,
+          "code": "zoneA",
+          "farmId": 1,
+          "farmName": "Vuon nha",
+          "growthStage": "PHAT_TRIEN_TRAI",
+          "id": 1,
+          "name": "Khu A",
+          "representativeTreeId": 1,
+          "soilType": null
+        },
+        {
+          "area": 6500000,
+          "code": "ZONE-02",
+          "farmId": 3,
+          "farmName": "Vườn sầu riêng A",
+          "growthStage": "KIEN_THIET_CO_BAN",
+          "id": 3,
+          "name": "Khu B",
+          "representativeTreeId": 3,
+          "soilType": "Đất ẩm"
+        },
+        {
+          "area": 500,
+          "code": "ZONE-01",
+          "farmId": 3,
+          "farmName": "Vườn sầu riêng A",
+          "growthStage": "KIEN_THIET_CO_BAN",
+          "id": 2,
+          "name": "Khu A (Lô 1)",
+          "representativeTreeId": 2,
+          "soilType": "Đất phù sa"
+        },
+        {
+          "area": 100,
+          "code": "UI-I2-20261003",
+          "farmId": 3,
+          "farmName": "Vườn sầu riêng A",
+          "growthStage": "RA_HOA",
+          "id": 6,
+          "name": "Khu kiểm thử I-2",
+          "representativeTreeId": 5,
+          "soilType": "Đất phù sa"
+        }
+      ],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/TEMPERATURE/readings?from=2026-10-02T12:08:08.812Z&to=2026-10-03T12:08:08.812Z"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/HUMIDITY/readings?from=2026-10-02T12:08:08.812Z&to=2026-10-03T12:08:08.812Z"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/SOIL_MOISTURE/readings?from=2026-10-02T12:08:08.812Z&to=2026-10-03T12:08:08.812Z"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": {
+        "farmName": "Vườn sầu riêng A",
+        "generatedAt": "2026-10-03T12:08:12.197979600Z",
+        "latestInsight": {
+          "createdAt": "2026-10-03T06:30:55.109766Z",
+          "message": "[modelUsed=gemini/gemini-3.1-flash-lite] Dữ liệu cảm biến mới nhất tại ZONE-02 cho thấy độ ẩm đất là 100.0%, vượt xa ngưỡng mục tiêu 65-80% cho giai đoạn kiến thiết cơ bản. Hệ thống đã có cảnh báo HARD (SOIL_TOO_WET) từ ngày 29/09/2026. Với dự báo có mưa trong 48 giờ tới (tổng lượng mưa dự kiến 24.8mm), tình trạng úng nước có nguy cơ kéo dài. Do cảnh báo cũ vẫn chưa được giải quyết và điều kiện thời tiết không thuận lợi, cần một cảnh báo mới để nhắc nhở kiểm tra hệ thống thoát nước khẩn cấp.",
+          "zoneCode": "ZONE-02"
+        },
+        "totalUnresolvedAlerts": 4,
+        "weather": {
+          "expectedRainMm48h": 30.4,
+          "fetchedAt": "2026-10-03T12:08:10.359233200Z",
+          "humidity": 99,
+          "precipitationProbabilityToday": 100,
+          "source": "Open-Meteo",
+          "temperature": 26,
+          "weatherCode": 3
+        },
+        "zones": [
+          {
+            "alerts": {
+              "agentic": 0,
+              "hard": 0
+            },
+            "code": "UI-I2-20261003",
+            "growthStage": "RA_HOA",
+            "metrics": {
+              "humidity": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": null
+              },
+              "soilMoisture": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 70,
+                "unit": "%",
+                "value": null
+              },
+              "temperature": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": null
+              }
+            },
+            "name": "Khu kiểm thử I-2",
+            "plantingDate": "2026-09-15",
+            "variety": "Monthong"
+          },
+          {
+            "alerts": {
+              "agentic": 1,
+              "hard": 0
+            },
+            "code": "ZONE-01",
+            "growthStage": "KIEN_THIET_CO_BAN",
+            "metrics": {
+              "humidity": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": null
+              },
+              "soilMoisture": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 65,
+                "unit": "%",
+                "value": null
+              },
+              "temperature": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": null
+              }
+            },
+            "name": "Khu A (Lô 1)",
+            "plantingDate": "2024-01-15",
+            "variety": "Ri6"
+          },
+          {
+            "alerts": {
+              "agentic": 1,
+              "hard": 2
+            },
+            "code": "ZONE-02",
+            "growthStage": "KIEN_THIET_CO_BAN",
+            "metrics": {
+              "humidity": {
+                "recordedAt": "2026-09-30T13:14:23.444106Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": 55
+              },
+              "soilMoisture": {
+                "recordedAt": "2026-09-30T13:14:24.971343Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 65,
+                "unit": "%",
+                "value": 100
+              },
+              "temperature": {
+                "recordedAt": "2026-09-30T13:14:22.114092Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": 29.9
+              }
+            },
+            "name": "Khu B",
+            "plantingDate": "2026-08-22",
+            "variety": "Monthong"
+          }
+        ]
+      },
+      "status": 200,
+      "url": "http://localhost:8386/api/overview?farmId=3"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "status": 404,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/TEMPERATURE/latest"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "status": 404,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/HUMIDITY/latest"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "status": 404,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/SOIL_MOISTURE/latest"
+    },
+    {
+      "bearerPresent": true,
+      "method": "PATCH",
+      "requestBody": {
+        "growthStage": "KIEN_THIET_CO_BAN"
+      },
+      "responseData": {
+        "growthStage": "KIEN_THIET_CO_BAN",
+        "id": 5,
+        "plantingDate": "2026-09-15",
+        "variety": "Monthong",
+        "zoneCode": "UI-I2-20261003",
+        "zoneId": 6
+      },
+      "status": 200,
+      "url": "http://localhost:8386/api/trees/5/growth-stage"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": {
+        "farmName": "Vườn sầu riêng A",
+        "generatedAt": "2026-10-03T12:09:02.103246500Z",
+        "latestInsight": {
+          "createdAt": "2026-10-03T06:30:55.109766Z",
+          "message": "[modelUsed=gemini/gemini-3.1-flash-lite] Dữ liệu cảm biến mới nhất tại ZONE-02 cho thấy độ ẩm đất là 100.0%, vượt xa ngưỡng mục tiêu 65-80% cho giai đoạn kiến thiết cơ bản. Hệ thống đã có cảnh báo HARD (SOIL_TOO_WET) từ ngày 29/09/2026. Với dự báo có mưa trong 48 giờ tới (tổng lượng mưa dự kiến 24.8mm), tình trạng úng nước có nguy cơ kéo dài. Do cảnh báo cũ vẫn chưa được giải quyết và điều kiện thời tiết không thuận lợi, cần một cảnh báo mới để nhắc nhở kiểm tra hệ thống thoát nước khẩn cấp.",
+          "zoneCode": "ZONE-02"
+        },
+        "totalUnresolvedAlerts": 4,
+        "weather": {
+          "expectedRainMm48h": 30.4,
+          "fetchedAt": "2026-10-03T12:08:10.359233200Z",
+          "humidity": 99,
+          "precipitationProbabilityToday": 100,
+          "source": "Open-Meteo",
+          "temperature": 26,
+          "weatherCode": 3
+        },
+        "zones": [
+          {
+            "alerts": {
+              "agentic": 0,
+              "hard": 0
+            },
+            "code": "UI-I2-20261003",
+            "growthStage": "KIEN_THIET_CO_BAN",
+            "metrics": {
+              "humidity": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": null
+              },
+              "soilMoisture": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 65,
+                "unit": "%",
+                "value": null
+              },
+              "temperature": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": null
+              }
+            },
+            "name": "Khu kiểm thử I-2",
+            "plantingDate": "2026-09-15",
+            "variety": "Monthong"
+          },
+          {
+            "alerts": {
+              "agentic": 1,
+              "hard": 0
+            },
+            "code": "ZONE-01",
+            "growthStage": "KIEN_THIET_CO_BAN",
+            "metrics": {
+              "humidity": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": null
+              },
+              "soilMoisture": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 65,
+                "unit": "%",
+                "value": null
+              },
+              "temperature": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": null
+              }
+            },
+            "name": "Khu A (Lô 1)",
+            "plantingDate": "2024-01-15",
+            "variety": "Ri6"
+          },
+          {
+            "alerts": {
+              "agentic": 1,
+              "hard": 2
+            },
+            "code": "ZONE-02",
+            "growthStage": "KIEN_THIET_CO_BAN",
+            "metrics": {
+              "humidity": {
+                "recordedAt": "2026-09-30T13:14:23.444106Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": 55
+              },
+              "soilMoisture": {
+                "recordedAt": "2026-09-30T13:14:24.971343Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 65,
+                "unit": "%",
+                "value": 100
+              },
+              "temperature": {
+                "recordedAt": "2026-09-30T13:14:22.114092Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": 29.9
+              }
+            },
+            "name": "Khu B",
+            "plantingDate": "2026-08-22",
+            "variety": "Monthong"
+          }
+        ]
+      },
+      "status": 200,
+      "url": "http://localhost:8386/api/overview?farmId=3"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [
+        {
+          "area": null,
+          "code": "zoneA",
+          "farmId": 1,
+          "farmName": "Vuon nha",
+          "growthStage": "PHAT_TRIEN_TRAI",
+          "id": 1,
+          "name": "Khu A",
+          "representativeTreeId": 1,
+          "soilType": null
+        },
+        {
+          "area": 6500000,
+          "code": "ZONE-02",
+          "farmId": 3,
+          "farmName": "Vườn sầu riêng A",
+          "growthStage": "KIEN_THIET_CO_BAN",
+          "id": 3,
+          "name": "Khu B",
+          "representativeTreeId": 3,
+          "soilType": "Đất ẩm"
+        },
+        {
+          "area": 500,
+          "code": "ZONE-01",
+          "farmId": 3,
+          "farmName": "Vườn sầu riêng A",
+          "growthStage": "KIEN_THIET_CO_BAN",
+          "id": 2,
+          "name": "Khu A (Lô 1)",
+          "representativeTreeId": 2,
+          "soilType": "Đất phù sa"
+        },
+        {
+          "area": 100,
+          "code": "UI-I2-20261003",
+          "farmId": 3,
+          "farmName": "Vườn sầu riêng A",
+          "growthStage": "KIEN_THIET_CO_BAN",
+          "id": 6,
+          "name": "Khu kiểm thử I-2",
+          "representativeTreeId": 5,
+          "soilType": "Đất phù sa"
+        }
+      ],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/TEMPERATURE/readings?from=2026-10-02T12:08:08.812Z&to=2026-10-03T12:08:08.812Z"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/HUMIDITY/readings?from=2026-10-02T12:08:08.812Z&to=2026-10-03T12:08:08.812Z"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": [],
+      "status": 200,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/SOIL_MOISTURE/readings?from=2026-10-02T12:08:08.812Z&to=2026-10-03T12:08:08.812Z"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "status": 404,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/TEMPERATURE/latest"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "status": 404,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/HUMIDITY/latest"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "status": 404,
+      "url": "http://localhost:8386/api/zones/UI-I2-20261003/sensors/SOIL_MOISTURE/latest"
+    },
+    {
+      "bearerPresent": true,
+      "method": "GET",
+      "responseData": {
+        "farmName": "Vườn sầu riêng A",
+        "generatedAt": "2026-10-03T12:09:09.089944100Z",
+        "latestInsight": {
+          "createdAt": "2026-10-03T06:30:55.109766Z",
+          "message": "[modelUsed=gemini/gemini-3.1-flash-lite] Dữ liệu cảm biến mới nhất tại ZONE-02 cho thấy độ ẩm đất là 100.0%, vượt xa ngưỡng mục tiêu 65-80% cho giai đoạn kiến thiết cơ bản. Hệ thống đã có cảnh báo HARD (SOIL_TOO_WET) từ ngày 29/09/2026. Với dự báo có mưa trong 48 giờ tới (tổng lượng mưa dự kiến 24.8mm), tình trạng úng nước có nguy cơ kéo dài. Do cảnh báo cũ vẫn chưa được giải quyết và điều kiện thời tiết không thuận lợi, cần một cảnh báo mới để nhắc nhở kiểm tra hệ thống thoát nước khẩn cấp.",
+          "zoneCode": "ZONE-02"
+        },
+        "totalUnresolvedAlerts": 4,
+        "weather": {
+          "expectedRainMm48h": 30.4,
+          "fetchedAt": "2026-10-03T12:08:10.359233200Z",
+          "humidity": 99,
+          "precipitationProbabilityToday": 100,
+          "source": "Open-Meteo",
+          "temperature": 26,
+          "weatherCode": 3
+        },
+        "zones": [
+          {
+            "alerts": {
+              "agentic": 0,
+              "hard": 0
+            },
+            "code": "UI-I2-20261003",
+            "growthStage": "KIEN_THIET_CO_BAN",
+            "metrics": {
+              "humidity": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": null
+              },
+              "soilMoisture": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 65,
+                "unit": "%",
+                "value": null
+              },
+              "temperature": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": null
+              }
+            },
+            "name": "Khu kiểm thử I-2",
+            "plantingDate": "2026-09-15",
+            "variety": "Monthong"
+          },
+          {
+            "alerts": {
+              "agentic": 1,
+              "hard": 0
+            },
+            "code": "ZONE-01",
+            "growthStage": "KIEN_THIET_CO_BAN",
+            "metrics": {
+              "humidity": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": null
+              },
+              "soilMoisture": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 65,
+                "unit": "%",
+                "value": null
+              },
+              "temperature": {
+                "recordedAt": null,
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": null
+              }
+            },
+            "name": "Khu A (Lô 1)",
+            "plantingDate": "2024-01-15",
+            "variety": "Ri6"
+          },
+          {
+            "alerts": {
+              "agentic": 1,
+              "hard": 2
+            },
+            "code": "ZONE-02",
+            "growthStage": "KIEN_THIET_CO_BAN",
+            "metrics": {
+              "humidity": {
+                "recordedAt": "2026-09-30T13:14:23.444106Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 85,
+                "targetMin": 75,
+                "unit": "%",
+                "value": 55
+              },
+              "soilMoisture": {
+                "recordedAt": "2026-09-30T13:14:24.971343Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 80,
+                "targetMin": 65,
+                "unit": "%",
+                "value": 100
+              },
+              "temperature": {
+                "recordedAt": "2026-09-30T13:14:22.114092Z",
+                "status": "NO_SIGNAL",
+                "targetMax": 30,
+                "targetMin": 24,
+                "unit": "C",
+                "value": 29.9
+              }
+            },
+            "name": "Khu B",
+            "plantingDate": "2026-08-22",
+            "variety": "Monthong"
+          }
+        ]
+      },
+      "status": 200,
+      "url": "http://localhost:8386/api/overview?farmId=3"
+    }
+  ]
+}

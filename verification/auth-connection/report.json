@@ -1,0 +1,21 @@
+{
+  "backend": "http://localhost:8386/api",
+  "responses": [
+    {
+      "url": "http://localhost:8386/api/auth/csrf",
+      "status": 200
+    },
+    {
+      "url": "http://localhost:8386/api/auth/refresh",
+      "status": 200
+    },
+    {
+      "url": "http://localhost:8386/api/auth/refresh",
+      "status": 401
+    }
+  ],
+  "failures": [],
+  "pageErrors": [],
+  "loginRendered": true,
+  "languageSwitchWorks": true
+}

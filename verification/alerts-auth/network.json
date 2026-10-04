@@ -1,0 +1,14 @@
+[
+  {
+    "method": "GET",
+    "url": "http://localhost:6767/api/alerts?resolved=false",
+    "authorization": "Bearer [redacted]",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "url": "http://localhost:6767/api/alerts?resolved=false",
+    "authorization": "Bearer [redacted]",
+    "status": 200
+  }
+]

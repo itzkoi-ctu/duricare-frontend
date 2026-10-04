@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import ts from 'typescript';
+const source = await readFile(new URL('../../src/utils/agentAnswer.ts', import.meta.url), 'utf8');
+const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } });
+const { parseAgentAnswer } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
+assert.deepEqual(parseAgentAnswer({ answer: '[modelUsed=gemini/gemini-3.1-flash-lite] \n**100%**' }), { answer: '**100%**', modelUsed: 'gemini/gemini-3.1-flash-lite' });
+assert.deepEqual(parseAgentAnswer({ answer: '[modelUsed=deepseek/deepseek-flash]\nAdvice', modelUsed: 'old' }), { answer: 'Advice', modelUsed: 'deepseek/deepseek-flash' });
+assert.deepEqual(parseAgentAnswer({ answer: 'Unprefixed advice', modelUsed: 'gemini/live' }), { answer: 'Unprefixed advice', modelUsed: 'gemini/live' });
+assert.deepEqual(parseAgentAnswer({ answer: 'No metadata' }), { answer: 'No metadata', modelUsed: undefined });
+assert.equal(parseAgentAnswer({ answer: 'Advice\n[modelUsed=mentioned later]' }).answer, 'Advice\n[modelUsed=mentioned later]');
+console.log('PASS: Gemini/DeepSeek prefixes, whitespace, explicit model field, plain answer, leading-only parsing.');

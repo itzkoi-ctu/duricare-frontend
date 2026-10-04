@@ -1,0 +1,23 @@
+{
+  "successfulLoginRedirect": "/",
+  "reloadRestoredUser": "auth-b1-admin-20261001@example.invalid",
+  "loginPromptAfterRestore": false,
+  "logoutFollowedByReload": "signed-out without error",
+  "storage": {
+    "user": "auth-b1-admin-20261001@example.invalid",
+    "accessTokenInMemory": true,
+    "hasStoredToken": false,
+    "localKeys": [
+      "theme_mode",
+      "theme"
+    ],
+    "sessionKeys": [],
+    "calls": {
+      "csrf": 1,
+      "refresh": 1,
+      "me": 1
+    },
+    "withCredentials": true
+  },
+  "twoTabRestore": "both authenticated; subsequent reload authenticated"
+}

@@ -1,0 +1,32 @@
+{
+  "charts": [
+    {
+      "bandFill": "var(--color-teal)",
+      "bandHeight": 126,
+      "bandOpacity": "0.18",
+      "bandWidth": 265,
+      "name": "Nhiệt độ không khí",
+      "svgWidth": 310
+    },
+    {
+      "bandFill": "var(--color-teal)",
+      "bandHeight": 25.074609756469727,
+      "bandOpacity": "0.18",
+      "bandWidth": 265,
+      "name": "Độ ẩm không khí",
+      "svgWidth": 310
+    },
+    {
+      "bandFill": "var(--color-teal)",
+      "bandHeight": 36.52167892456055,
+      "bandOpacity": "0.18",
+      "bandWidth": 265,
+      "name": "Độ ẩm đất",
+      "svgWidth": 310
+    }
+  ],
+  "clientWidth": 375,
+  "lang": "vi",
+  "metricText": "device_thermostatNhiệt độ24°CLý tưởngMục tiêu 24–30°Cwater_dropẨm KK77%Ổn địnhMục tiêu 75–85%water_dropẨm đất76%Đủ ẩm rễMục tiêu 70–80%",
+  "scrollWidth": 375
+}
