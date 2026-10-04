@@ -1,9 +1,11 @@
+import { t, getLocale } from '../i18n';
 import { useCallback, useEffect, useState } from 'react';
 import { getZones, getReadings, getLatestReading } from '../api/zones';
 import { getUnresolvedAlerts } from '../api/alerts';
-import type { Zone } from '../types/zone';
+import type { GrowthStage, Zone } from '../types/zone';
 import type { SensorReading, SensorType } from '../types/sensor';
 import type { Alert, AlertSource } from '../types/alert';
+import { getReadingRange } from '../utils/readingRange';
 
 /** A single point on the chart: timestamp + value */
 export interface ChartDataPoint {
@@ -41,13 +43,12 @@ interface UseZoneDetailReturn {
   setFrom: (v: string) => void;
   setTo: (v: string) => void;
   retry: () => void;
-}
-
-function formatDateForInput(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  applyGrowthStage: (stage: GrowthStage) => void;
 }
 
 function dateToInstant(dateStr: string, endOfDay = false): string {
+  // Segmented periods supply exact Instants; retain compatibility with date-only callers.
+  if (dateStr.includes('T')) return dateStr;
   if (endOfDay) {
     return `${dateStr}T23:59:59.999Z`;
   }
@@ -60,7 +61,7 @@ function toChartData(readings: SensorReading[]): ChartDataPoint[] {
       const d = new Date(r.recordAt);
       return {
         time: d.getTime(),
-        label: d.toLocaleString('vi-VN', {
+        label: d.toLocaleString(getLocale(), {
           day: '2-digit',
           month: '2-digit',
           hour: '2-digit',
@@ -81,11 +82,9 @@ function getDominantSource(alerts: Alert[]): AlertSource | null {
 const SENSOR_TYPES: SensorType[] = ['TEMPERATURE', 'HUMIDITY', 'SOIL_MOISTURE'];
 
 export default function useZoneDetail(zoneCode: string): UseZoneDetailReturn {
-  const now = new Date();
-  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-
-  const [from, setFrom] = useState(formatDateForInput(sixtyDaysAgo));
-  const [to, setTo] = useState(formatDateForInput(now));
+  const [initialRange] = useState(() => getReadingRange('LAST_24_HOURS'));
+  const [from, setFrom] = useState(initialRange.from);
+  const [to, setTo] = useState(initialRange.to);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchKey, setFetchKey] = useState(0);
@@ -103,6 +102,9 @@ export default function useZoneDetail(zoneCode: string): UseZoneDetailReturn {
   });
 
   const retry = useCallback(() => setFetchKey((k) => k + 1), []);
+  const applyGrowthStage = useCallback((growthStage: GrowthStage) => {
+    setData(previous => ({ ...previous, zone: previous.zone ? { ...previous.zone, growthStage } : null }));
+  }, []);
 
   // Fetch zone info + alerts + latest readings on mount
   useEffect(() => {
@@ -122,7 +124,7 @@ export default function useZoneDetail(zoneCode: string): UseZoneDetailReturn {
 
         const zone = zones.find((z) => z.code === zoneCode) ?? null;
         if (!zone) {
-          setError(`Không tìm thấy vùng canh tác với mã "${zoneCode}"`);
+          setError(t("Không tìm thấy vùng canh tác với mã \"{0}\"", [zoneCode]));
           setLoading(false);
           return;
         }
@@ -150,7 +152,7 @@ export default function useZoneDetail(zoneCode: string): UseZoneDetailReturn {
         setLoading(false);
       } catch (err: unknown) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Lỗi không xác định');
+        setError(err instanceof Error ? err.message : "Lỗi không xác định");
         setLoading(false);
       }
     }
@@ -180,7 +182,7 @@ export default function useZoneDetail(zoneCode: string): UseZoneDetailReturn {
             .then((readings) => ({ data: toChartData(readings), error: null }))
             .catch((err: unknown) => ({
               data: [] as ChartDataPoint[],
-              error: err instanceof Error ? err.message : 'Lỗi tải dữ liệu',
+              error: err instanceof Error ? err.message : "Lỗi tải dữ liệu",
             })),
         ),
       );
@@ -199,5 +201,5 @@ export default function useZoneDetail(zoneCode: string): UseZoneDetailReturn {
     return () => { cancelled = true; };
   }, [zoneCode, from, to, fetchKey]);
 
-  return { data, loading, error, from, to, setFrom, setTo, retry };
+  return { data, loading, error, from, to, setFrom, setTo, retry, applyGrowthStage };
 }

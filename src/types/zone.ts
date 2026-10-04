@@ -25,12 +25,31 @@ export const GROWTH_STAGE_LABELS: Record<GrowthStage, string> = {
  */
 export interface Zone {
   id: number;
+  farmId: number | null;
+  farmName: string | null;
+  code: string;
+  name: string | null;
+  area: number | null;
+  soilType: string | null;
+  representativeTreeId: number | null;
+  growthStage: GrowthStage | null;
+}
+
+export interface ZoneRequest {
   farmId: number;
-  farmName: string;
   code: string;
   name: string;
   area: number;
   soilType: string;
-  representativeTreeId: number | null;
-  growthStage: GrowthStage;
+  variety: string;
+  plantingDate: string | null;
+}
+
+export interface ZoneListEntry extends Zone {
+  variety: string | null;
+}
+
+export interface ZoneFormValues extends Omit<ZoneRequest, 'farmId' | 'plantingDate'> {
+  farmId: string;
+  plantingDate: string;
 }

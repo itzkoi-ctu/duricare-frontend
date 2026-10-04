@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getCareLogsByZoneCode } from '../api/careLogs';
-import type { CareLog } from '../types/careLog';
+import { createCareLog, getCareLogsByZoneCode } from '../api/careLogs';
+import type { CareLog, CareLogRequest } from '../types/careLog';
 
 interface UseCareLogsReturn {
   logs: CareLog[];
   loading: boolean;
   error: string | null;
   retry: () => void;
+  create: (request: CareLogRequest) => Promise<boolean>;
+  isSaving: boolean;
+  saveError: string | null;
+  clearSaveError: () => void;
 }
 
 export default function useCareLogs(zoneCode: string): UseCareLogsReturn {
@@ -14,8 +18,24 @@ export default function useCareLogs(zoneCode: string): UseCareLogsReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchKey, setFetchKey] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const retry = useCallback(() => setFetchKey((k) => k + 1), []);
+  const clearSaveError = useCallback(() => setSaveError(null), []);
+  const create = async (request: CareLogRequest): Promise<boolean> => {
+    if (isSaving) return false;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await createCareLog(request);
+      retry();
+      return true;
+    } catch {
+      setSaveError('Không thể lưu nhật ký. Vui lòng thử lại.');
+      return false;
+    } finally { setIsSaving(false); }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -39,7 +59,7 @@ export default function useCareLogs(zoneCode: string): UseCareLogsReturn {
         setLoading(false);
       } catch (err: unknown) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Lỗi tải nhật ký chăm sóc');
+        setError(err instanceof Error ? err.message : "Lỗi tải nhật ký chăm sóc");
         setLoading(false);
       }
     }
@@ -50,5 +70,5 @@ export default function useCareLogs(zoneCode: string): UseCareLogsReturn {
     };
   }, [zoneCode, fetchKey]);
 
-  return { logs, loading, error, retry };
+  return { logs, loading, error, retry, create, isSaving, saveError, clearSaveError };
 }

@@ -1,5 +1,11 @@
 import client from './client';
-import type { CareLog } from '../types/careLog';
+import type { CareLog, CareLogRequest } from '../types/careLog';
+
+/** POST /api/care-logs — zoneId is required, performedAt defaults on the server. */
+export async function createCareLog(request: CareLogRequest): Promise<CareLog> {
+  const response = await client.post<CareLog>('/care-logs', request);
+  return response.data;
+}
 
 /** GET /api/care-logs — returns all care logs */
 export async function getCareLogs(): Promise<CareLog[]> {
