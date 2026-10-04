@@ -16,3 +16,9 @@ export async function getAlerts(resolved = false): Promise<Alert[]> {
   });
   return response.data;
 }
+
+/** PATCH /api/alerts/{id}/resolve */
+export async function resolveAlert(id: number): Promise<Alert> {
+  const response = await client.patch<Alert>(`/alerts/${id}/resolve`);
+  return response.data;
+}

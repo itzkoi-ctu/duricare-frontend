@@ -1,244 +1,102 @@
-import { Link } from 'react-router-dom';
+import { useLanguage } from '../i18n/useLanguage';
+import { t } from '../i18n';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useForm, useWatch } from 'react-hook-form';
 import useAlerts from '../hooks/useAlerts';
-import type { FilterSource } from '../hooks/useAlerts';
-import { formatRelativeTime } from '../utils/formatTime';
-import LoadingState from '../components/LoadingState';
+import { useOverviewContext } from '../context/OverviewContext';
+import AlertCard from '../components/AlertCard';
+import AlertsSkeleton from '../components/AlertsSkeleton';
 import ErrorState from '../components/ErrorState';
 import type { AlertSource } from '../types/alert';
 
-function SourceBadge({ source }: { source: AlertSource }) {
-  if (source === 'HARD') {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold
-                       bg-coral/10 text-coral border border-coral/20">
-        🛡️ HARD
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold
-                     bg-amber/10 text-amber border border-amber/20">
-      🤖 AGENTIC
-    </span>
-  );
-}
-
-function SeverityBadge({ severity }: { severity: string }) {
-  const sev = severity.toUpperCase();
-  if (sev === 'CRITICAL' || sev === 'DANGER') {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
-        🔴 {severity}
-      </span>
-    );
-  }
-  if (sev === 'WARNING') {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber/10 text-amber border border-amber/20">
-        ⚠️ {severity}
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue/10 text-blue border border-blue/20">
-      ℹ️ {severity}
-    </span>
-  );
+interface AlertFilters {
+  zone: string;
+  source: 'ALL' | AlertSource;
 }
 
 export default function AlertsPage() {
-  const {
-    filteredAlerts,
-    loading,
-    error,
-    filterSource,
-    setFilterSource,
-    searchQuery,
-    setSearchQuery,
-    counts,
-    retry,
-  } = useAlerts();
+  useLanguage();
+  const { alerts, loading, refreshing, error, resolveError, dismissResolveError, pendingIds, refresh, resolve } = useAlerts();
+  const overview = useOverviewContext();
+  const [params, setParams] = useSearchParams();
+  const zoneFilter = params.get('zone') || '';
+  const { register, control, resetField } = useForm<AlertFilters>({ defaultValues: { zone: zoneFilter, source: 'ALL' } });
+  const sourceFilter = useWatch({ control, name: 'source' });
+  const [resolvedId, setResolvedId] = useState<number | null>(null);
 
-  if (loading) {
-    return <LoadingState />;
-  }
+  const zoneNames = useMemo(() => new Map(overview.data?.zones.map(zone => [zone.code, zone.name]) ?? []), [overview.data]);
+  const zoneCodes = useMemo(() => [...new Set(alerts.map(alert => alert.zoneCode))].sort(), [alerts]);
+  const filtered = useMemo(() => alerts.filter(alert => (!zoneFilter || alert.zoneCode === zoneFilter) && (sourceFilter === 'ALL' || alert.source === sourceFilter)), [alerts, zoneFilter, sourceFilter]);
 
-  if (error) {
-    return <ErrorState message={error} onRetry={retry} />;
-  }
+  const changeZone = (zone: string) => {
+    setParams(previous => {
+      const next = new URLSearchParams(previous);
+      if (zone) next.set('zone', zone);
+      else next.delete('zone');
+      return next;
+    });
+  };
+  const handleResolve = async (id: number) => {
+    setResolvedId(null);
+    if (await resolve(id)) {
+      setResolvedId(id);
+      void overview.refresh();
+    }
+  };
+
+  if (loading) return <AlertsSkeleton />;
+  if (error && alerts.length === 0) return <ErrorState message={error} onRetry={() => { void refresh(); }} />;
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text">Danh sách Cảnh báo</h1>
-          <p className="text-sm text-gray mt-1">
-            Tổng hợp các cảnh báo chưa xử lý trong toàn bộ hệ thống
-          </p>
+          <h1 className="flex items-center gap-3 text-2xl md:text-3xl font-bold text-text">{t("Cảnh báo")} <span data-total-alerts className="rounded-full bg-coral/10 text-coral px-3 py-1 text-base">{alerts.length}</span></h1>
+          <p className="mt-1 text-sm text-gray">{t("Theo dõi và xử lý cảnh báo tại các vùng canh tác.")}</p>
         </div>
-
-        {/* Counter Summary Pills */}
-        <div className="flex items-center gap-2 flex-wrap text-xs font-medium">
-          <span className="px-3 py-1.5 rounded-xl bg-surface border border-border text-text">
-            Tất cả: <strong className="font-bold text-navy ml-1">{counts.total}</strong>
-          </span>
-          <span className="px-3 py-1.5 rounded-xl bg-surface border border-coral/30 text-coral">
-            🛡️ HARD: <strong className="font-bold ml-1">{counts.hard}</strong>
-          </span>
-          <span className="px-3 py-1.5 rounded-xl bg-surface border border-amber/30 text-amber">
-            🤖 AGENTIC: <strong className="font-bold ml-1">{counts.agentic}</strong>
-          </span>
-        </div>
+        <button onClick={() => { void refresh(); }} disabled={refreshing} className="px-3 py-2 rounded-xl border border-border bg-surface text-text text-xs font-semibold cursor-pointer disabled:opacity-50">{refreshing ? t("Đang cập nhật…") : t("Làm mới")}</button>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-surface border border-border rounded-2xl">
-        {/* Source Dropdown Filter */}
-        <div className="flex items-center gap-2">
-          <label htmlFor="source-filter" className="text-xs font-medium text-gray whitespace-nowrap">
-            Nguồn cảnh báo:
-          </label>
-          <select
-            id="source-filter"
-            value={filterSource}
-            onChange={(e) => setFilterSource(e.target.value as FilterSource)}
-            className="px-3 py-1.5 text-sm rounded-xl border border-border bg-bg text-text focus:outline-none focus:ring-2 focus:ring-navy/30 cursor-pointer"
-          >
-            <option value="ALL">Tất cả ({counts.total})</option>
-            <option value="HARD">Chỉ HARD ({counts.hard})</option>
-            <option value="AGENTIC">Chỉ AGENTIC ({counts.agentic})</option>
+      {error && <div role="alert" className="rounded-xl border border-coral/30 bg-coral/10 text-coral p-3 text-sm">{t("Không thể cập nhật cảnh báo.")} <button onClick={() => { void refresh(); }} className="underline cursor-pointer">{t("Thử lại")}</button></div>}
+      {resolveError && <div role="alert" data-resolve-error className="fixed z-50 inset-x-4 top-[calc(4rem+env(safe-area-inset-top))] lg:left-auto lg:w-96 rounded-xl border border-coral/40 bg-surface text-text p-4 shadow-lg flex items-start gap-3"><span className="text-sm flex-1">{resolveError}</span><button aria-label={t("Đóng thông báo lỗi")} onClick={dismissResolveError} className="text-coral cursor-pointer">✕</button></div>}
+      <div aria-live="polite" className="text-xs text-teal">
+        {pendingIds.length > 0 ? t("Đang lưu trạng thái xử lý…") : resolvedId !== null ? t("Đã xử lý cảnh báo #{0}.", [resolvedId]) : null}
+      </div>
+
+      <form onSubmit={event => event.preventDefault()} className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl border border-border bg-surface">
+        <div>
+          <label htmlFor="zone-filter" className="block text-xs font-semibold text-gray mb-1.5">{t("Vùng canh tác")}</label>
+          <select id="zone-filter" {...register('zone', { onChange: event => changeZone(event.target.value) })} value={zoneFilter} className="w-full min-w-0 px-3 py-2.5 rounded-xl border border-border bg-bg text-text text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy/30">
+            <option value="">{t("Tất cả vùng")}</option>
+            {zoneFilter && !zoneCodes.includes(zoneFilter) && <option value={zoneFilter}>{zoneNames.get(zoneFilter) ?? zoneFilter}</option>}
+            {zoneCodes.map(code => <option key={code} value={code}>{zoneNames.get(code) ?? code} ({code})</option>)}
           </select>
         </div>
-
-        {/* Search input */}
-        <div className="relative flex-1 sm:max-w-xs">
-          <input
-            type="text"
-            placeholder="Tìm theo vùng, mã, nội dung..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-sm rounded-xl border border-border bg-bg text-text focus:outline-none focus:ring-2 focus:ring-navy/30"
-          />
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray text-xs">
-            🔍
-          </span>
+        <div>
+          <label htmlFor="source-filter" className="block text-xs font-semibold text-gray mb-1.5">{t("Nguồn cảnh báo")}</label>
+          <select id="source-filter" {...register('source')} className="w-full min-w-0 px-3 py-2.5 rounded-xl border border-border bg-bg text-text text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy/30">
+            <option value="ALL">{t("Tất cả")}</option>
+            <option value="HARD">{t("Cảnh báo cứng")}</option>
+            <option value="AGENTIC">{t("Cảnh báo AI")}</option>
+          </select>
         </div>
-      </div>
+      </form>
 
-      {/* Alerts Table / List */}
-      {filteredAlerts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 bg-surface border border-border rounded-2xl text-center">
-          <div className="text-4xl mb-3">✅</div>
-          <h3 className="text-base font-semibold text-text mb-1">
-            Không tìm thấy cảnh báo phù hợp
-          </h3>
-          <p className="text-xs text-gray">
-            {searchQuery || filterSource !== 'ALL'
-              ? 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm'
-              : 'Hiện không có cảnh báo nào chưa được xử lý'}
-          </p>
+      {filtered.length === 0 ? (
+        <div data-empty-state className="rounded-2xl border border-border bg-surface p-8 text-center">
+          <span className={`material-symbols-outlined text-[36px] ${alerts.length === 0 ? 'text-teal' : 'text-gray'}`} aria-hidden="true">{alerts.length === 0 ? 'check_circle' : 'filter_alt_off'}</span>
+          <h2 className="mt-3 font-semibold text-text">{alerts.length === 0 ? t("Chưa có cảnh báo nào") : t("Không có cảnh báo khớp bộ lọc")}</h2>
+          <p className="mt-2 text-sm text-gray">{alerts.length === 0 ? t("Không có cảnh báo chưa xử lý. Hệ thống sẽ tiếp tục theo dõi các vùng canh tác.") : t("Thử chọn vùng khác hoặc thay đổi nguồn cảnh báo.")}</p>
+          {alerts.length > 0 && <button onClick={() => { changeZone(''); resetField('source'); }} className="mt-4 text-sm font-semibold text-navy underline cursor-pointer">{t("Xóa bộ lọc")}</button>}
         </div>
       ) : (
-        <div className="space-y-3">
-          {/* Mobile Card View (< md) */}
-          <div className="block md:hidden space-y-3">
-            {filteredAlerts.map((alert) => (
-              <div
-                key={alert.id}
-                className="bg-surface border border-border rounded-2xl p-4 flex flex-col gap-2.5 shadow-sm"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <Link
-                    to={`/zones/${alert.zoneCode}`}
-                    className="inline-flex items-center gap-1 text-sm font-semibold text-navy hover:underline"
-                  >
-                    📍 {alert.zoneCode}
-                  </Link>
-                  <SourceBadge source={alert.source} />
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-mono font-medium text-text">
-                    {alert.type}
-                  </span>
-                  <SeverityBadge severity={alert.severity} />
-                  <span className="text-xs text-gray ml-auto">
-                    ⏱️ {formatRelativeTime(alert.createdAt)}
-                  </span>
-                </div>
-
-                <p className="text-xs text-text leading-relaxed mt-1">
-                  {alert.message}
-                </p>
-              </div>
-            ))}
+        <>
+          <p className="text-xs text-gray">{t("Hiển thị")} {filtered.length}/{alerts.length} {t("cảnh báo · Mới nhất trước")}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filtered.map(alert => <AlertCard key={alert.id} alert={alert} zoneName={zoneNames.get(alert.zoneCode) ?? alert.zoneCode} onResolve={id => { void handleResolve(id); }} />)}
           </div>
-
-          {/* Desktop Table View (>= md) */}
-          <div className="hidden md:block bg-surface border border-border rounded-2xl overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-bg/60 border-b border-border text-xs font-semibold text-gray uppercase tracking-wider">
-                  <tr>
-                    <th scope="col" className="px-4 py-3">Vùng</th>
-                    <th scope="col" className="px-4 py-3">Nguồn</th>
-                    <th scope="col" className="px-4 py-3">Loại / Mức độ</th>
-                    <th scope="col" className="px-4 py-3">Nội dung thông báo</th>
-                    <th scope="col" className="px-4 py-3 text-right">Thời gian</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {filteredAlerts.map((alert) => (
-                    <tr
-                      key={alert.id}
-                      className="hover:bg-border/30 transition-colors"
-                    >
-                      {/* Zone Code */}
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <Link
-                          to={`/zones/${alert.zoneCode}`}
-                          className="inline-flex items-center gap-1 text-sm font-semibold text-navy hover:underline"
-                        >
-                          📍 {alert.zoneCode}
-                        </Link>
-                      </td>
-
-                      {/* Source Badge */}
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <SourceBadge source={alert.source} />
-                      </td>
-
-                      {/* Type & Severity */}
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <div className="flex flex-col gap-1 items-start">
-                          <span className="text-xs font-medium text-text font-mono">
-                            {alert.type}
-                          </span>
-                          <SeverityBadge severity={alert.severity} />
-                        </div>
-                      </td>
-
-                      {/* Message */}
-                      <td className="px-4 py-3.5">
-                        <p className="text-xs sm:text-sm text-text leading-relaxed max-w-2xl">
-                          {alert.message}
-                        </p>
-                      </td>
-
-                      {/* Relative Time */}
-                      <td className="px-4 py-3.5 whitespace-nowrap text-right text-xs text-gray font-medium">
-                        <span title={new Date(alert.createdAt).toLocaleString('vi-VN')}>
-                          ⏱️ {formatRelativeTime(alert.createdAt)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

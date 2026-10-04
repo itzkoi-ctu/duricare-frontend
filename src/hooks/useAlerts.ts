@@ -1,109 +1,100 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getUnresolvedAlerts } from '../api/alerts';
-import type { Alert, AlertSource } from '../types/alert';
+import { t } from '../i18n';
+import { useLanguage } from '../i18n/useLanguage';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getUnresolvedAlerts, resolveAlert } from '../api/alerts';
+import type { Alert } from '../types/alert';
 
-export type FilterSource = 'ALL' | AlertSource;
+const newestFirst = (alerts: Alert[]) => [...alerts].sort((a, b) =>
+  Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.id - a.id);
 
-interface UseAlertsReturn {
-  alerts: Alert[];
-  filteredAlerts: Alert[];
-  loading: boolean;
-  error: string | null;
-  filterSource: FilterSource;
-  setFilterSource: (source: FilterSource) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  counts: {
-    total: number;
-    hard: number;
-    agentic: number;
-  };
-  retry: () => void;
-}
-
-export default function useAlerts(): UseAlertsReturn {
+export default function useAlerts() {
+  useLanguage();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filterSource, setFilterSource] = useState<FilterSource>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [fetchKey, setFetchKey] = useState(0);
+  const [resolveError, setResolveError] = useState<number | null>(null);
+  const [pendingIds, setPendingIds] = useState<number[]>([]);
+  const alertsRef = useRef<Alert[]>([]);
+  const pending = useRef(new Set<number>());
+  const hidden = useRef(new Set<number>());
+  const revision = useRef(0);
+  const loaded = useRef(false);
+  const mounted = useRef(false);
 
-  const retry = useCallback(() => setFetchKey((k) => k + 1), []);
+  const updateAlerts = useCallback((next: Alert[]) => {
+    alertsRef.current = next;
+    setAlerts(next);
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const request = ++revision.current;
+    if (!loaded.current) setLoading(true);
+    setRefreshing(true);
+    setError(null);
+    try {
+      const data = await getUnresolvedAlerts();
+      // A fetch started before a resolve must not put the removed row back.
+      if (!mounted.current || request !== revision.current) return;
+      for (const id of hidden.current) {
+        if (!pending.current.has(id) && !data.some(alert => alert.id === id)) hidden.current.delete(id);
+      }
+      updateAlerts(newestFirst(data.filter(alert => !hidden.current.has(alert.id))));
+      loaded.current = true;
+    } catch (err: unknown) {
+      if (mounted.current && request === revision.current) {
+        setError(err instanceof Error ? err.message : "Không thể tải cảnh báo");
+      }
+    } finally {
+      if (mounted.current && request === revision.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }, [updateAlerts]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchAlerts() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const data = await getUnresolvedAlerts();
-        if (cancelled) return;
-
-        // Sort newest first
-        const sorted = [...data].sort((a, b) => {
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-
-        setAlerts(sorted);
-        setLoading(false);
-      } catch (err: unknown) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Lỗi tải danh sách cảnh báo');
-        setLoading(false);
-      }
-    }
-
-    fetchAlerts();
+    mounted.current = true;
+    void refresh();
+    const interval = window.setInterval(() => { void refresh(); }, 60000);
     return () => {
-      cancelled = true;
+      mounted.current = false;
+      revision.current++;
+      window.clearInterval(interval);
     };
-  }, [fetchKey]);
+  }, [refresh]);
 
-  const counts = useMemo(() => {
-    let hard = 0;
-    let agentic = 0;
-    for (const a of alerts) {
-      if (a.source === 'HARD') hard++;
-      else if (a.source === 'AGENTIC') agentic++;
-    }
-    return {
-      total: alerts.length,
-      hard,
-      agentic,
-    };
-  }, [alerts]);
+  useEffect(() => {
+    if (resolveError === null) return;
+    const timeout = window.setTimeout(() => setResolveError(null), 8000);
+    return () => window.clearTimeout(timeout);
+  }, [resolveError]);
 
-  const filteredAlerts = useMemo(() => {
-    return alerts.filter((item) => {
-      // Source filter
-      if (filterSource !== 'ALL' && item.source !== filterSource) {
-        return false;
-      }
-      // Search query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchZone = item.zoneCode.toLowerCase().includes(q);
-        const matchMsg = item.message.toLowerCase().includes(q);
-        const matchType = item.type.toLowerCase().includes(q);
-        return matchZone || matchMsg || matchType;
-      }
+  const resolve = useCallback(async (id: number): Promise<boolean> => {
+    const original = alertsRef.current.find(alert => alert.id === id);
+    if (!original || pending.current.has(id)) return false;
+    pending.current.add(id);
+    hidden.current.add(id);
+    revision.current++;
+    setRefreshing(false);
+    setPendingIds([...pending.current]);
+    setResolveError(null);
+    updateAlerts(alertsRef.current.filter(alert => alert.id !== id));
+    try {
+      await resolveAlert(id);
       return true;
-    });
-  }, [alerts, filterSource, searchQuery]);
+    } catch {
+      hidden.current.delete(id);
+      if (mounted.current) {
+        updateAlerts(newestFirst([...alertsRef.current.filter(alert => alert.id !== id), original]));
+        setResolveError(id);
+      }
+      return false;
+    } finally {
+      pending.current.delete(id);
+      if (mounted.current) setPendingIds([...pending.current]);
+    }
+  }, [updateAlerts]);
 
-  return {
-    alerts,
-    filteredAlerts,
-    loading,
-    error,
-    filterSource,
-    setFilterSource,
-    searchQuery,
-    setSearchQuery,
-    counts,
-    retry,
-  };
+  return { alerts, loading, refreshing, error, resolveError: resolveError === null ? null : t('Không thể xử lý cảnh báo #{0}. Cảnh báo đã được khôi phục; vui lòng thử lại.', [resolveError]), dismissResolveError: () => setResolveError(null), pendingIds, refresh, resolve };
 }
