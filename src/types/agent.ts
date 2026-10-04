@@ -1,10 +1,11 @@
 export interface ChatMessage {
   id: string;
-  sender: 'user' | 'agent';
+  role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
-  status?: 'sending' | 'sent' | 'error';
-  errorMessage?: string;
+  createdAt: Date;
+  modelUsed?: string;
+  isError?: boolean;
+  retryQuestion?: string;
 }
 
 export interface AgentAskRequest {
@@ -13,4 +14,7 @@ export interface AgentAskRequest {
 
 export interface AgentAskResponse {
   answer: string;
+  modelUsed?: string;
 }
+
+export interface ChatFormValues { question: string }
