@@ -5,6 +5,7 @@ import { Route, Routes } from 'react-router-dom';
 import Shell from '../components/layout/Shell';
 import { OverviewProvider } from '../context/OverviewContext';
 import RequireAuth from '../components/auth/RequireAuth';
+import RequireRole from '../components/auth/RequireRole';
 import LoginRoute from '../components/auth/LoginRoute';
 import AuthorizationNotice from '../components/auth/AuthorizationNotice';
 
@@ -14,6 +15,9 @@ const AlertsPage = lazy(() => import('../pages/AlertsPage'));
 const AgentPage = lazy(() => import('../pages/AgentPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 const LoginPage = lazy(() => import('../pages/LoginPage'));
+const FarmSettingsPage = lazy(() => import('../pages/FarmSettingsPage'));
+const ZoneManagementPage = lazy(() => import('../pages/ZoneManagementPage'));
+const ZoneEditorPage = lazy(() => import('../pages/ZoneEditorPage'));
 
 function LoadingFallback() {
   useLanguage();
@@ -40,6 +44,12 @@ export default function AppRoutes() {
             <Route path="/zones/:zoneCode" element={<ZoneDetailPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/agent" element={<AgentPage />} />
+            <Route element={<RequireRole roles={['ADMIN']} />}>
+              <Route path="/settings/farm" element={<FarmSettingsPage />} />
+              <Route path="/settings/zones" element={<ZoneManagementPage />} />
+              <Route path="/settings/zones/new" element={<ZoneEditorPage />} />
+              <Route path="/settings/zones/:code/edit" element={<ZoneEditorPage />} />
+            </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>

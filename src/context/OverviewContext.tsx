@@ -1,9 +1,11 @@
+import { useLanguage } from '../i18n/useLanguage';
 import { createContext, useContext, type ReactNode } from 'react';
 import useOverview, { type UseOverviewReturn } from '../hooks/useOverview';
 
 const OverviewContext = createContext<UseOverviewReturn | null>(null);
 
 export function OverviewProvider({ children }: { children: ReactNode }) {
+  useLanguage();
   const overviewState = useOverview();
   return (
     <OverviewContext.Provider value={overviewState}>
