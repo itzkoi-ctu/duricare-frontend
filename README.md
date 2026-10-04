@@ -1,5 +1,13 @@
 # React + TypeScript + Vite
 
+## DuriCare local development
+
+The checked-in `.env.development` targets the Oracle backend at `https://duricare.koictu.id.vn/api`. To use a backend on your own machine, start it first and set `VITE_API_BASE_URL` to its actual host and `SERVER_PORT`, including the `/api` suffix (for example `http://localhost:8386/api`).
+
+Run `npm run dev`. After changing the environment file, restart Vite if it has not restarted automatically. The backend must allow the frontend origin through `CORS_ALLOWED_ORIGINS` (normally `http://localhost:5173`).
+
+To check the connection, append `/auth/csrf` to the configured API base URL (currently `https://duricare.koictu.id.vn/api/auth/csrf`): it should return JSON containing a token. `ERR_CONNECTION_REFUSED` means the configured host/port is not accepting connections; check the backend process and port. The session screen offers retry after connectivity is restored.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:
