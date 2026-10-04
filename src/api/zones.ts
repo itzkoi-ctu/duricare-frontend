@@ -1,11 +1,27 @@
 import client from './client';
-import type { Zone } from '../types/zone';
-import type { SensorReading, SensorType } from '../types/sensor';
+import type { Zone, ZoneRequest } from '../types/zone';
+import type { SensorMetadata, SensorReading, SensorType } from '../types/sensor';
 
 /** GET /api/zones — returns all zones */
 export async function getZones(): Promise<Zone[]> {
   const response = await client.get<Zone[]>('/zones');
   return response.data;
+}
+
+export async function getZoneByCode(code: string): Promise<Zone> {
+  return (await client.get<Zone>(`/zones/by-code/${encodeURIComponent(code)}`)).data;
+}
+
+export async function createZone(request: ZoneRequest): Promise<Zone> {
+  return (await client.post<Zone>('/zones', request)).data;
+}
+
+export async function updateZone(id: number, request: ZoneRequest): Promise<Zone> {
+  return (await client.put<Zone>(`/zones/${id}`, request)).data;
+}
+
+export async function getSensors(code: string): Promise<SensorMetadata[]> {
+  return (await client.get<SensorMetadata[]>(`/zones/${encodeURIComponent(code)}/sensors`)).data;
 }
 
 /**
@@ -40,4 +56,3 @@ export async function getReadings(
   );
   return response.data;
 }
-
