@@ -27,3 +27,8 @@ dist-ssr
 .agents/
 skills/
 *.skill
+
+
+.env
+.env.*
+!.env.example
