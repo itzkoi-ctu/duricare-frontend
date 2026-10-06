@@ -449,5 +449,6 @@
   "Không thể đổi giai đoạn. Vui lòng thử lại.": "Unable to change the stage. Please retry.",
   "Đã cập nhật giai đoạn sinh trưởng.": "Growth stage updated.",
   "Xác nhận": "Confirm",
-  "Huỷ": "Cancel"
+  "Huỷ": "Cancel",
+  "Câu hỏi vượt quá thời gian chờ. Vui lòng đợi một lúc rồi thử lại.": "The question exceeded the waiting time. Please wait a little before trying again."
 }

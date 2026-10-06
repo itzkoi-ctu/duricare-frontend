@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import axios from 'axios';
 import { askAgent } from '../api/agent';
 import type { ChatMessage } from '../types/agent';
 
 const ERROR_MESSAGE = 'Xin lỗi, không thể lấy câu trả lời lúc này. Vui lòng thử lại.';
+const TIMEOUT_MESSAGE = 'Câu hỏi vượt quá thời gian chờ. Vui lòng đợi một lúc rồi thử lại.';
 
 export default function useAgentChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -24,10 +26,12 @@ export default function useAgentChat() {
         id: crypto.randomUUID(), role: 'assistant', content: reply.answer,
         modelUsed: reply.modelUsed, createdAt: new Date(),
       }]);
-    } catch {
+    } catch (cause: unknown) {
       if (!controller.signal.aborted) {
-        setError(ERROR_MESSAGE);
-        setMessages(previous => [...previous, { id: crypto.randomUUID(), role: 'assistant', content: ERROR_MESSAGE,
+        const message = axios.isAxiosError(cause) && ['ECONNABORTED', 'ETIMEDOUT'].includes(cause.code ?? '')
+          ? TIMEOUT_MESSAGE : ERROR_MESSAGE;
+        setError(message);
+        setMessages(previous => [...previous, { id: crypto.randomUUID(), role: 'assistant', content: message,
           createdAt: new Date(), isError: true, retryQuestion: content }]);
       }
     } finally {
