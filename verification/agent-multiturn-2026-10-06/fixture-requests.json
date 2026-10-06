@@ -1,0 +1,105 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/agent/conversations",
+    "body": {},
+    "bearerAttached": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/agent/ask",
+    "body": {
+      "question": "TEST kiểm tra 429",
+      "zoneCode": "TEST-ZONE"
+    },
+    "bearerAttached": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/agent/ask",
+    "body": {
+      "question": "TEST kiểm tra 429",
+      "zoneCode": "TEST-ZONE"
+    },
+    "bearerAttached": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/agent/conversations",
+    "body": {},
+    "bearerAttached": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/agent/ask",
+    "body": {
+      "question": "TEST lượt thứ hai",
+      "conversationId": "c6934cfa-60a0-456b-83c1-db73bbbf2535",
+      "zoneCode": "TEST-ZONE"
+    },
+    "bearerAttached": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/agent/conversations",
+    "body": {},
+    "bearerAttached": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/agent/ask",
+    "body": {
+      "question": "TEST hội thoại mới",
+      "zoneCode": "TEST-ZONE"
+    },
+    "bearerAttached": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/agent/conversations",
+    "body": {},
+    "bearerAttached": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/agent/conversations/c6934cfa-60a0-456b-83c1-db73bbbf2535/messages",
+    "body": {},
+    "bearerAttached": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/agent/conversations/c6934cfa-60a0-456b-83c1-db73bbbf2535",
+    "body": {},
+    "bearerAttached": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/agent/conversations/c6934cfa-60a0-456b-83c1-db73bbbf2535",
+    "body": {},
+    "bearerAttached": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/agent/conversations/a09302c5-cc11-497a-9879-eeda9a9f0722/messages",
+    "body": {},
+    "bearerAttached": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/agent/conversations/a09302c5-cc11-497a-9879-eeda9a9f0722/messages",
+    "body": {},
+    "bearerAttached": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/agent/conversations",
+    "body": {},
+    "bearerAttached": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/agent/conversations",
+    "body": {},
+    "bearerAttached": true
+  }
+]

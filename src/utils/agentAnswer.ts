@@ -2,7 +2,7 @@ import type { AgentAskResponse } from '../types/agent';
 
 export function parseAgentAnswer(response: AgentAskResponse): AgentAskResponse {
   const prefix = response.answer.match(/^\[modelUsed=([^\]]+)\]\s*/);
-  return { answer: prefix ? response.answer.slice(prefix[0].length) : response.answer,
+  return { ...response, answer: prefix ? response.answer.slice(prefix[0].length) : response.answer,
     modelUsed: prefix?.[1] ?? response.modelUsed };
 }
 

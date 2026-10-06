@@ -79,6 +79,9 @@ function ZoneDetailContent({ zoneCode }: { zoneCode: string }) {
           : <div role="alert" className="text-xs text-coral"><p>{t('Không thể tải thông số và khoảng mục tiêu.')}</p>
             <button onClick={() => void overview.refresh()} className="mt-2 min-h-11 rounded-lg border border-border px-3 cursor-pointer">{t('Thử lại')}</button></div>}
       </div>
+      <Link to={`/agent?zoneCode=${encodeURIComponent(zone.code)}`} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-xs font-semibold text-navy dark:text-blue">
+        <span aria-hidden="true" className="material-symbols-outlined text-lg">psychology</span>{t('Hỏi trợ lý về khu vực này')}
+      </Link>
     </header>
     <div className="rounded-xl border border-border bg-surface px-3 md:px-5 shadow-sm">
       <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">

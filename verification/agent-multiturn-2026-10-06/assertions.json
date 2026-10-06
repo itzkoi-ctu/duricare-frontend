@@ -1,0 +1,42 @@
+[
+  {
+    "name": "new request includes zoneCode and omits conversationId",
+    "result": "PASS"
+  },
+  {
+    "name": "429 retries only after the user resends the same question",
+    "result": "PASS"
+  },
+  {
+    "name": "follow-up sends the conversationId returned by the previous turn",
+    "result": "PASS"
+  },
+  {
+    "name": "new conversation clears the previous conversationId",
+    "result": "PASS"
+  },
+  {
+    "name": "all conversation API calls use the authenticated shared client",
+    "result": "PASS"
+  },
+  {
+    "name": "delete retry targets the same conversation",
+    "result": "PASS"
+  },
+  {
+    "name": "prefix stripping preserves conversationId and toolsUsed",
+    "result": "PASS"
+  },
+  {
+    "name": "real conversation contains three user turns and three assistant replies",
+    "result": "PASS"
+  },
+  {
+    "name": "real assistant metadata shows all six registered tool labels on turn one",
+    "result": "PASS"
+  },
+  {
+    "name": "real chat never displays the raw modelUsed prefix",
+    "result": "PASS"
+  }
+]
