@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { loginDestination } from '../utils/authNavigation';
+import { loginRedirect } from '../utils/authNavigation';
 import { isAxiosError } from 'axios';
 import { useAuth } from './useAuth';
 import type { LoginRequest } from '../types/auth';
@@ -16,9 +16,10 @@ export default function useLoginForm() {
   const submit = form.handleSubmit(async ({ email, password }) => {
     form.clearErrors('root');
     try {
-      await auth.login(email.trim(), password);
+      const user = await auth.login(email.trim(), password);
       form.reset();
-      navigate(loginDestination(location.state), { replace: true });
+      const redirect = loginRedirect(location.state, user.role);
+      navigate(redirect.to, { replace: true, state: redirect.state });
     } catch (error: unknown) {
       const body = isAxiosError<{ message?: string }>(error) ? error.response?.data : undefined;
       form.setError('root', { message: typeof body?.message === 'string' ? body.message

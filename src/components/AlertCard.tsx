@@ -23,7 +23,7 @@ export default function AlertCard({ alert, zoneName, onResolve }: AlertCardProps
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-xs font-semibold text-text break-all">{alert.type}</h2>
-        <span className={`w-fit whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-bold ${alertSeverityClasses(alert.severity)}`}>{alert.severity}</span>
+        <span className={`w-fit whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-bold ${alertSeverityClasses(alert.severity)}`}>{t(alert.severity)}</span>
       </div>
       <p className="text-sm leading-relaxed text-text whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{alert.message}</p>
       <div className="mt-auto pt-3 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

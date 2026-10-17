@@ -2,7 +2,7 @@ import { useLanguage } from '../../i18n/useLanguage';
 import { t } from '../../i18n';
 import type { User } from '../../types/auth';
 
-const ROLE_LABEL: Record<User['role'], string> = { ADMIN: 'ADMIN', OWNER: 'Chủ vườn' };
+const ROLE_LABEL: Record<User['role'], string> = { ADMIN: 'ADMIN', OWNER: 'Chủ vườn', EXPERT: 'Chuyên gia' };
 
 export default function UserAccount({ user, pending, error, onLogout, compact = false }: {
   user: User;

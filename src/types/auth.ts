@@ -1,6 +1,6 @@
 export interface User {
   email: string;
-  role: 'ADMIN' | 'OWNER';
+  role: 'ADMIN' | 'OWNER' | 'EXPERT';
   farmId: number | null;
 }
 
@@ -16,6 +16,6 @@ export interface AuthContextValue {
   isAuthenticated: boolean;
   restoreError: string | null;
   retryRestore: () => void;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
 }

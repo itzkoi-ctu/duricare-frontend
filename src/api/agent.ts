@@ -13,7 +13,7 @@ export async function askAgent(question: string, signal?: AbortSignal,
   const response = await client.post<AgentAskResponse>(
     '/agent/ask',
     { question, ...context } satisfies AgentAskRequest,
-    { timeout: 90000, signal },
+    { timeout: 120000, signal },
   );
   return parseAgentAnswer(response.data);
 }

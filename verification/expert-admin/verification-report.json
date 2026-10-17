@@ -1,0 +1,568 @@
+{
+  "checks": [
+    "Admin login succeeded",
+    "No token or password in web storage",
+    "No horizontal overflow on 768px Tablet (Expert List)",
+    "Mobile overflow navigation sheet opens and closes with Escape",
+    "No horizontal overflow on 375px Mobile (Create Form)",
+    "Create form validation errors triggered and rendered",
+    "No horizontal overflow on 768px Tablet (Create Form)",
+    "Expert profile created with ID 6 via POST 201",
+    "New expert displays PENDING (Chờ xác minh) status",
+    "No horizontal overflow on 768px Tablet (Detail Page)",
+    "Component correctly renders only verify and suspend actions for PENDING status",
+    "No horizontal overflow on 375px Mobile (Verify Dialog)",
+    "Status transitioned to VERIFIED (Đã xác minh)",
+    "Component correctly renders only suspend action for VERIFIED status",
+    "Status transitioned to SUSPENDED (Tạm đình chỉ)",
+    "Component correctly renders only reinstate action for SUSPENDED status",
+    "Status reinstated to VERIFIED via /verify",
+    "409 Stale version conflict detected; error banner displayed; no auto-retry",
+    "Submit button disabled on version conflict",
+    "Reason input preserved upon 409 conflict",
+    "Created expert logged in successfully and landed on /knowledge",
+    "No horizontal overflow on 375px Mobile (Knowledge Page)",
+    "Làm mới trạng thái button functional on /knowledge",
+    "EXPERT denied from all /settings/experts routes with forbidden notice"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/src/api/auth.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/authSessionBridge.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/overview.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/farms.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/client.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/csrf",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/auth/refresh",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/auth/refresh",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/csrf",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/auth.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/authSessionBridge.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/overview.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/farms.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/client.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/csrf",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/auth/refresh",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/expert.ts",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/farms",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/farms",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/admin/experts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/farms",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/farms",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/farms",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/farms",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/admin/experts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/authSessionBridge.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/auth.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/overview.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/farms.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/client.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/csrf",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/auth/refresh",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/expert.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/api/farms",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/farms",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/farms",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/farms",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/admin/experts",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/admin/experts",
+      "status": 201
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/admin/experts/6",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/farms",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/admin/experts/6",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/admin/experts/6/verify",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/admin/experts/6/verify",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/admin/experts/6/suspend",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/admin/experts/6/suspend",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/admin/experts/6/verify",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/admin/experts/6/suspend",
+      "status": 409
+    },
+    {
+      "method": "GET",
+      "url": "/api/admin/experts/6",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/authSessionBridge.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/auth.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/client.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/overview.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/farms.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/csrf",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/auth/refresh",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/auth/refresh",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/csrf",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/expert.ts",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/expert/profile",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/expert/profile",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/auth.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/authSessionBridge.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/client.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/overview.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/farms.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/csrf",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/auth/refresh",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/expert.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/api/expert/profile",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/auth.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/authSessionBridge.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/client.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/overview.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/farms.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/csrf",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/auth/refresh",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/expert.ts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/expert/profile",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/auth.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/authSessionBridge.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/overview.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/farms.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/client.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/csrf",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "/api/auth/refresh",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "/src/api/expert.ts",
+      "status": 304
+    },
+    {
+      "method": "GET",
+      "url": "/api/expert/profile",
+      "status": 200
+    }
+  ],
+  "screenshots": [
+    "expert-list-768-light.png",
+    "expert-list-1440-light.png",
+    "expert-list-1440-dark.png",
+    "expert-list-375-light.png",
+    "expert-list-375-dark.png",
+    "mobile-nav-overflow-sheet-375.png",
+    "expert-create-initial-1440.png",
+    "expert-create-initial-375.png",
+    "expert-create-validation-errors-1440.png",
+    "expert-create-validation-errors-375.png",
+    "expert-create-filled-1440-light.png",
+    "expert-create-filled-1440-dark.png",
+    "expert-create-filled-375-light.png",
+    "expert-create-filled-375-dark.png",
+    "expert-create-1440-light.png",
+    "expert-create-375-light.png",
+    "expert-detail-pending-1440-light.png",
+    "expert-detail-pending-1440-dark.png",
+    "expert-detail-pending-768-light.png",
+    "expert-detail-pending-375-light.png",
+    "expert-detail-pending-375-dark.png",
+    "expert-dialog-verify-1440-light.png",
+    "expert-dialog-verify-375-light.png",
+    "expert-detail-verified-1440-light.png",
+    "expert-detail-verified-1440-dark.png",
+    "expert-detail-verified-375-light.png",
+    "expert-detail-verified-375-dark.png",
+    "expert-detail-suspended-1440-light.png",
+    "expert-detail-suspended-1440-dark.png",
+    "expert-detail-suspended-375-light.png",
+    "expert-detail-suspended-375-dark.png",
+    "expert-conflict-409-1440.png",
+    "expert-conflict-409-375.png",
+    "expert-knowledge-reflected-1440-light.png",
+    "expert-knowledge-reflected-1440-dark.png",
+    "expert-knowledge-reflected-375-light.png",
+    "expert-knowledge-reflected-375-dark.png",
+    "expert-forbidden-notice-1440.png",
+    "expert-forbidden-notice-375.png"
+  ],
+  "consoleErrors": [],
+  "createdProfileId": 6
+}

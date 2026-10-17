@@ -6,6 +6,8 @@ export interface FarmPickerProps {
   farms: Farm[];
   value: string;
   onChange: (value: string) => void;
+  allowAll?: boolean;
+  label?: string | false;
 }
 
 export interface ZoneManagementListProps {

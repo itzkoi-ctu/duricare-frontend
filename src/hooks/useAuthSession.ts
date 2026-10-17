@@ -65,6 +65,7 @@ export default function useAuthSession(): AuthContextValue {
   const login = useCallback(async (email: string, password: string) => {
     const result = await auth.login(email, password);
     updateSession(result);
+    return result.user;
   }, [updateSession]);
 
   const logout = useCallback(async () => {

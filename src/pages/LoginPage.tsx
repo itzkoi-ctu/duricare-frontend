@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import ThemeToggle from '../components/layout/ThemeToggle';
 import LanguageSelect from '../components/layout/LanguageSelect';
 import useLoginForm from '../hooks/useLoginForm';
+import { roleLanding } from '../utils/authNavigation';
 
 export default function LoginPage() {
   useLanguage();
@@ -34,7 +35,9 @@ export default function LoginPage() {
               <h2 id="login-heading" className="text-2xl font-bold">{t("Bạn đã đăng nhập")}</h2>
               <p className="text-gray text-sm">{t("Phiên đăng nhập của bạn đang hoạt động.")}</p>
               <p className="text-sm font-medium break-all" data-testid="session-email">{user.email}</p>
-              <Link to="/" className="flex min-h-12 items-center justify-center rounded-xl bg-navy text-surface dark:text-bg font-semibold">{t("Về trang tổng quan")}</Link>
+              <Link to={roleLanding(user.role)} className="flex min-h-12 items-center justify-center rounded-xl bg-navy text-surface dark:text-bg font-semibold">
+                {user.role === 'EXPERT' ? t("Về trang chuyên gia") : t("Về trang tổng quan")}
+              </Link>
               {logoutError && <p role="alert" className="text-sm text-coral">{t(logoutError)}</p>}
               <button onClick={() => { void logout(); }} disabled={loggingOut} className="w-full min-h-11 text-sm font-semibold text-gray hover:text-text cursor-pointer disabled:opacity-60">{loggingOut ? t("Đang đăng xuất...") : t("Đăng xuất")}</button>
             </div>

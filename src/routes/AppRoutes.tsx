@@ -8,6 +8,8 @@ import RequireAuth from '../components/auth/RequireAuth';
 import RequireRole from '../components/auth/RequireRole';
 import LoginRoute from '../components/auth/LoginRoute';
 import AuthorizationNotice from '../components/auth/AuthorizationNotice';
+import ExpertShell from '../components/layout/ExpertShell';
+import { ToastProvider } from '../context/ToastContext';
 
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
 const ZoneDetailPage = lazy(() => import('../pages/ZoneDetailPage'));
@@ -18,6 +20,10 @@ const LoginPage = lazy(() => import('../pages/LoginPage'));
 const FarmSettingsPage = lazy(() => import('../pages/FarmSettingsPage'));
 const ZoneManagementPage = lazy(() => import('../pages/ZoneManagementPage'));
 const ZoneEditorPage = lazy(() => import('../pages/ZoneEditorPage'));
+const KnowledgePage = lazy(() => import('../pages/KnowledgePage'));
+const ExpertListPage = lazy(() => import('../pages/ExpertListPage'));
+const ExpertCreatePage = lazy(() => import('../pages/ExpertCreatePage'));
+const ExpertDetailPage = lazy(() => import('../pages/ExpertDetailPage'));
 
 function LoadingFallback() {
   useLanguage();
@@ -34,26 +40,38 @@ function LoadingFallback() {
 export default function AppRoutes() {
   useLanguage();
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <AuthorizationNotice />
-      <Routes>
-        <Route path="/login" element={<LoginRoute><LoginPage /></LoginRoute>} />
-        <Route element={<RequireAuth />}>
-          <Route element={<OverviewProvider><Shell /></OverviewProvider>}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/zones/:zoneCode" element={<ZoneDetailPage />} />
-            <Route path="/alerts" element={<AlertsPage />} />
-            <Route path="/agent" element={<AgentPage />} />
-            <Route element={<RequireRole roles={['ADMIN']} />}>
-              <Route path="/settings/farm" element={<FarmSettingsPage />} />
-              <Route path="/settings/zones" element={<ZoneManagementPage />} />
-              <Route path="/settings/zones/new" element={<ZoneEditorPage />} />
-              <Route path="/settings/zones/:code/edit" element={<ZoneEditorPage />} />
+    <ToastProvider>
+      <Suspense fallback={<LoadingFallback />}>
+        <AuthorizationNotice />
+        <Routes>
+          <Route path="/login" element={<LoginRoute><LoginPage /></LoginRoute>} />
+          <Route element={<RequireAuth />}>
+            <Route element={<RequireRole roles={['EXPERT']} />}>
+              <Route element={<ExpertShell />}>
+                <Route path="/knowledge" element={<KnowledgePage />} />
+              </Route>
             </Route>
-            <Route path="*" element={<NotFoundPage />} />
+            <Route element={<RequireRole roles={['ADMIN', 'OWNER']} />}>
+            <Route element={<OverviewProvider><Shell /></OverviewProvider>}>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/zones/:zoneCode" element={<ZoneDetailPage />} />
+              <Route path="/alerts" element={<AlertsPage />} />
+              <Route path="/agent" element={<AgentPage />} />
+              <Route element={<RequireRole roles={['ADMIN']} />}>
+                <Route path="/settings/farm" element={<FarmSettingsPage />} />
+                <Route path="/settings/zones" element={<ZoneManagementPage />} />
+                <Route path="/settings/zones/new" element={<ZoneEditorPage />} />
+                <Route path="/settings/zones/:code/edit" element={<ZoneEditorPage />} />
+                <Route path="/settings/experts" element={<ExpertListPage />} />
+                <Route path="/settings/experts/new" element={<ExpertCreatePage />} />
+                <Route path="/settings/experts/:id" element={<ExpertDetailPage />} />
+              </Route>
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+            </Route>
           </Route>
-        </Route>
-      </Routes>
-    </Suspense>
+        </Routes>
+      </Suspense>
+    </ToastProvider>
   );
 }

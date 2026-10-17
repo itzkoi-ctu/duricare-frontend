@@ -1,7 +1,9 @@
 import { useLanguage } from '../i18n/useLanguage';
 import { t } from '../i18n';
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useOverviewContext } from '../context/OverviewContext';
+import { useAuth } from '../hooks/useAuth';
 import DashboardHeader from '../components/DashboardHeader';
 import AttentionSummaryCard from '../components/AttentionSummaryCard';
 import WeatherCard from '../components/WeatherCard';
@@ -12,6 +14,7 @@ import ForecastPanel from '../components/ForecastPanel';
 import InsightCard from '../components/InsightCard';
 import OverviewSkeleton from '../components/OverviewSkeleton';
 import ErrorState from '../components/ErrorState';
+import FarmPicker from '../components/FarmPicker';
 import type { ZoneOverview } from '../types/overview';
 
 function isProblemZone(zone: ZoneOverview): boolean {
@@ -25,7 +28,19 @@ function isProblemZone(zone: ZoneOverview): boolean {
 
 export default function DashboardPage() {
   useLanguage();
-  const { data, loading, refreshing, error, lastUpdated, refresh } = useOverviewContext();
+  const { user } = useAuth();
+  const {
+    data,
+    loading,
+    refreshing,
+    error,
+    lastUpdated,
+    refresh,
+    farms,
+    selectedFarmId,
+    onSelectFarm,
+    noFarmsAvailable,
+  } = useOverviewContext();
 
   const zones = data?.zones;
   // Sort zones: zones with problems first
@@ -40,6 +55,37 @@ export default function DashboardPage() {
       return a.code.localeCompare(b.code);
     });
   }, [zones]);
+
+  if (user?.role === 'ADMIN' && noFarmsAvailable) {
+    return (
+      <div className="space-y-6">
+        <DashboardHeader
+          farmName={null}
+          lastUpdated={null}
+          refreshing={false}
+          onRefresh={refresh}
+        />
+        <div className="flex items-center justify-center min-h-[40vh] p-6">
+          <div className="max-w-md w-full text-center bg-surface border border-border rounded-2xl p-8 shadow-sm">
+            <div className="text-5xl mb-3" role="img" aria-label={t('Nông trại')}>
+              🏡
+            </div>
+            <h2 className="text-lg font-bold text-text mb-2">{t('Chưa có nông trại nào')}</h2>
+            <p className="text-sm text-gray leading-relaxed mb-4">
+              {t('Hệ thống chưa có nông trại nào. Hãy tạo nông trại đầu tiên để bắt đầu theo dõi.')}
+            </p>
+            <Link
+              to="/settings/farm"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal text-white text-xs font-semibold hover:bg-teal/90 transition-all cursor-pointer shadow-2xs"
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              {t('Tạo nông trại')}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading && !data) {
     return <OverviewSkeleton />;
@@ -86,6 +132,27 @@ export default function DashboardPage() {
         refreshing={refreshing}
         onRefresh={refresh}
       />
+
+      {/* Admin farm switcher when multiple farms are present */}
+      {user?.role === 'ADMIN' && farms.length > 1 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-surface border border-border rounded-2xl shadow-2xs">
+          <div className="flex items-center gap-2 text-xs font-semibold text-text">
+            <span className="material-symbols-outlined text-teal text-lg">domain</span>
+            <span>{t('Nông trại đang xem:')}</span>
+          </div>
+          <div className="w-full sm:w-auto">
+            <FarmPicker
+              farms={farms}
+              value={String(selectedFarmId ?? '')}
+              onChange={(val) => {
+                if (val) onSelectFarm(Number(val));
+              }}
+              allowAll={false}
+              label={false}
+            />
+          </div>
+        </div>
+      )}
 
       {/* 2. Top Row 4 KPI Cards (Attention summary, Weather, Sensor health, Latest insight) */}
       <div
