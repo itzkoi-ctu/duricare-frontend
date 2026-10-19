@@ -57,7 +57,7 @@ Confirmed owner:
 Human reviewer:
 GitHub Issue URL: supplied by GitHub after human creation.
 Task branch: be/<issue-number>-<slug> or fe/<issue-number>-<slug>; docs/<issue-number>-<slug> for docs.
-Agents inspect Git status/worktrees first. Standing task-branch permission applies only in a clean, safely isolated workspace with a verified base. Never alter dirty worktrees; preserve feature/expert-role and staged Soil S1 in 73dc. Do not access/reuse ebc8 under this setup.
+Agents inspect Git status/worktrees first. Standing task-branch permission applies only in a clean, safely isolated task-owned workspace with a verified base. Preserve all pre-existing staged/uncommitted work and never access or reuse a human-protected workspace. Historical setup branch/worktree references do not establish this task's available workspace or which features are merged; inspect the actual source/base revision.
 
 ## Human approval status
 Plan approval: PENDING / APPROVED / CHANGES REQUESTED.

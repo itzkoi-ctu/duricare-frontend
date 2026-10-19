@@ -1,9 +1,15 @@
 # Frontend implementation boundary
 Google Antigravity owns frontend implementation in this repository. Codex owns the separate backend repository. Codex may inspect/review or update shared docs when explicitly tasked, but must not implement frontend work as part of a backend task; propose a handoff to the human instead.
 
-Read GEMINI.md and E:/CTU/LuanVan/docs/ai/WORKFLOW.md, CURRENT_STATUS.md, IOT_INGESTION.md, API_CONTRACT.md and FRONTEND_GUIDE.md before relevant work. Use the same human-approved contract packet as backend. The packet is outside Git; future worktrees need its explicit location/revision.
+## Shared documentation inputs
 
-Preserve existing functionality/auth/CSRF/farm scope/localization and backend skill instructions. During setup edit documentation/instructions only. Never install Gemini CLI. No cloud calls/ingestion, real alerts/LLM, production operations, secret exposure or infrastructure changes. Task branches use the clean-workspace standing permission below; worktree provisioning needs authorization and commit/push require explicit approval after the full review report. No Git mutations during this setup. The UI's development API may target Oracle; verify target before starting any integration check.
+The human developer or execution environment must explicitly supply DOCS_ROOT and DOCS_REVISION through task inputs or environment variables; neither has an inferred default. DOCS_ROOT is the shared documentation location. DOCS_REVISION must identify the human-approved immutable docs commit or, while unversioned, an approved local packet revision with a hash manifest. Resolve shared-document filenames below under DOCS_ROOT; repository-local instruction and skill paths remain repository-relative. Do not assume private duricare-docs is initialized, published, cloned or accessible.
+
+Before work that depends on shared documents, explicitly load the required files and verify the supplied revision against the checkout or approved packet/hash manifest. If either input is missing, ambiguous, inaccessible or cannot be verified, ask the human for the documentation root and approved revision and wait; do not guess paths/revisions or fetch a repository automatically. Report only the document paths actually loaded and the revision/hash checks actually completed; never claim access to unloaded or unverified documents. Both coding agents must use the same approved packet revision.
+
+Read GEMINI.md and DOCS_ROOT/WORKFLOW.md, CURRENT_STATUS.md, IOT_INGESTION.md, API_CONTRACT.md and FRONTEND_GUIDE.md before relevant work. Use the same human-approved contract packet as backend. Future worktrees need the supplied documentation location and approved revision; do not assume the packet is version-controlled or published.
+
+Preserve existing functionality/auth/CSRF/farm scope/localization and backend skill instructions. During setup edit documentation/instructions only. Never install Gemini CLI. No cloud calls/ingestion, real alerts/LLM, production operations, secret exposure or infrastructure changes. Task branches use the clean-workspace standing permission below; worktree provisioning needs authorization and commit/push require explicit approval after the full review report. Documentation-only setup authorizes no Git mutation unless the human explicitly approves the specific operation. The UI's development API may target Oracle; verify target before starting any integration check.
 
 ## Task branches and human review
 For each human-approved new feature, bug, fix or improvement: read the Issue/task and approved plan/docs; inspect Git status, staged work and worktree inventory; create a dedicated task branch only in a clean, safely isolated, task-owned workspace with a confirmed base. Standing authorization covers that task branch, never dirty-tree cleanup or ownership changes. Obtain authorization for any new worktree provisioning; do not assume a clean registered worktree is available to reuse.
@@ -12,6 +18,12 @@ Implement assigned scope, run relevant authorized tests, provide the full diff/f
 
 The human manually creates and merges the PR into main. Agents never create PRs (including drafts), merge, push directly to main or directly deploy. After a human merge, existing CI/CD may run under its current triggers; preserve GitHub Actions, Docker Compose and Oracle infrastructure.
 
+<<<<<<< HEAD
 Protect backend feature/expert-role and all existing governance work; 73dc contains staged Soil S1 work and must not be altered/reused. Do not access, modify or reuse ebc8 during this setup. Current local-only setup permits documentation/templates only: no branch/worktree creation, reset, clean, stash, checkout, switch, add, commit, push or cherry-pick.
 
 Read E:/CTU/LuanVan/docs/ai/GITHUB_WORKFLOW.md and GITHUB_MCP.md. The six board statuses are Backlog, In Progress, In Review, Approved, Done, Blocked. Plan approval is separate from the post-report Approved status. MCP connection/settings/auth and remote Issue/Project/PR creation are not authorized by this setup.
+=======
+Preserve all pre-existing staged/uncommitted work and respect the human's protected-workspace exclusions. Branches and detached worktrees named in historical setup reports describe the original workspace; do not assume they exist in this checkout or are available to reuse. During documentation/publication preparation, edit only the explicitly approved docs/templates and STOP before staging, commit or push. For an approved implementation task, follow the clean isolated task-branch and human-review policy above. Never reset, clean, stash or discard unrelated work to manufacture a clean workspace.
+
+Read DOCS_ROOT/GITHUB_WORKFLOW.md and GITHUB_MCP.md. The six board statuses are Backlog, In Progress, In Review, Approved, Done, Blocked. Plan approval is separate from the post-report Approved status. MCP connection/settings/auth and remote Issue/Project changes require separate explicit authorization. PR creation and merge remain human-only.
+>>>>>>> 9c65dc4a8e52a5347ce9db8d6991b686aecf6259
