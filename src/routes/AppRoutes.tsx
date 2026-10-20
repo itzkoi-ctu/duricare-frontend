@@ -21,9 +21,15 @@ const FarmSettingsPage = lazy(() => import('../pages/FarmSettingsPage'));
 const ZoneManagementPage = lazy(() => import('../pages/ZoneManagementPage'));
 const ZoneEditorPage = lazy(() => import('../pages/ZoneEditorPage'));
 const KnowledgePage = lazy(() => import('../pages/KnowledgePage'));
+const KnowledgeSourcesPage = lazy(() => import('../pages/KnowledgeSourcesPage'));
+const KnowledgeSourceCreatePage = lazy(() => import('../pages/KnowledgeSourceCreatePage'));
+const KnowledgeSourceDetailPage = lazy(() => import('../pages/KnowledgeSourceDetailPage'));
+const KnowledgeSourceEditPage = lazy(() => import('../pages/KnowledgeSourceEditPage'));
 const ExpertListPage = lazy(() => import('../pages/ExpertListPage'));
 const ExpertCreatePage = lazy(() => import('../pages/ExpertCreatePage'));
 const ExpertDetailPage = lazy(() => import('../pages/ExpertDetailPage'));
+
+import { useAuth } from '../hooks/useAuth';
 
 function LoadingFallback() {
   useLanguage();
@@ -37,6 +43,18 @@ function LoadingFallback() {
   );
 }
 
+function KnowledgeSourcesShell() {
+  const { user } = useAuth();
+  if (user?.role === 'EXPERT') {
+    return <ExpertShell />;
+  }
+  return (
+    <OverviewProvider>
+      <Shell />
+    </OverviewProvider>
+  );
+}
+
 export default function AppRoutes() {
   useLanguage();
   return (
@@ -46,11 +64,24 @@ export default function AppRoutes() {
         <Routes>
           <Route path="/login" element={<LoginRoute><LoginPage /></LoginRoute>} />
           <Route element={<RequireAuth />}>
+            {/* EXPERT Profile Route */}
             <Route element={<RequireRole roles={['EXPERT']} />}>
               <Route element={<ExpertShell />}>
                 <Route path="/knowledge" element={<KnowledgePage />} />
               </Route>
             </Route>
+
+            {/* Knowledge Governance Routes for ADMIN and EXPERT */}
+            <Route element={<RequireRole roles={['ADMIN', 'EXPERT']} />}>
+              <Route element={<KnowledgeSourcesShell />}>
+                <Route path="/knowledge/sources" element={<KnowledgeSourcesPage />} />
+                <Route path="/knowledge/sources/new" element={<KnowledgeSourceCreatePage />} />
+                <Route path="/knowledge/sources/:id" element={<KnowledgeSourceDetailPage />} />
+                <Route path="/knowledge/sources/:sourceId/revisions/:revisionId/edit" element={<KnowledgeSourceEditPage />} />
+              </Route>
+            </Route>
+
+            {/* Farm & Management Routes for ADMIN and OWNER */}
             <Route element={<RequireRole roles={['ADMIN', 'OWNER']} />}>
             <Route element={<OverviewProvider><Shell /></OverviewProvider>}>
               <Route path="/" element={<DashboardPage />} />
