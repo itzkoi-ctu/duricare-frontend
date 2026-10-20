@@ -7,6 +7,7 @@ import useGrowthStage from '../hooks/useGrowthStage';
 import { useOverviewContext } from '../context/OverviewContext';
 import type { ReadingPeriod } from '../types/zoneDetail';
 import { getReadingRange } from '../utils/readingRange';
+import { formatObservedCadence } from '../utils/metricLabels';
 import SensorChart from '../components/SensorChart';
 import MetricChip from '../components/MetricChip';
 import CareLogTimeline from '../components/CareLogTimeline';
@@ -14,6 +15,7 @@ import AlertBadge from '../components/AlertBadge';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import GrowthStageControl from '../components/GrowthStageControl';
+import SoilProfileCard from '../components/SoilProfileCard';
 
 const PERIODS: { value: ReadingPeriod; label: string }[] = [
   { value: 'TODAY', label: 'Hôm nay' },
@@ -45,6 +47,8 @@ function ZoneDetailContent({ zoneCode }: { zoneCode: string }) {
   const overviewZone = overview.data?.zones.find(zone => zone.code === zoneCode);
   // Never show thresholds for the previous stage if the overview refresh fails or is still pending.
   const metrics = overviewZone?.growthStage === data.zone?.growthStage ? overviewZone?.metrics : undefined;
+  const cadenceLabel = formatObservedCadence(overviewZone?.observedCadenceSeconds);
+
   const selectPeriod = (selected: ReadingPeriod) => {
     const range = getReadingRange(selected);
     setPeriod(selected);
@@ -68,6 +72,15 @@ function ZoneDetailContent({ zoneCode }: { zoneCode: string }) {
         <div className="min-w-0"><div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold text-text">{zone.name}</h1>
           <span className="rounded-lg border border-border bg-bg px-2 py-1 text-[11px] font-semibold text-gray">{zone.code}</span>
+          {cadenceLabel && (
+            <span
+              title={t('Tần suất nhận dữ liệu quan sát được, không phải chu kỳ đo cố định của cảm biến')}
+              className="rounded-lg border border-border bg-bg px-2 py-1 text-[11px] font-medium text-gray inline-flex items-center gap-1"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-[13px]">schedule</span>
+              <span>{cadenceLabel}</span>
+            </span>
+          )}
         </div><GrowthStageControl stage={zone.growthStage} treeId={zone.representativeTreeId} isSaving={growthStage.isSaving}
           error={growthStage.error} saved={growthStage.saved} onSave={growthStage.save} onOpen={growthStage.clearFeedback} />
         <div className="mt-3"><AlertBadge count={data.alertCount} dominantSource={data.dominantAlertSource} /></div></div>
@@ -83,6 +96,17 @@ function ZoneDetailContent({ zoneCode }: { zoneCode: string }) {
         <span aria-hidden="true" className="material-symbols-outlined text-lg">psychology</span>{t('Hỏi trợ lý về khu vực này')}
       </Link>
     </header>
+
+    {/* Soil S1 Raw Chemistry Profile (F4: Distinguish loading / error / empty) */}
+    <SoilProfileCard
+      profile={overviewZone?.soilProfile}
+      observedCadenceSeconds={overviewZone?.observedCadenceSeconds}
+      zoneCode={zone.code}
+      loading={overview.loading && !overview.data}
+      error={overview.error && !overview.data ? overview.error : null}
+      onRetry={() => void overview.refresh()}
+    />
+
     <div className="rounded-xl border border-border bg-surface px-3 md:px-5 shadow-sm">
       <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
         <div role="tablist" aria-label={t('Chi tiết khu vực')} className="grid grid-cols-2 gap-2">
