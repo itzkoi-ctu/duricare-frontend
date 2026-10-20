@@ -1,13 +1,20 @@
 import { useLanguage } from '../i18n/useLanguage';
 import { t } from '../i18n';
-import type { MetricStatus } from '../types/overview';
+import type { MetricStatus, TrendPoint } from '../types/overview';
+import { formatTimeHHmm } from '../utils/metricLabels';
 
 interface SoilMoistureSparklineProps {
-  data: number[];
+  data: (TrendPoint | number)[] | TrendPoint[] | number[];
   targetMin: number | null;
   targetMax: number | null;
   status: MetricStatus;
   unit?: string;
+}
+
+interface NormalizedPoint {
+  t: string | null;
+  v: number | null;
+  index: number;
 }
 
 export default function SoilMoistureSparkline({
@@ -18,7 +25,29 @@ export default function SoilMoistureSparkline({
   unit = '%',
 }: SoilMoistureSparklineProps) {
   useLanguage();
-  if (!data || data.length < 2) {
+
+  if (!data || !Array.isArray(data) || data.length < 2) {
+    return null;
+  }
+
+  // Normalize points safely whether passed as TrendPoint or raw number
+  const totalCount = data.length;
+  const normalized: NormalizedPoint[] = data.map((item, index) => {
+    if (typeof item === 'number') {
+      return { t: null, v: item, index };
+    }
+    if (item && typeof item === 'object') {
+      return {
+        t: typeof item.t === 'string' ? item.t : null,
+        v: typeof item.v === 'number' && !isNaN(item.v) ? item.v : null,
+        index,
+      };
+    }
+    return { t: null, v: null, index };
+  });
+
+  const validPoints = normalized.filter((p): p is NormalizedPoint & { v: number } => p.v !== null);
+  if (validPoints.length < 2) {
     return null;
   }
 
@@ -29,8 +58,9 @@ export default function SoilMoistureSparkline({
   const paddingLeft = 4;
   const paddingRight = 4;
 
-  const minVal = Math.min(...data);
-  const maxVal = Math.max(...data);
+  const numericValues = validPoints.map((p) => p.v);
+  const minVal = Math.min(...numericValues);
+  const maxVal = Math.max(...numericValues);
 
   // Establish bounds ensuring targetMin and targetMax are visible within the frame
   const boundedMin = targetMin !== null ? Math.min(minVal, targetMin) : minVal;
@@ -39,16 +69,33 @@ export default function SoilMoistureSparkline({
   const yMaxVal = boundedMax + 3;
   const range = Math.max(yMaxVal - yMinVal, 1);
 
-  const getX = (i: number) =>
-    paddingLeft + (i / (data.length - 1)) * (width - paddingLeft - paddingRight);
+  const getX = (index: number) =>
+    paddingLeft + (index / (totalCount - 1)) * (width - paddingLeft - paddingRight);
 
   const getY = (val: number) => {
     const usableHeight = height - paddingTop - paddingBottom;
     return height - paddingBottom - ((val - yMinVal) / range) * usableHeight;
   };
 
-  const points = data.map((val, i) => ({ x: getX(i), y: getY(val) }));
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  // Build SVG path segments handling missing points gracefully
+  let pathD = '';
+  let inSegment = false;
+
+  for (let i = 0; i < normalized.length; i++) {
+    const pt = normalized[i];
+    if (pt.v !== null) {
+      const x = getX(i).toFixed(1);
+      const y = getY(pt.v).toFixed(1);
+      if (!inSegment) {
+        pathD += `${pathD ? ' ' : ''}M ${x},${y}`;
+        inSegment = true;
+      } else {
+        pathD += ` L ${x},${y}`;
+      }
+    } else {
+      inSegment = false;
+    }
+  }
 
   // Target band coordinates
   const hasBand = targetMin !== null && targetMax !== null;
@@ -66,21 +113,33 @@ export default function SoilMoistureSparkline({
           ? 'text-coral'
           : 'text-gray';
 
-  const lastVal = data[data.length - 1];
-  const lastPoint = points[points.length - 1];
+  const lastValid = validPoints[validPoints.length - 1];
+  const lastX = getX(lastValid.index);
+  const lastY = getY(lastValid.v);
+
+  // Time range labels if timestamps exist
+  const firstWithTime = normalized.find((p) => p.t);
+  const lastWithTime = [...normalized].reverse().find((p) => p.t);
+  const timeRangeLabel =
+    firstWithTime && lastWithTime && firstWithTime.t !== lastWithTime.t
+      ? `${formatTimeHHmm(firstWithTime.t)} – ${formatTimeHHmm(lastWithTime.t)}`
+      : null;
 
   return (
     <div className="mt-3 pt-2.5 border-t border-border/50">
       <div className="flex items-center justify-between text-[11px] mb-1">
         <span className="text-gray font-medium flex items-center gap-1">
-          <span className="material-symbols-outlined text-[13px] text-teal">show_chart</span> {t("Xu hướng ẩm đất")} </span>
+          <span className="material-symbols-outlined text-[13px] text-teal">show_chart</span>
+          {t('Xu hướng ẩm đất')}
+        </span>
         <div className="flex items-center gap-2">
           {hasBand && (
-            <span className="text-gray text-[10px]"> {t("Dải mục tiêu:")} {targetMin}–{targetMax}{unit}
+            <span className="text-gray text-[10px]">
+              {t('Dải mục tiêu:')} {targetMin}–{targetMax}{unit}
             </span>
           )}
           <span className={`font-bold ${colorClass}`}>
-            {lastVal}
+            {Number.isInteger(lastValid.v) ? lastValid.v : lastValid.v.toFixed(1)}
             {unit}
           </span>
         </div>
@@ -131,34 +190,44 @@ export default function SoilMoistureSparkline({
           )}
 
           {/* Sparkline curve */}
-          <path
-            d={pathD}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={colorClass}
-          />
+          {pathD && (
+            <path
+              d={pathD}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={colorClass}
+            />
+          )}
 
           {/* Last reading point pulse */}
           <circle
-            cx={lastPoint.x}
-            cy={lastPoint.y}
+            cx={lastX}
+            cy={lastY}
             r="4.5"
             fill="currentColor"
             fillOpacity="0.25"
             className={colorClass}
           />
           <circle
-            cx={lastPoint.x}
-            cy={lastPoint.y}
+            cx={lastX}
+            cy={lastY}
             r="2.5"
             fill="currentColor"
             className={colorClass}
           />
         </svg>
       </div>
+
+      {timeRangeLabel && (
+        <div className="flex justify-between items-center text-[10px] text-gray mt-1 px-1">
+          <span>{formatTimeHHmm(firstWithTime?.t)}</span>
+          <span className="text-[9px] text-gray/80">{t('Khoảng đo')}</span>
+          <span>{formatTimeHHmm(lastWithTime?.t)}</span>
+        </div>
+      )}
     </div>
   );
 }

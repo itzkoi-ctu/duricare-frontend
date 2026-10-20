@@ -1,6 +1,6 @@
 import type { GrowthStage } from './zone';
 
-export type MetricStatus = 'NORMAL' | 'LOW' | 'HIGH' | 'SENSOR_ERROR' | 'NO_SIGNAL';
+export type MetricStatus = 'NORMAL' | 'LOW' | 'HIGH' | 'SENSOR_ERROR' | 'NO_SIGNAL' | 'NO_TARGET';
 
 export interface MetricData {
   value: number | null;
@@ -9,6 +9,7 @@ export interface MetricData {
   status: MetricStatus;
   targetMin: number | null;
   targetMax: number | null;
+  source?: string | null;
 }
 
 export interface ZoneMetrics {
@@ -22,6 +23,30 @@ export interface ZoneAlertCounts {
   agentic: number;
 }
 
+/** Matches backend DTO: ctu.project.DuriCare.device.dto.TrendPoint */
+export interface TrendPoint {
+  t: string; // ISO 8601 Instant
+  v: number | null;
+}
+
+/** Matches backend DTO: ctu.project.DuriCare.device.dto.SoilMetricResponse */
+export interface SoilMetricData {
+  value: number | null;
+  unit: string | null;
+  recordedAt: string | null;
+  status: MetricStatus;
+  source?: string | null;
+}
+
+/** Matches backend DTO: ctu.project.DuriCare.device.dto.SoilProfileResponse */
+export interface SoilProfile {
+  ph?: SoilMetricData | null;
+  ec?: SoilMetricData | null;
+  n?: SoilMetricData | null;
+  p?: SoilMetricData | null;
+  k?: SoilMetricData | null;
+}
+
 export interface ZoneOverview {
   code: string;
   name: string;
@@ -31,7 +56,11 @@ export interface ZoneOverview {
   metrics: ZoneMetrics;
   alerts: ZoneAlertCounts;
   /** Optional soil moisture trend readings for sparkline */
-  soilMoistureTrend?: number[];
+  soilMoistureTrend?: TrendPoint[] | number[] | null;
+  /** Observed reporting cadence in seconds (not guaranteed sampling rate) */
+  observedCadenceSeconds?: number | null;
+  /** Optional Soil S1 profile (raw chemistry metrics) */
+  soilProfile?: SoilProfile | null;
 }
 
 export interface LatestInsight {
