@@ -56,6 +56,8 @@ export default function ShellNavigation({ role, totalAlerts, mobile = false }: {
         {primaryItems.map(item => {
           const active = item.path === '/'
             ? pathname === '/' || pathname.startsWith('/zones')
+            : item.path === '/knowledge'
+            ? pathname === '/knowledge'
             : pathname.startsWith(item.path);
           const target = resolveTarget(item.path);
           return (

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import useExpertProfile from '../hooks/useExpertProfile';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
@@ -52,10 +53,41 @@ export default function KnowledgePage() {
         <div className="md:col-span-2 min-w-0"><dt className="text-gray mb-2">{t("Chuyên môn")}</dt><dd className="font-medium whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]">{profile.specialties}</dd></div>
       </dl>
     </section>
-    <section className="rounded-2xl border border-border p-5 md:p-6 flex gap-3 bg-surface">
-      <span aria-hidden="true" className="material-symbols-outlined text-navy">info</span>
-      <div><h2 className="font-semibold">{t("Giai đoạn tiếp theo")}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-gray">{t("Không gian đóng góp tri thức sẽ có trong giai đoạn tiếp theo. Hiện tại, trang này giúp bạn theo dõi hồ sơ và trạng thái tài khoản.")}</p>
+    <section className="rounded-2xl border border-border p-5 md:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-surface shadow-2xs">
+      <div className="flex items-start gap-3">
+        <span aria-hidden="true" className="material-symbols-outlined text-teal text-2xl mt-0.5">
+          auto_stories
+        </span>
+        <div>
+          <h2 className="font-bold text-base text-text">{t('Nguồn tri thức nông nghiệp')}</h2>
+          <p className="mt-1 text-xs text-gray leading-relaxed max-w-xl">
+            {profile.verificationStatus === 'VERIFIED'
+              ? t('Tài khoản đã xác minh. Bạn có thể tạo hồ sơ tài liệu mới, quản lý các bản nháp trích đoạn kỹ thuật và theo dõi lịch sử kiểm toán.')
+              : t('Bạn có thể xem các hồ sơ nguồn tri thức của mình ở chế độ chỉ đọc.')}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+        <Link
+          to="/knowledge/sources"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-bg text-text hover:bg-surface text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
+        >
+          <span aria-hidden="true" className="material-symbols-outlined text-base">
+            visibility
+          </span>
+          <span>{t('Xem nguồn tri thức')}</span>
+        </Link>
+        {profile.verificationStatus === 'VERIFIED' && (
+          <Link
+            to="/knowledge/sources/new"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal text-surface dark:text-bg text-xs font-semibold hover:opacity-95 cursor-pointer shadow-2xs"
+          >
+            <span aria-hidden="true" className="material-symbols-outlined text-base">
+              add
+            </span>
+            <span>{t('Tạo nguồn mới')}</span>
+          </Link>
+        )}
       </div>
     </section>
   </div>;
