@@ -12,6 +12,7 @@ import KnowledgeHistoryTable from '../components/knowledge/KnowledgeHistoryTable
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import { SOURCE_TYPE_CONFIG, TOPIC_CONFIG, GROWTH_STAGE_CONFIG } from '../utils/governanceStatus';
+import { evaluateDraftEditEligibility } from '../utils/governanceAuth';
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
@@ -32,7 +33,7 @@ export default function KnowledgeSourceDetailPage() {
   useLanguage();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { profile } = useExpertProfile();
+  const { profile, loading: profileLoading, error: profileError } = useExpertProfile();
 
   const [activeTab, setActiveTab] = useState<'chunks' | 'history'>('chunks');
 
@@ -76,16 +77,23 @@ export default function KnowledgeSourceDetailPage() {
   const meta = revision?.metadata;
   const chunks = revision?.chunks || [];
 
-  // Determine if current user can edit this draft:
-  // Must be in DRAFT status, and user must be owner:
-  // - If EXPERT: profile.userId === source.ownerUserId
-  // - If ADMIN: can edit if ADMIN is the creator/owner (backend enforces ownership)
-  const isOwner =
-    (user?.role === 'EXPERT' && profile?.userId === source.ownerUserId) ||
-    (user?.role === 'ADMIN' && profile?.userId === source.ownerUserId);
+  const targetRevisionId = revision?.id || source.latestRevisionId || source.latestRevision?.id || null;
 
-  // Can edit if status is DRAFT and isOwner and user is enabled/verified
-  const canEditDraft = status === 'DRAFT' && isOwner;
+  // Evaluate draft edit eligibility following FE-003 policy:
+  // - Verified EXPERT owning the draft: can edit and save
+  // - ADMIN viewing a DRAFT: navigation affordance to edit workflow (backend enforces ownership on save)
+  // - Non-owner EXPERT, pending/suspended EXPERT, OWNER, or non-DRAFT: cannot edit
+  const eligibility = evaluateDraftEditEligibility({
+    user,
+    profile,
+    profileLoading,
+    profileError,
+    status,
+    sourceOwnerUserId: source.ownerUserId,
+    hasValidRevision: Boolean(targetRevisionId),
+  });
+
+  const canEditDraft = eligibility.canAttemptEdit;
 
   return (
     <div className="space-y-6">
@@ -135,9 +143,15 @@ export default function KnowledgeSourceDetailPage() {
             </span>
           </button>
 
-          {canEditDraft && revision && (
+          {canEditDraft && targetRevisionId && (
             <Link
-              to={`/knowledge/sources/${source.id}/revisions/${revision.id}/edit`}
+              to={`/knowledge/sources/${source.id}/revisions/${targetRevisionId}/edit`}
+              data-testid="draft-edit-button"
+              title={
+                eligibility.isAdminAttempt
+                  ? t('Chỉnh sửa bản nháp (Máy chủ sẽ xác thực quyền sở hữu khi lưu)')
+                  : t('Chỉnh sửa bản nháp')
+              }
               className="min-h-10 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-navy text-surface dark:text-bg text-xs font-semibold hover:opacity-95 shadow-xs"
             >
               <span aria-hidden="true" className="material-symbols-outlined text-base">
@@ -323,9 +337,15 @@ export default function KnowledgeSourceDetailPage() {
                   post_add
                 </span>
                 <p className="mt-2 text-xs text-gray">{t('Bản nháp này chưa có đoạn trích kiến thức nào.')}</p>
-                {canEditDraft && revision && (
+                {canEditDraft && targetRevisionId && (
                   <Link
-                    to={`/knowledge/sources/${source.id}/revisions/${revision.id}/edit`}
+                    to={`/knowledge/sources/${source.id}/revisions/${targetRevisionId}/edit`}
+                    data-testid="draft-add-chunk-button"
+                    title={
+                      eligibility.isAdminAttempt
+                        ? t('Thêm đoạn trích (Máy chủ sẽ xác thực quyền sở hữu khi lưu)')
+                        : t('Thêm đoạn trích')
+                    }
                     className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal text-surface dark:text-bg text-xs font-semibold"
                   >
                     <span aria-hidden="true" className="material-symbols-outlined text-sm">

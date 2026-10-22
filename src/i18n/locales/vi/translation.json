@@ -834,5 +834,11 @@
   "Không thể tải dữ liệu trắc diện đất S1: {0}": "Không thể tải dữ liệu trắc diện đất S1: {{0}}",
   "Hóa tính S1": "Hóa tính S1",
   "Dữ liệu thô": "Dữ liệu thô",
-  "Lỗi": "Lỗi"
+  "Lỗi": "Lỗi",
+  "Chỉnh sửa bản nháp (Máy chủ sẽ xác thực quyền sở hữu khi lưu)": "Chỉnh sửa bản nháp (Máy chủ sẽ xác thực quyền sở hữu khi lưu)",
+  "Thêm đoạn trích (Máy chủ sẽ xác thực quyền sở hữu khi lưu)": "Thêm đoạn trích (Máy chủ sẽ xác thực quyền sở hữu khi lưu)",
+  "Quyền chỉnh sửa của Quản trị viên": "Quyền chỉnh sửa của Quản trị viên",
+  "Máy chủ áp dụng cơ chế kiểm soát sở hữu nghiêm ngặt: chỉ tài khoản đã tạo bản nháp này mới có thể lưu thay đổi. Nếu hồ sơ do người dùng khác tạo, thao tác lưu sẽ bị từ chối (403 Forbidden).": "Máy chủ áp dụng cơ chế kiểm soát sở hữu nghiêm ngặt: chỉ tài khoản đã tạo bản nháp này mới có thể lưu thay đổi. Nếu hồ sơ do người dùng khác tạo, thao tác lưu sẽ bị từ chối (403 Forbidden).",
+  "Bạn không có quyền lưu bản nháp này vì máy chủ chỉ cho phép người tạo hồ sơ chỉnh sửa (403 Forbidden).": "Bạn không có quyền lưu bản nháp này vì máy chủ chỉ cho phép người tạo hồ sơ chỉnh sửa (403 Forbidden).",
+  "Bạn không thể lưu bản nháp khi hồ sơ chuyên gia chưa được xác minh.": "Bạn không thể lưu bản nháp khi hồ sơ chuyên gia chưa được xác minh."
 }
