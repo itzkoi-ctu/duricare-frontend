@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { t } from '../i18n';
 import { useLanguage } from '../i18n/useLanguage';
+import { useAuth } from '../hooks/useAuth';
+import useExpertProfile from '../hooks/useExpertProfile';
 import { useToast } from '../hooks/useToast';
 import { getRevision, saveRevision, parseGovernanceError } from '../api/governance';
 import type { KnowledgeMetadata, KnowledgeChunk, RevisionResponse } from '../types/governance';
@@ -15,6 +17,8 @@ export default function KnowledgeSourceEditPage() {
   useLanguage();
   const { sourceId, revisionId } = useParams<{ sourceId: string; revisionId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { profile, loading: profileLoading } = useExpertProfile();
   const { showSuccess, showError } = useToast();
 
   const [loading, setLoading] = useState(Boolean(revisionId));
@@ -216,6 +220,12 @@ export default function KnowledgeSourceEditPage() {
         setConflictError(
           t('Hồ sơ đã được cập nhật bởi một phiên làm việc khác. Dữ liệu bạn vừa nhập đã được giữ lại trên màn hình. Vui lòng nhấn "Tải lại và cập nhật phiên bản" bên dưới trước khi lưu tiếp.')
         );
+      } else if (parsed.status === 403) {
+        setGeneralError(
+          user?.role === 'ADMIN'
+            ? 'Bạn không có quyền lưu bản nháp này vì máy chủ chỉ cho phép người tạo hồ sơ chỉnh sửa (403 Forbidden).'
+            : parsed.message
+        );
       } else {
         setGeneralError(parsed.message);
       }
@@ -228,6 +238,12 @@ export default function KnowledgeSourceEditPage() {
     }
   };
 
+  const isRestrictedExpert =
+    user?.role === 'EXPERT' &&
+    !profileLoading &&
+    profile &&
+    profile.verificationStatus !== 'VERIFIED';
+
   if (loading) return <LoadingState />;
   if (loadError) return <ErrorState message={loadError} onRetry={() => window.location.reload()} />;
   if (!initialRevision || !metadata) {
@@ -237,7 +253,10 @@ export default function KnowledgeSourceEditPage() {
   // Check if revision is DRAFT
   if (initialRevision.status !== 'DRAFT') {
     return (
-      <div className="py-12 text-center rounded-2xl border border-border bg-surface p-6 shadow-2xs space-y-4">
+      <div
+        data-testid="revision-locked-banner"
+        className="py-12 text-center rounded-2xl border border-border bg-surface p-6 shadow-2xs space-y-4"
+      >
         <span aria-hidden="true" className="material-symbols-outlined text-amber text-4xl">
           lock
         </span>
@@ -308,7 +327,7 @@ export default function KnowledgeSourceEditPage() {
           </Link>
           <button
             type="submit"
-            disabled={isSubmitting || Boolean(conflictError)}
+            disabled={isSubmitting || Boolean(conflictError) || Boolean(isRestrictedExpert)}
             className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-navy px-5 py-2.5 text-xs font-semibold text-surface dark:text-bg hover:opacity-95 disabled:opacity-50 cursor-pointer shadow-xs transition-opacity"
           >
             {isSubmitting && (
@@ -318,6 +337,52 @@ export default function KnowledgeSourceEditPage() {
           </button>
         </div>
       </div>
+
+      {/* Admin Ownership Policy Notice */}
+      {user?.role === 'ADMIN' && (
+        <div
+          role="note"
+          data-testid="admin-edit-notice"
+          className="flex items-start gap-2.5 rounded-2xl border border-blue/20 bg-blue/5 p-4 text-xs text-text shadow-2xs"
+        >
+          <span aria-hidden="true" className="material-symbols-outlined text-blue text-lg shrink-0 mt-0.5">
+            info
+          </span>
+          <div className="space-y-1">
+            <p className="font-semibold text-text">
+              {t('Quyền chỉnh sửa của Quản trị viên')}
+            </p>
+            <p className="text-gray leading-relaxed">
+              {t(
+                'Máy chủ áp dụng cơ chế kiểm soát sở hữu nghiêm ngặt: chỉ tài khoản đã tạo bản nháp này mới có thể lưu thay đổi. Nếu hồ sơ do người dùng khác tạo, thao tác lưu sẽ bị từ chối (403 Forbidden).'
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Restricted Expert Notice */}
+      {isRestrictedExpert && (
+        <div
+          role="alert"
+          data-testid="restricted-expert-edit-banner"
+          className="flex items-start gap-2.5 rounded-2xl border border-amber/30 bg-amber/10 p-4 text-xs text-text shadow-2xs"
+        >
+          <span aria-hidden="true" className="material-symbols-outlined text-amber text-lg shrink-0 mt-0.5">
+            lock
+          </span>
+          <div className="space-y-1">
+            <p className="font-semibold text-text">
+              {profile?.verificationStatus === 'PENDING'
+                ? t('Tài khoản của bạn đang chờ quản trị viên xác minh.')
+                : t('Quyền chuyên môn của tài khoản đang tạm đình chỉ.')}
+            </p>
+            <p className="text-gray leading-relaxed">
+              {t('Bạn không thể lưu bản nháp khi hồ sơ chuyên gia chưa được xác minh.')}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 409 Conflict Banner with Reload Action */}
       {conflictError && (
@@ -354,6 +419,7 @@ export default function KnowledgeSourceEditPage() {
       {generalError && (
         <div
           role="alert"
+          data-testid="governance-error-banner"
           className="flex items-start gap-2.5 rounded-2xl border border-coral/30 bg-coral/10 p-4 text-xs text-coral"
         >
           <span aria-hidden="true" className="material-symbols-outlined text-base shrink-0 mt-0.5">
@@ -394,7 +460,7 @@ export default function KnowledgeSourceEditPage() {
         </Link>
         <button
           type="submit"
-          disabled={isSubmitting || Boolean(conflictError)}
+          disabled={isSubmitting || Boolean(conflictError) || Boolean(isRestrictedExpert)}
           className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-navy px-6 py-2.5 text-xs font-semibold text-surface dark:text-bg hover:opacity-95 disabled:opacity-50 cursor-pointer shadow-xs transition-opacity"
         >
           {isSubmitting && (

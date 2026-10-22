@@ -846,5 +846,11 @@
   "Không thể tải dữ liệu trắc diện đất S1: {0}": "Unable to load Soil S1 chemistry data: {{0}}",
   "Hóa tính S1": "Soil S1",
   "Dữ liệu thô": "Raw data",
-  "Lỗi": "Error"
+  "Lỗi": "Error",
+  "Chỉnh sửa bản nháp (Máy chủ sẽ xác thực quyền sở hữu khi lưu)": "Edit Draft (Server verifies ownership on save)",
+  "Thêm đoạn trích (Máy chủ sẽ xác thực quyền sở hữu khi lưu)": "Add Chunk (Server verifies ownership on save)",
+  "Quyền chỉnh sửa của Quản trị viên": "Administrator Edit Access",
+  "Máy chủ áp dụng cơ chế kiểm soát sở hữu nghiêm ngặt: chỉ tài khoản đã tạo bản nháp này mới có thể lưu thay đổi. Nếu hồ sơ do người dùng khác tạo, thao tác lưu sẽ bị từ chối (403 Forbidden).": "The server enforces strict ownership control: only the account that created this draft can save changes. If the draft was created by another user, the save operation will be denied (403 Forbidden).",
+  "Bạn không có quyền lưu bản nháp này vì máy chủ chỉ cho phép người tạo hồ sơ chỉnh sửa (403 Forbidden).": "You do not have permission to save this draft because the server only permits the creator to edit (403 Forbidden).",
+  "Bạn không thể lưu bản nháp khi hồ sơ chuyên gia chưa được xác minh.": "You cannot save drafts while your expert profile is not verified."
 }
