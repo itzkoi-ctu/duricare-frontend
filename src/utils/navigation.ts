@@ -8,6 +8,7 @@ export const NAVIGATION: readonly NavigationItem[] = [
   { path: '/settings/farm', label: 'Cài đặt vườn', icon: 'settings', tone: 'navy', roles: ['ADMIN'] },
   { path: '/settings/zones', label: 'Quản lý khu vực', mobileLabel: 'Khu vực', icon: 'yard', tone: 'teal', roles: ['ADMIN'] },
   { path: '/settings/experts', label: 'Quản lý chuyên gia', mobileLabel: 'Chuyên gia', icon: 'badge', tone: 'navy', roles: ['ADMIN'] },
+  { path: '/settings/knowledge', label: 'Điều phối thẩm định', mobileLabel: 'Điều phối', icon: 'rule', tone: 'navy', roles: ['ADMIN'] },
   { path: '/knowledge/sources', label: 'Nguồn tri thức', mobileLabel: 'Tri thức', icon: 'menu_book', tone: 'teal', roles: ['ADMIN'] },
 ];
 
@@ -16,6 +17,7 @@ export function navigationForRole(role: User['role']): readonly NavigationItem[]
     return [
       { path: '/knowledge', label: 'Tài khoản chuyên gia', mobileLabel: 'Tài khoản', icon: 'school', tone: 'teal' },
       { path: '/knowledge/sources', label: 'Nguồn tri thức', mobileLabel: 'Tri thức', icon: 'menu_book', tone: 'teal' },
+      { path: '/knowledge/reviews', label: 'Nhiệm vụ thẩm định', mobileLabel: 'Thẩm định', icon: 'rate_review', tone: 'teal' },
     ];
   }
   return NAVIGATION.filter(item => !item.roles || item.roles.includes(role));

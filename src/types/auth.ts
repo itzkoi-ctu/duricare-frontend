@@ -1,4 +1,5 @@
 export interface User {
+  id: number;
   email: string;
   role: 'ADMIN' | 'OWNER' | 'EXPERT';
   farmId: number | null;

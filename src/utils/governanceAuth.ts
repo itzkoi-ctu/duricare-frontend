@@ -189,3 +189,148 @@ export function evaluateDraftEditEligibility(
     reason: 'UNKNOWN_ROLE',
   };
 }
+
+
+export interface AuthorActionEligibilityParams {
+  user: User | null;
+  profile?: ExpertProfile | null;
+  profileLoading?: boolean;
+  profileError?: boolean;
+  sourceOwnerUserId?: number | null;
+}
+
+export type AuthorActionEligibilityReason =
+  | 'ALLOWED_ADMIN_OWNER'
+  | 'ALLOWED_VERIFIED_EXPERT_OWNER'
+  | 'UNAUTHENTICATED'
+  | 'INVALID_AUTH_ID'
+  | 'INVALID_OWNER_ID'
+  | 'NOT_OWNER'
+  | 'ROLE_NOT_AUTHORIZED'
+  | 'PROFILE_LOADING'
+  | 'PROFILE_ERROR'
+  | 'NO_PROFILE'
+  | 'EXPERT_NOT_VERIFIED';
+
+export interface AuthorActionEligibilityResult {
+  canPerformAuthorActions: boolean;
+  isVerifiedOwner: boolean;
+  reason: AuthorActionEligibilityReason;
+}
+
+/**
+ * Evaluates whether the current user is eligible to perform author lifecycle actions
+ * (submit revision, withdraw revision, create subsequent revision from terminal revision).
+ *
+ * Rules:
+ * - Positive safe-integer authenticated user ID required (user.id > 0, Number.isSafeInteger).
+ * - Exact numerical ownership match required (user.id === sourceOwnerUserId).
+ * - ADMIN owner: permitted.
+ * - EXPERT owner: requires a loaded, error-free ExpertProfile with verificationStatus === 'VERIFIED'.
+ * - PENDING, SUSPENDED, loading, error, or missing profile: fail closed (false).
+ * - Non-owner, unauthenticated, or invalid ID: fail closed (false).
+ * - Never fall back to profile.userId when auth user.id is missing.
+ */
+export function evaluateAuthorActionEligibility(
+  params: AuthorActionEligibilityParams
+): AuthorActionEligibilityResult {
+  const {
+    user,
+    profile,
+    profileLoading = false,
+    profileError = false,
+    sourceOwnerUserId,
+  } = params;
+
+  if (!user) {
+    return {
+      canPerformAuthorActions: false,
+      isVerifiedOwner: false,
+      reason: 'UNAUTHENTICATED',
+    };
+  }
+
+  // 1. Positive safe-integer authenticated user ID validation
+  const hasValidAuthId =
+    typeof user.id === 'number' && Number.isSafeInteger(user.id) && user.id > 0;
+  if (!hasValidAuthId) {
+    return {
+      canPerformAuthorActions: false,
+      isVerifiedOwner: false,
+      reason: 'INVALID_AUTH_ID',
+    };
+  }
+
+  // 2. Positive safe-integer source owner user ID validation
+  const hasValidOwnerUserId =
+    typeof sourceOwnerUserId === 'number' &&
+    Number.isSafeInteger(sourceOwnerUserId) &&
+    sourceOwnerUserId > 0;
+  if (!hasValidOwnerUserId) {
+    return {
+      canPerformAuthorActions: false,
+      isVerifiedOwner: false,
+      reason: 'INVALID_OWNER_ID',
+    };
+  }
+
+  // 3. Exact ownership match
+  if (user.id !== sourceOwnerUserId) {
+    return {
+      canPerformAuthorActions: false,
+      isVerifiedOwner: false,
+      reason: 'NOT_OWNER',
+    };
+  }
+
+  // 4. Role qualification
+  if (user.role === 'ADMIN') {
+    return {
+      canPerformAuthorActions: true,
+      isVerifiedOwner: true,
+      reason: 'ALLOWED_ADMIN_OWNER',
+    };
+  }
+
+  if (user.role === 'EXPERT') {
+    if (profileLoading) {
+      return {
+        canPerformAuthorActions: false,
+        isVerifiedOwner: false,
+        reason: 'PROFILE_LOADING',
+      };
+    }
+    if (profileError) {
+      return {
+        canPerformAuthorActions: false,
+        isVerifiedOwner: false,
+        reason: 'PROFILE_ERROR',
+      };
+    }
+    if (!profile) {
+      return {
+        canPerformAuthorActions: false,
+        isVerifiedOwner: false,
+        reason: 'NO_PROFILE',
+      };
+    }
+    if (profile.verificationStatus !== 'VERIFIED') {
+      return {
+        canPerformAuthorActions: false,
+        isVerifiedOwner: false,
+        reason: 'EXPERT_NOT_VERIFIED',
+      };
+    }
+    return {
+      canPerformAuthorActions: true,
+      isVerifiedOwner: true,
+      reason: 'ALLOWED_VERIFIED_EXPERT_OWNER',
+    };
+  }
+
+  return {
+    canPerformAuthorActions: false,
+    isVerifiedOwner: false,
+    reason: 'ROLE_NOT_AUTHORIZED',
+  };
+}

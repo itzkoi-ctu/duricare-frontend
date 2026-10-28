@@ -101,6 +101,55 @@ export interface SourceResponse {
   latestRevisionId: string | null;
 }
 
+export type AssignmentStatus = 'ACTIVE' | 'COMPLETED' | 'REPLACED' | 'CANCELLED';
+
+export type DecisionOutcome = 'APPROVED' | 'CHANGES_REQUESTED' | 'REJECTED';
+
+export interface ReviewerCandidate {
+  userId: number;
+  fullName: string;
+  affiliation: string | null;
+  specialties: string | null;
+}
+
+export interface AssignmentSummary {
+  id: string;
+  revisionId: string;
+  reviewerUserId: number;
+  reviewerDisplayName: string;
+  assignedBy: number;
+  assignedAt: string;
+  assignmentReason: string;
+  status: AssignmentStatus;
+  version: number;
+  closedAt: string | null;
+  closureReason: string | null;
+  replacesAssignmentId: string | null;
+  closedBy: number | null;
+}
+
+export interface ChunkComment {
+  chunkId: string;
+  comment: string;
+}
+
+export interface DecisionDetail {
+  id: string;
+  assignmentId: string;
+  revisionId: string;
+  reviewerUserId: number;
+  decidedAt: string;
+  outcome: DecisionOutcome;
+  reason: string;
+  assessedTier: Tier;
+  tierRationale: string | null;
+  conflictOfInterestDeclared: boolean;
+  checkedSource: boolean;
+  checkedFaithfulness: boolean;
+  checkedApplicability: boolean;
+  chunkComments: ChunkComment[];
+}
+
 export interface RevisionResponse {
   id: string;
   sourceId: string;
@@ -118,8 +167,73 @@ export interface RevisionResponse {
   tierPolicyVersion: string;
   assessedTier: Tier | null;
   tierRationale: string | null;
-  activeAssignment: unknown | null;
-  decision: unknown | null;
+  activeAssignment: AssignmentSummary | null;
+  decision: DecisionDetail | null;
+}
+
+export interface AssignmentDetail {
+  id: string;
+  revisionId: string;
+  reviewerUserId: number;
+  reviewerDisplayName: string;
+  assignedBy: number;
+  assignedAt: string;
+  assignmentReason: string;
+  status: AssignmentStatus;
+  version: number;
+  closedAt: string | null;
+  closureReason: string | null;
+  replacesAssignmentId: string | null;
+  closedBy: number | null;
+  revision: RevisionResponse;
+  decision: DecisionDetail | null;
+}
+
+export interface SubmitRevisionRequest {
+  version: number;
+}
+
+export interface WithdrawRevisionRequest {
+  version: number;
+  reason: string;
+}
+
+export interface NewRevisionRequest {
+  baseRevisionId: string;
+  baseVersion: number;
+}
+
+export interface AssignReviewerRequest {
+  version: number;
+  reviewerUserId: number;
+  reason: string;
+}
+
+export interface ReassignReviewerRequest {
+  version: number;
+  activeAssignmentId: string;
+  reviewerUserId: number;
+  reason: string;
+}
+
+export interface DecisionRequest {
+  version: number;
+  assignmentVersion: number;
+  outcome: DecisionOutcome;
+  reason: string;
+  assessedTier: Tier;
+  tierRationale: string | null;
+  conflictOfInterestDeclared: boolean;
+  checkedSource: boolean;
+  checkedFaithfulness: boolean;
+  checkedApplicability: boolean;
+  chunkComments: ChunkComment[];
+}
+
+export interface DecisionResponse {
+  decision: DecisionDetail;
+  revision: RevisionResponse;
+  assignment: AssignmentSummary;
 }
 
 export interface CreatedResponse {

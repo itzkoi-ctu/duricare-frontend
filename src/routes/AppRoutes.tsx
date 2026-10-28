@@ -25,6 +25,9 @@ const KnowledgeSourcesPage = lazy(() => import('../pages/KnowledgeSourcesPage'))
 const KnowledgeSourceCreatePage = lazy(() => import('../pages/KnowledgeSourceCreatePage'));
 const KnowledgeSourceDetailPage = lazy(() => import('../pages/KnowledgeSourceDetailPage'));
 const KnowledgeSourceEditPage = lazy(() => import('../pages/KnowledgeSourceEditPage'));
+const AdminKnowledgeSubmissionsPage = lazy(() => import('../pages/AdminKnowledgeSubmissionsPage'));
+const ExpertAssignedReviewsPage = lazy(() => import('../pages/ExpertAssignedReviewsPage'));
+const ExpertReviewWorkspacePage = lazy(() => import('../pages/ExpertReviewWorkspacePage'));
 const ExpertListPage = lazy(() => import('../pages/ExpertListPage'));
 const ExpertCreatePage = lazy(() => import('../pages/ExpertCreatePage'));
 const ExpertDetailPage = lazy(() => import('../pages/ExpertDetailPage'));
@@ -78,6 +81,8 @@ export default function AppRoutes() {
                 <Route path="/knowledge/sources/new" element={<KnowledgeSourceCreatePage />} />
                 <Route path="/knowledge/sources/:id" element={<KnowledgeSourceDetailPage />} />
                 <Route path="/knowledge/sources/:sourceId/revisions/:revisionId/edit" element={<KnowledgeSourceEditPage />} />
+                <Route path="/knowledge/reviews" element={<ExpertAssignedReviewsPage />} />
+                <Route path="/knowledge/reviews/:assignmentId" element={<ExpertReviewWorkspacePage />} />
               </Route>
             </Route>
 
@@ -96,6 +101,7 @@ export default function AppRoutes() {
                 <Route path="/settings/experts" element={<ExpertListPage />} />
                 <Route path="/settings/experts/new" element={<ExpertCreatePage />} />
                 <Route path="/settings/experts/:id" element={<ExpertDetailPage />} />
+                <Route path="/settings/knowledge" element={<AdminKnowledgeSubmissionsPage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Route>

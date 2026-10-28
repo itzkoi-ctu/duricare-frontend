@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { t } from '../i18n';
 import { useLanguage } from '../i18n/useLanguage';
@@ -8,11 +8,16 @@ import { useKnowledgeSourceDetail } from '../hooks/useKnowledgeSourceDetail';
 import { useKnowledgeHistory } from '../hooks/useKnowledgeHistory';
 import KnowledgeStatusBadge from '../components/knowledge/KnowledgeStatusBadge';
 import KnowledgeTierBadge from '../components/knowledge/KnowledgeTierBadge';
+import DecisionOutcomeBadge from '../components/knowledge/DecisionOutcomeBadge';
 import KnowledgeHistoryTable from '../components/knowledge/KnowledgeHistoryTable';
+import KnowledgeSubmitModal from '../components/knowledge/KnowledgeSubmitModal';
+import KnowledgeWithdrawModal from '../components/knowledge/KnowledgeWithdrawModal';
+import KnowledgeNewRevisionModal from '../components/knowledge/KnowledgeNewRevisionModal';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import { SOURCE_TYPE_CONFIG, TOPIC_CONFIG, GROWTH_STAGE_CONFIG } from '../utils/governanceStatus';
-import { evaluateDraftEditEligibility } from '../utils/governanceAuth';
+import { evaluateDraftEditEligibility, evaluateAuthorActionEligibility } from '../utils/governanceAuth';
+import type { RevisionResponse, DecisionDetail } from '../types/governance';
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
@@ -37,7 +42,33 @@ export default function KnowledgeSourceDetailPage() {
 
   const [activeTab, setActiveTab] = useState<'chunks' | 'history'>('chunks');
 
-  const { source, revision, loading, error, notFound, reload } = useKnowledgeSourceDetail(id);
+  // Active author modal identity binding
+  interface ActiveAuthorModal {
+    type: 'submit' | 'withdraw' | 'newRevision';
+    sourceId: string;
+    revisionId: string;
+  }
+  const [activeModal, setActiveModal] = useState<ActiveAuthorModal | null>(null);
+
+  // Uncertainty locks keyed by `${revisionId}:${action}` (e.g. `${safeRevision.id}:submit`, `${safeRevision.id}:withdraw`)
+  const [indeterminateLocks, setIndeterminateLocks] = useState<Record<string, boolean>>({});
+
+  // Guard ref for tracking active route identity to discard late callbacks
+  const currentSourceIdRef = useRef<string | undefined>(id);
+  currentSourceIdRef.current = id;
+
+  const {
+    source,
+    revision,
+    revisionsList,
+    loading,
+    error,
+    notFound,
+    reload,
+    selectRevision,
+    setRevisionDirectly,
+  } = useKnowledgeSourceDetail(id);
+
   const {
     data: historyData,
     loading: historyLoading,
@@ -45,7 +76,135 @@ export default function KnowledgeSourceDetailPage() {
     setPage: setHistoryPage,
   } = useKnowledgeHistory(id);
 
-  if (loading) return <LoadingState />;
+  // Map chunk comments by chunkId from decision if available
+  const chunkCommentsMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const decision = revision?.decision as DecisionDetail | null | undefined;
+    if (decision?.chunkComments && Array.isArray(decision.chunkComments)) {
+      for (const cc of decision.chunkComments) {
+        if (cc.chunkId && cc.comment) {
+          map.set(cc.chunkId, cc.comment);
+        }
+      }
+    }
+    return map;
+  }, [revision?.decision]);
+
+  // Invalidate/close active author modal on source or revision identity transition
+  useEffect(() => {
+    setActiveModal(null);
+  }, [id, revision?.id]);
+
+  const safeRevision = revision && source && revision.sourceId === source.id && source.id === id ? revision : null;
+  const latestRev = safeRevision || (source?.latestRevision ? { ...source.latestRevision, metadata: null, chunks: [] } : null);
+  const status = safeRevision?.status || latestRev?.status || 'DRAFT';
+  const meta = safeRevision?.metadata;
+  const chunks = safeRevision?.chunks || [];
+
+  const targetRevisionId = safeRevision?.id || source?.latestRevisionId || source?.latestRevision?.id || null;
+
+  // Evaluate draft edit eligibility following FE-003 policy
+  const eligibility = evaluateDraftEditEligibility({
+    user,
+    profile,
+    profileLoading,
+    profileError,
+    status,
+    sourceOwnerUserId: source?.ownerUserId,
+    hasValidRevision: Boolean(targetRevisionId),
+  });
+
+  const canEditDraft = eligibility.canAttemptEdit;
+
+  // Evaluate author lifecycle action eligibility (submit, withdraw, new revision)
+  const authorEligibility = evaluateAuthorActionEligibility({
+    user,
+    profile,
+    profileLoading,
+    profileError,
+    sourceOwnerUserId: source?.ownerUserId,
+  });
+
+  const canPerformAuthorActions = authorEligibility.canPerformAuthorActions;
+
+  const canSubmit = canPerformAuthorActions && status === 'DRAFT' && Boolean(safeRevision);
+  const canWithdraw = canPerformAuthorActions && (status === 'SUBMITTED' || status === 'IN_REVIEW') && Boolean(safeRevision);
+
+  const isTerminal =
+    status === 'APPROVED' ||
+    status === 'CHANGES_REQUESTED' ||
+    status === 'REJECTED' ||
+    status === 'WITHDRAWN';
+
+  const isLatestRevision = Boolean(
+    safeRevision && source?.latestRevision && safeRevision.id === source.latestRevision.id
+  );
+
+  const canCreateNextRevision = canPerformAuthorActions && isTerminal && isLatestRevision && Boolean(safeRevision);
+
+  // Render-time eligibility and target identity verification
+  const isSubmitModalOpen = Boolean(
+    activeModal?.type === 'submit' &&
+    activeModal.sourceId === source?.id &&
+    activeModal.revisionId === safeRevision?.id &&
+    canSubmit
+  );
+
+  const isWithdrawModalOpen = Boolean(
+    activeModal?.type === 'withdraw' &&
+    activeModal.sourceId === source?.id &&
+    activeModal.revisionId === safeRevision?.id &&
+    canWithdraw
+  );
+
+  const isNewRevisionModalOpen = Boolean(
+    activeModal?.type === 'newRevision' &&
+    activeModal.sourceId === source?.id &&
+    activeModal.revisionId === safeRevision?.id &&
+    canCreateNextRevision
+  );
+
+  const handleActionSuccess = (updatedRev: RevisionResponse) => {
+    // Guard against late callback from previous source or route
+    if (updatedRev.sourceId !== currentSourceIdRef.current) {
+      return;
+    }
+    // Successfully completed mutation: remove indeterminate lock for this revision action
+    setIndeterminateLocks((prev) => {
+      const next = { ...prev };
+      delete next[`${updatedRev.id}:submit`];
+      delete next[`${updatedRev.id}:withdraw`];
+      delete next[`${updatedRev.id}:newRev`];
+      return next;
+    });
+    setActiveModal(null);
+    setRevisionDirectly(updatedRev);
+    reload().catch(() => {});
+  };
+
+  const handleReload = async () => {
+    const targetSourceId = currentSourceIdRef.current;
+    const targetRevisionId = safeRevision?.id;
+    const res = await reload();
+    // Guard against late reload response if user navigated away while reload was in flight
+    if (currentSourceIdRef.current !== targetSourceId) {
+      return res;
+    }
+    // Successfully reloaded: clear indeterminate locks for the verified revision
+    const verifiedRevId = res?.revision?.id || targetRevisionId;
+    if (res?.revision && verifiedRevId) {
+      setIndeterminateLocks((prev) => {
+        const next = { ...prev };
+        delete next[`${verifiedRevId}:submit`];
+        delete next[`${verifiedRevId}:withdraw`];
+        delete next[`${verifiedRevId}:newRev`];
+        return next;
+      });
+    }
+    return res;
+  };
+
+  if (loading && !source) return <LoadingState />;
   if (notFound) {
     return (
       <div className="py-16 text-center rounded-2xl border border-border bg-surface p-6 shadow-2xs space-y-4">
@@ -68,32 +227,11 @@ export default function KnowledgeSourceDetailPage() {
       </div>
     );
   }
-  if (error || !source) {
+  if (!source) {
     return <ErrorState message={error || t('Không thể tải thông tin nguồn tri thức.')} onRetry={reload} />;
   }
 
-  const latestRev = revision || (source.latestRevision ? { ...source.latestRevision, metadata: null, chunks: [] } : null);
-  const status = latestRev?.status || 'DRAFT';
-  const meta = revision?.metadata;
-  const chunks = revision?.chunks || [];
-
-  const targetRevisionId = revision?.id || source.latestRevisionId || source.latestRevision?.id || null;
-
-  // Evaluate draft edit eligibility following FE-003 policy:
-  // - Verified EXPERT owning the draft: can edit and save
-  // - ADMIN viewing a DRAFT: navigation affordance to edit workflow (backend enforces ownership on save)
-  // - Non-owner EXPERT, pending/suspended EXPERT, OWNER, or non-DRAFT: cannot edit
-  const eligibility = evaluateDraftEditEligibility({
-    user,
-    profile,
-    profileLoading,
-    profileError,
-    status,
-    sourceOwnerUserId: source.ownerUserId,
-    hasValidRevision: Boolean(targetRevisionId),
-  });
-
-  const canEditDraft = eligibility.canAttemptEdit;
+  const decision = revision?.decision as DecisionDetail | null | undefined;
 
   return (
     <div className="space-y-6">
@@ -122,19 +260,19 @@ export default function KnowledgeSourceDetailPage() {
             <span>ID: {source.id}</span>
             <span>•</span>
             <span>v{source.version}</span>
-            {latestRev && (
+            {revision && (
               <>
                 <span>•</span>
-                <span>Rev #{latestRev.revisionNumber}</span>
+                <span>Rev #{revision.revisionNumber} (v{revision.version})</span>
               </>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+        <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
           <button
             type="button"
-            onClick={reload}
+            onClick={() => { reload().catch(() => {}); }}
             title={t('Tải lại dữ liệu')}
             className="w-10 h-10 flex items-center justify-center rounded-xl border border-border bg-surface text-gray hover:text-text hover:bg-bg cursor-pointer transition-colors shadow-2xs"
           >
@@ -143,6 +281,7 @@ export default function KnowledgeSourceDetailPage() {
             </span>
           </button>
 
+          {/* DRAFT Actions */}
           {canEditDraft && targetRevisionId && (
             <Link
               to={`/knowledge/sources/${source.id}/revisions/${targetRevisionId}/edit`}
@@ -160,8 +299,312 @@ export default function KnowledgeSourceDetailPage() {
               <span>{t('Chỉnh sửa bản nháp')}</span>
             </Link>
           )}
+
+          {canSubmit && safeRevision && (
+            <button
+              type="button"
+              data-testid="submit-for-review-button"
+              onClick={() =>
+                setActiveModal({
+                  type: 'submit',
+                  sourceId: source.id,
+                  revisionId: safeRevision.id,
+                })
+              }
+              className="min-h-10 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal text-surface dark:text-bg text-xs font-semibold hover:opacity-95 shadow-xs cursor-pointer"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-base">
+                send
+              </span>
+              <span>{t('Gửi thẩm định')}</span>
+            </button>
+          )}
+
+          {/* SUBMITTED / IN_REVIEW Actions */}
+          {canWithdraw && safeRevision && (
+            <button
+              type="button"
+              data-testid="withdraw-button"
+              onClick={() =>
+                setActiveModal({
+                  type: 'withdraw',
+                  sourceId: source.id,
+                  revisionId: safeRevision.id,
+                })
+              }
+              className="min-h-10 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-coral/10 border border-coral/30 text-coral hover:bg-coral/20 text-xs font-semibold shadow-xs cursor-pointer"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-base">
+                archive
+              </span>
+              <span>{t('Rút hồ sơ')}</span>
+            </button>
+          )}
+
+          {/* Terminal Action: Create Subsequent Revision */}
+          {canCreateNextRevision && safeRevision && (
+            <button
+              type="button"
+              data-testid="create-subsequent-revision-button"
+              onClick={() =>
+                setActiveModal({
+                  type: 'newRevision',
+                  sourceId: source.id,
+                  revisionId: safeRevision.id,
+                })
+              }
+              className="min-h-10 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal text-surface dark:text-bg text-xs font-semibold hover:opacity-95 shadow-xs cursor-pointer"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-base">
+                post_add
+              </span>
+              <span>{t('Tạo phiên bản mới từ bản này')}</span>
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Error alert banner if reload failed while source was preserved */}
+      {error && (
+        <div
+          data-testid="detail-reload-error-banner"
+          className="p-4 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 flex items-start justify-between gap-3 text-sm"
+        >
+          <div className="flex items-start gap-2">
+            <span aria-hidden="true" className="material-symbols-outlined text-red-500 shrink-0 mt-0.5">
+              error
+            </span>
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => { reload().catch(() => {}); }}
+            className="text-xs font-semibold underline hover:no-underline shrink-0 cursor-pointer"
+          >
+            {t('Thử lại')}
+          </button>
+        </div>
+      )}
+
+      {/* Revisions Switcher */}
+      {revisionsList.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-border/70">
+          <span className="text-xs font-semibold text-gray shrink-0">{t('Phiên bản')}:</span>
+          {revisionsList.map(r => {
+            const isSelected = revision?.id === r.id;
+            return (
+              <button
+                key={r.id}
+                type="button"
+                data-testid={`revision-tab-${r.revisionNumber}`}
+                onClick={() => selectRevision(r.id)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+                  isSelected
+                    ? 'bg-navy text-surface dark:text-bg shadow-xs'
+                    : 'bg-surface border border-border text-gray hover:text-text hover:bg-bg'
+                }`}
+              >
+                <span>Rev #{r.revisionNumber}</span>
+                <KnowledgeStatusBadge status={r.status} size="sm" showIcon={false} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Informational Status Notices */}
+      {status === 'SUBMITTED' && (
+        <div
+          data-testid="submitted-notice-banner"
+          className="p-4 rounded-xl border border-amber/30 bg-amber/10 text-amber space-y-1"
+        >
+          <div className="flex items-center gap-2 font-bold text-xs">
+            <span aria-hidden="true" className="material-symbols-outlined text-base">
+              schedule
+            </span>
+            <span>{t('Hồ sơ đã được gửi thẩm định chuyên môn')}</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-text/80">
+            {t('Nội dung hồ sơ hiện đang ở trạng thái bất biến (chỉ đọc) và nằm trong hàng đợi phân công của quản trị viên. Tác giả có thể rút hồ sơ nếu cần bổ sung hoặc điều chỉnh.')}
+          </p>
+        </div>
+      )}
+
+      {status === 'IN_REVIEW' && (
+        <div
+          data-testid="in-review-notice-banner"
+          className="p-4 rounded-xl border border-blue/30 bg-blue/10 text-blue space-y-1"
+        >
+          <div className="flex items-center gap-2 font-bold text-xs">
+            <span aria-hidden="true" className="material-symbols-outlined text-base">
+              rate_review
+            </span>
+            <span>{t('Hồ sơ đang trong quá trình thẩm định độc lập')}</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-text/80">
+            {t('Chuyên gia được phân công đang đối chiếu tài liệu nguồn và các trích đoạn. Nội dung tiếp tục được bảo vệ bất biến.')}
+          </p>
+        </div>
+      )}
+
+      {status === 'APPROVED' && (
+        <div
+          data-testid="approved-notice-banner"
+          className="p-4 rounded-xl border border-teal/30 bg-teal/10 text-teal space-y-1"
+        >
+          <div className="flex items-center gap-2 font-bold text-xs">
+            <span aria-hidden="true" className="material-symbols-outlined text-base">
+              verified
+            </span>
+            <span>{t('Hồ sơ nguồn đã được phê duyệt thẩm định chuyên môn')}</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-text/80">
+            {t('Phiên bản này đã hoàn tất thẩm định (1B). Lưu ý: Quyết định phê duyệt là kết quả thẩm định chuyên môn, chưa đồng nghĩa với việc đã xuất bản hay chỉ mục vào hệ thống RAG.')}
+          </p>
+        </div>
+      )}
+
+      {status === 'CHANGES_REQUESTED' && (
+        <div
+          data-testid="changes-requested-notice-banner"
+          className="p-4 rounded-xl border border-coral/30 bg-coral/10 text-coral space-y-1"
+        >
+          <div className="flex items-center gap-2 font-bold text-xs">
+            <span aria-hidden="true" className="material-symbols-outlined text-base">
+              feedback
+            </span>
+            <span>{t('Thẩm định viên yêu cầu chỉnh sửa hoặc bổ sung căn cứ')}</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-text/80">
+            {t('Vui lòng xem ý kiến thẩm định chi tiết bên dưới. Bạn có thể sử dụng nút "Tạo phiên bản mới từ bản này" để mở bản nháp Rev #{0} và hoàn thiện các yêu cầu.', [(revision?.revisionNumber || 1) + 1])}
+          </p>
+        </div>
+      )}
+
+      {status === 'REJECTED' && (
+        <div
+          data-testid="rejected-notice-banner"
+          className="p-4 rounded-xl border border-coral/30 bg-coral/10 text-coral space-y-1"
+        >
+          <div className="flex items-center gap-2 font-bold text-xs">
+            <span aria-hidden="true" className="material-symbols-outlined text-base">
+              cancel
+            </span>
+            <span>{t('Hồ sơ đã bị từ chối thẩm định chuyên môn')}</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-text/80">
+            {t('Hồ sơ không đáp ứng các tiêu chuẩn thẩm định. Bạn có thể xem lý do đánh giá bên dưới.')}
+          </p>
+        </div>
+      )}
+
+      {status === 'WITHDRAWN' && (
+        <div
+          data-testid="withdrawn-notice-banner"
+          className="p-4 rounded-xl border border-border bg-bg text-gray space-y-1"
+        >
+          <div className="flex items-center gap-2 font-bold text-xs">
+            <span aria-hidden="true" className="material-symbols-outlined text-base">
+              archive
+            </span>
+            <span>{t('Hồ sơ đã được rút bởi tác giả')}</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-gray/80">
+            {t('Phiên bản này đã bị rút và không còn nằm trong quá trình thẩm định. Bạn có thể tạo phiên bản mới tiếp theo từ bản này khi sẵn sàng.')}
+          </p>
+        </div>
+      )}
+
+      {/* Reviewer Decision Details Card (if decision exists) */}
+      {decision && (
+        <section
+          data-testid="decision-detail-card"
+          aria-label={t('Kết quả thẩm định')}
+          className="rounded-2xl border border-teal/30 bg-surface p-5 md:p-6 shadow-2xs space-y-4"
+        >
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="flex items-center gap-2">
+              <span aria-hidden="true" className="material-symbols-outlined text-teal text-xl">
+                fact_check
+              </span>
+              <h2 className="text-sm font-bold text-text">{t('Quyết định thẩm định chuyên môn')}</h2>
+            </div>
+            <DecisionOutcomeBadge outcome={decision.outcome} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div>
+              <span className="text-gray block mb-1">{t('Thời gian thẩm định')}:</span>
+              <span className="font-semibold text-text font-mono">{formatDate(decision.decidedAt)}</span>
+            </div>
+
+            {decision.assessedTier && (
+              <div>
+                <span className="text-gray block mb-1">{t('Tầng tri thức được xác nhận')}:</span>
+                <KnowledgeTierBadge tier={decision.assessedTier} showDesc />
+              </div>
+            )}
+
+            <div className="md:col-span-2">
+              <span className="text-gray block mb-1 font-semibold">{t('Nhận xét & Căn cứ quyết định')}:</span>
+              <div className="p-3.5 rounded-xl bg-bg border border-border text-text leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
+                {decision.reason}
+              </div>
+            </div>
+
+            {decision.tierRationale && (
+              <div className="md:col-span-2">
+                <span className="text-gray block mb-1 font-semibold">{t('Căn cứ xếp tầng tri thức')}:</span>
+                <div className="p-3 rounded-xl bg-bg border border-border text-text text-[11px] leading-relaxed [overflow-wrap:anywhere]">
+                  {decision.tierRationale}
+                </div>
+              </div>
+            )}
+
+            {/* Verification checklist indicators */}
+            <div className="md:col-span-2 border-t border-border pt-3">
+              <span className="text-gray block mb-2 font-semibold">{t('Các tiêu chí đã thẩm định')}:</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                <div className="flex items-center gap-1.5 p-2 rounded-lg bg-bg border border-border">
+                  <span
+                    aria-hidden="true"
+                    className={`material-symbols-outlined text-base ${
+                      decision.checkedSource ? 'text-teal' : 'text-gray/40'
+                    }`}
+                  >
+                    {decision.checkedSource ? 'check_circle' : 'cancel'}
+                  </span>
+                  <span>{t('Đối chiếu tài liệu nguồn')}</span>
+                </div>
+
+                <div className="flex items-center gap-1.5 p-2 rounded-lg bg-bg border border-border">
+                  <span
+                    aria-hidden="true"
+                    className={`material-symbols-outlined text-base ${
+                      decision.checkedFaithfulness ? 'text-teal' : 'text-gray/40'
+                    }`}
+                  >
+                    {decision.checkedFaithfulness ? 'check_circle' : 'cancel'}
+                  </span>
+                  <span>{t('Tính trung thực trích đoạn')}</span>
+                </div>
+
+                <div className="flex items-center gap-1.5 p-2 rounded-lg bg-bg border border-border">
+                  <span
+                    aria-hidden="true"
+                    className={`material-symbols-outlined text-base ${
+                      decision.checkedApplicability ? 'text-teal' : 'text-gray/40'
+                    }`}
+                  >
+                    {decision.checkedApplicability ? 'check_circle' : 'cancel'}
+                  </span>
+                  <span>{t('Phạm vi áp dụng thực tế')}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Metadata Card */}
       <section
@@ -177,6 +620,9 @@ export default function KnowledgeSourceDetailPage() {
           </h2>
           <span className="text-xs text-gray">
             {t('Người tạo')}: <strong className="text-text">{source.ownerDisplayName}</strong>
+            {authorEligibility.isVerifiedOwner && (
+              <span className="ml-1 text-xs text-teal font-semibold">({t('Bạn')})</span>
+            )}
           </span>
         </div>
 
@@ -261,24 +707,6 @@ export default function KnowledgeSourceDetailPage() {
               )}
             </div>
           )}
-
-          {/* Assessed Tier from Reviewer (if evaluated) */}
-          {revision?.assessedTier && (
-            <div className="md:col-span-2 lg:col-span-3 border-t border-border pt-3 bg-teal/5 p-3 rounded-xl border border-teal/20">
-              <div className="flex items-center gap-2 mb-1.5">
-                <dt className="font-semibold text-teal">{t('Tầng thẩm định được duyệt')}:</dt>
-                <dd>
-                  <KnowledgeTierBadge tier={revision.assessedTier} showDesc />
-                </dd>
-              </div>
-              {revision.tierRationale && (
-                <div className="text-xs text-text mt-2">
-                  <p className="font-semibold mb-1 text-gray">{t('Đánh giá của thẩm định viên')}:</p>
-                  <p className="leading-relaxed [overflow-wrap:anywhere]">{revision.tierRationale}</p>
-                </div>
-              )}
-            </div>
-          )}
         </dl>
       </section>
 
@@ -356,77 +784,98 @@ export default function KnowledgeSourceDetailPage() {
                 )}
               </div>
             ) : (
-              chunks.map((c, idx) => (
-                <div
-                  key={c.chunkId || `chunk-${idx}`}
-                  className="rounded-2xl border border-border bg-surface p-5 md:p-6 shadow-2xs space-y-3.5"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/80 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-6 h-6 rounded-full bg-navy text-surface dark:text-bg text-xs font-bold flex items-center justify-center shrink-0">
-                        {c.position + 1}
-                      </span>
-                      <h3 className="font-bold text-sm text-text [overflow-wrap:anywhere]">{c.title}</h3>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="px-2.5 py-0.5 rounded-md border border-teal/30 bg-teal/10 text-teal text-[11px] font-semibold">
-                        {t(TOPIC_CONFIG[c.topic])}
-                      </span>
-                      <span className="px-2.5 py-0.5 rounded-md border border-border bg-bg text-gray text-[11px] font-medium">
-                        {c.stage ? t(GROWTH_STAGE_CONFIG[c.stage]) : t('Áp dụng chung')}
-                      </span>
-                      {c.locator && (
-                        <span className="text-[11px] font-mono text-gray">
-                          📍 {c.locator}
+              chunks.map((c, idx) => {
+                const reviewerComment = c.chunkId ? chunkCommentsMap.get(c.chunkId) : null;
+                return (
+                  <div
+                    key={c.chunkId || `chunk-${idx}`}
+                    className="rounded-2xl border border-border bg-surface p-5 md:p-6 shadow-2xs space-y-3.5"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/80 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-6 h-6 rounded-full bg-navy text-surface dark:text-bg text-xs font-bold flex items-center justify-center shrink-0">
+                          {c.position + 1}
                         </span>
-                      )}
+                        <h3 className="font-bold text-sm text-text [overflow-wrap:anywhere]">{c.title}</h3>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2.5 py-0.5 rounded-md border border-teal/30 bg-teal/10 text-teal text-[11px] font-semibold">
+                          {t(TOPIC_CONFIG[c.topic] || c.topic)}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-md border border-border bg-bg text-gray text-[11px] font-medium">
+                          {c.stage ? t(GROWTH_STAGE_CONFIG[c.stage] || c.stage) : t('Áp dụng chung')}
+                        </span>
+                        {c.locator && (
+                          <span className="text-[11px] font-mono text-gray">
+                            📍 {c.locator}
+                          </span>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Reviewer Comment for this chunk (if changes requested or rejected) */}
+                    {reviewerComment && (
+                      <div
+                        data-testid={`chunk-comment-${c.chunkId}`}
+                        className="rounded-xl border border-amber/40 bg-amber/10 p-3 text-xs text-amber space-y-1"
+                      >
+                        <div className="flex items-center gap-1.5 font-bold">
+                          <span aria-hidden="true" className="material-symbols-outlined text-sm">
+                            rate_review
+                          </span>
+                          <span>{t('Góp ý của thẩm định viên')}:</span>
+                        </div>
+                        <p className="text-text leading-relaxed [overflow-wrap:anywhere]">
+                          {reviewerComment}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Original Excerpt */}
+                    {c.originalExcerpt && (
+                      <div className="rounded-xl border border-border/70 bg-bg/50 p-3.5 text-xs text-text space-y-1">
+                        <span className="font-semibold text-gray text-[11px] block">
+                          {t('Trích đoạn nguyên văn')}:
+                        </span>
+                        <p className="italic leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
+                          "{c.originalExcerpt}"
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Content / Guidance */}
+                    {c.content && (
+                      <div className="text-xs text-text space-y-1">
+                        <span className="font-semibold text-gray text-[11px] block">
+                          {t('Nội dung chuẩn hóa / Hướng dẫn')}:
+                        </span>
+                        <p className="leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
+                          {c.content}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Notes Grid */}
+                    {(c.applicabilityNotes || c.measurementNotes) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-[11px] text-gray border-t border-border/60">
+                        {c.applicabilityNotes && (
+                          <div>
+                            <strong className="text-text block mb-0.5">{t('Phạm vi áp dụng')}:</strong>
+                            <p className="[overflow-wrap:anywhere]">{c.applicabilityNotes}</p>
+                          </div>
+                        )}
+                        {c.measurementNotes && (
+                          <div>
+                            <strong className="text-text block mb-0.5">{t('Ghi chú đo lường')}:</strong>
+                            <p className="[overflow-wrap:anywhere]">{c.measurementNotes}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-
-                  {/* Original Excerpt */}
-                  {c.originalExcerpt && (
-                    <div className="rounded-xl border border-border/70 bg-bg/50 p-3.5 text-xs text-text space-y-1">
-                      <span className="font-semibold text-gray text-[11px] block">
-                        {t('Trích đoạn nguyên văn')}:
-                      </span>
-                      <p className="italic leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
-                        "{c.originalExcerpt}"
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Content / Guidance */}
-                  {c.content && (
-                    <div className="text-xs text-text space-y-1">
-                      <span className="font-semibold text-gray text-[11px] block">
-                        {t('Nội dung chuẩn hóa / Hướng dẫn')}:
-                      </span>
-                      <p className="leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
-                        {c.content}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Notes Grid */}
-                  {(c.applicabilityNotes || c.measurementNotes) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-[11px] text-gray border-t border-border/60">
-                      {c.applicabilityNotes && (
-                        <div>
-                          <strong className="text-text block mb-0.5">{t('Phạm vi áp dụng')}:</strong>
-                          <p className="[overflow-wrap:anywhere]">{c.applicabilityNotes}</p>
-                        </div>
-                      )}
-                      {c.measurementNotes && (
-                        <div>
-                          <strong className="text-text block mb-0.5">{t('Ghi chú đo lường')}:</strong>
-                          <p className="[overflow-wrap:anywhere]">{c.measurementNotes}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -470,6 +919,50 @@ export default function KnowledgeSourceDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Action Modals */}
+      {source && safeRevision && isSubmitModalOpen && canSubmit && (
+        <KnowledgeSubmitModal
+          revision={safeRevision}
+          isOpen={isSubmitModalOpen}
+          onClose={() => setActiveModal(null)}
+          onSuccess={handleActionSuccess}
+          onReload={handleReload}
+          mustVerifyReload={Boolean(indeterminateLocks[`${safeRevision.id}:submit`])}
+          onIndeterminateError={() =>
+            setIndeterminateLocks((prev) => ({ ...prev, [`${safeRevision.id}:submit`]: true }))
+          }
+        />
+      )}
+
+      {source && safeRevision && isWithdrawModalOpen && canWithdraw && (
+        <KnowledgeWithdrawModal
+          revision={safeRevision}
+          isOpen={isWithdrawModalOpen}
+          onClose={() => setActiveModal(null)}
+          onSuccess={handleActionSuccess}
+          onReload={handleReload}
+          mustVerifyReload={Boolean(indeterminateLocks[`${safeRevision.id}:withdraw`])}
+          onIndeterminateError={() =>
+            setIndeterminateLocks((prev) => ({ ...prev, [`${safeRevision.id}:withdraw`]: true }))
+          }
+        />
+      )}
+
+      {source && safeRevision && isNewRevisionModalOpen && canCreateNextRevision && (
+        <KnowledgeNewRevisionModal
+          source={source}
+          baseRevision={safeRevision}
+          isOpen={isNewRevisionModalOpen}
+          onClose={() => setActiveModal(null)}
+          onSuccess={handleActionSuccess}
+          onReload={handleReload}
+          mustVerifyReload={Boolean(indeterminateLocks[`${safeRevision.id}:newRev`])}
+          onIndeterminateError={() =>
+            setIndeterminateLocks((prev) => ({ ...prev, [`${safeRevision.id}:newRev`]: true }))
+          }
+        />
+      )}
     </div>
   );
 }
