@@ -1,5 +1,5 @@
 import fs from 'fs';
-import path from 'path';
+
 
 let passCount = 0;
 let failCount = 0;

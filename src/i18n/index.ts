@@ -41,6 +41,7 @@ window.addEventListener('storage', event => {
 
 /** Vietnamese source strings are stable catalog keys; unknown server content stays intact. */
 export function t(source: string, values: readonly (string | number | null)[] = []): string {
+  if (!source) return '';
   const count = source === '{0} ({1} sự kiện)' ? values[1] : values[0];
   const interpolation = Object.fromEntries(values.map((value, index) => [String(index), value ?? `{${index}}`]));
   return i18n.t(source, {

@@ -1,4 +1,12 @@
-import type { RevisionStatus, SourceType, Topic, GrowthStage, Tier } from '../types/governance';
+import type {
+  RevisionStatus,
+  SourceType,
+  Topic,
+  GrowthStage,
+  Tier,
+  AssignmentStatus,
+  DecisionOutcome,
+} from '../types/governance';
 
 export interface StatusConfig {
   label: string;
@@ -57,6 +65,55 @@ export const REVISION_STATUS_CONFIG: Record<RevisionStatus, StatusConfig> = {
     dotClass: 'bg-gray',
     icon: 'archive',
     description: 'Tác giả đã chủ động rút hồ sơ này.',
+  },
+};
+
+export const ASSIGNMENT_STATUS_CONFIG: Record<AssignmentStatus, StatusConfig> = {
+  ACTIVE: {
+    label: 'Đang thực hiện',
+    badgeClass: 'bg-blue/10 text-blue border-blue/30 dark:bg-blue/20 dark:text-blue',
+    dotClass: 'bg-blue',
+    icon: 'pending_actions',
+    description: 'Nhiệm vụ thẩm định đang được chuyên gia tiến hành.',
+  },
+  COMPLETED: {
+    label: 'Đã hoàn thành',
+    badgeClass: 'bg-teal/10 text-teal border-teal/30 dark:bg-teal/20 dark:text-teal',
+    dotClass: 'bg-teal',
+    icon: 'task_alt',
+    description: 'Chuyên gia đã đưa ra quyết định thẩm định cuối cùng.',
+  },
+  REPLACED: {
+    label: 'Đã thay thế',
+    badgeClass: 'bg-amber/10 text-amber border-amber/30 dark:bg-amber/20 dark:text-amber',
+    dotClass: 'bg-amber',
+    icon: 'change_circle',
+    description: 'Quản trị viên đã phân công nhiệm vụ cho chuyên gia khác.',
+  },
+  CANCELLED: {
+    label: 'Đã hủy',
+    badgeClass: 'bg-border/60 text-gray border-border dark:bg-border/40 dark:text-gray',
+    dotClass: 'bg-gray',
+    icon: 'cancel',
+    description: 'Nhiệm vụ bị hủy do tác giả rút hồ sơ.',
+  },
+};
+
+export const DECISION_OUTCOME_CONFIG: Record<DecisionOutcome, { label: string; badgeClass: string; icon: string }> = {
+  APPROVED: {
+    label: 'Phê duyệt',
+    badgeClass: 'bg-teal/15 text-teal border-teal/40 font-bold',
+    icon: 'check_circle',
+  },
+  CHANGES_REQUESTED: {
+    label: 'Yêu cầu sửa đổi',
+    badgeClass: 'bg-amber/15 text-amber border-amber/40 font-bold',
+    icon: 'edit_document',
+  },
+  REJECTED: {
+    label: 'Từ chối',
+    badgeClass: 'bg-coral/15 text-coral border-coral/40 font-bold',
+    icon: 'cancel',
   },
 };
 
