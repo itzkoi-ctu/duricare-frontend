@@ -38,6 +38,16 @@ export default function AdminAssignReviewerModal({
   const [isReloading, setIsReloading] = useState<boolean>(false);
 
   const openVersionRef = useRef<number | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   if (isOpen && openVersionRef.current === null) {
     openVersionRef.current = revision.version;
@@ -68,6 +78,8 @@ export default function AdminAssignReviewerModal({
           setCandidateError(parsed.message);
           setLoadingCandidates(false);
         });
+    } else {
+      abortControllerRef.current?.abort();
     }
   }, [isOpen, revision.id]);
 
@@ -93,9 +105,11 @@ export default function AdminAssignReviewerModal({
 
   const handleReloadAndVerify = async () => {
     if (!onReload) return;
+    const targetRevisionId = revision.id;
     setIsReloading(true);
     try {
       const fresh = await onReload();
+      if (!isMountedRef.current || !isOpen || revision.id !== targetRevisionId) return;
       if (!fresh || (typeof fresh === 'object' && 'status' in fresh && (fresh as { status?: string }).status !== 'SUBMITTED')) {
         // Assignment succeeded or revision transitioned; close modal
         onClose();
@@ -108,27 +122,45 @@ export default function AdminAssignReviewerModal({
       openVersionRef.current = freshVersion;
       setSubmitError(null);
     } catch {
+      if (!isMountedRef.current || !isOpen || revision.id !== targetRevisionId) return;
       setSubmitError(t('Không thể tải lại dữ liệu từ máy chủ. Vui lòng thử lại.'));
     } finally {
-      setIsReloading(false);
+      if (isMountedRef.current) {
+        setIsReloading(false);
+      }
     }
   };
 
   const handleAssign = async () => {
     if (!isFormValid || !selectedCandidate || versionMismatch || isSubmitting || mustVerifyReload) return;
 
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const targetRevisionId = revision.id;
+
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      const assignment = await assignReviewer(revision.id, {
-        version: capturedVersion,
-        reviewerUserId: selectedCandidate.userId,
-        reason: trimmedReason,
-      });
+      const assignment = await assignReviewer(
+        revision.id,
+        {
+          version: capturedVersion,
+          reviewerUserId: selectedCandidate.userId,
+          reason: trimmedReason,
+        },
+        controller.signal
+      );
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || revision.id !== targetRevisionId) {
+        return;
+      }
       onSuccess(assignment);
       onClose();
     } catch (err) {
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || revision.id !== targetRevisionId) {
+        return;
+      }
       const parsed = parseGovernanceError(err, t('Không thể phân công chuyên gia thẩm định.'));
       setSubmitError(parsed.message);
 
@@ -145,7 +177,9 @@ export default function AdminAssignReviewerModal({
         onIndeterminateError?.();
       }
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 

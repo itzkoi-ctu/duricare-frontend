@@ -34,6 +34,16 @@ export default function KnowledgeNewRevisionModal({
   const [isReloading, setIsReloading] = useState<boolean>(false);
 
   const openVersionRef = useRef<number | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   if (isOpen && openVersionRef.current === null) {
     openVersionRef.current = baseRevision.version;
@@ -46,6 +56,7 @@ export default function KnowledgeNewRevisionModal({
 
   useEffect(() => {
     if (!isOpen) {
+      abortControllerRef.current?.abort();
       setError(null);
       setIsReloading(false);
     }
@@ -60,9 +71,12 @@ export default function KnowledgeNewRevisionModal({
 
   const handleReloadAndVerify = async () => {
     if (!onReload) return;
+    const targetSourceId = source.id;
+    const targetRevisionId = baseRevision.id;
     setIsReloading(true);
     try {
       const res = await onReload();
+      if (!isMountedRef.current || !isOpen || source.id !== targetSourceId || baseRevision.id !== targetRevisionId) return;
       const freshSource = (res as { source?: SourceResponse })?.source;
       const freshRev =
         (res as { revision?: RevisionResponse | null })?.revision ??
@@ -85,20 +99,32 @@ export default function KnowledgeNewRevisionModal({
       }
       setError(null);
     } catch {
+      if (!isMountedRef.current || !isOpen || source.id !== targetSourceId || baseRevision.id !== targetRevisionId) return;
       setError(t('Không thể tải lại dữ liệu từ máy chủ. Vui lòng thử lại.'));
     } finally {
-      setIsReloading(false);
+      if (isMountedRef.current) {
+        setIsReloading(false);
+      }
     }
   };
 
   const handleCreate = async () => {
     if (versionMismatch || isSubmitting || mustVerifyReload) return;
 
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const targetSourceId = source.id;
+    const targetRevisionId = baseRevision.id;
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const newRev = await createNextRevision(source.id, baseRevision.id, capturedVersion);
+      const newRev = await createNextRevision(source.id, baseRevision.id, capturedVersion, controller.signal);
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || source.id !== targetSourceId || baseRevision.id !== targetRevisionId) {
+        return;
+      }
       if (onSuccess) {
         onSuccess(newRev);
       }
@@ -106,6 +132,9 @@ export default function KnowledgeNewRevisionModal({
       // Navigate directly to editing the new draft revision
       navigate(`/knowledge/sources/${source.id}/revisions/${newRev.id}/edit`);
     } catch (err) {
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || source.id !== targetSourceId || baseRevision.id !== targetRevisionId) {
+        return;
+      }
       const parsed = parseGovernanceError(err, t('Không thể tạo phiên bản mới.'));
       setError(parsed.message);
 
@@ -121,7 +150,9 @@ export default function KnowledgeNewRevisionModal({
         onIndeterminateError?.();
       }
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 

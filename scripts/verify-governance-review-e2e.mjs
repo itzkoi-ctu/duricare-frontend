@@ -7,6 +7,7 @@ import assert from 'assert';
 const EVIDENCE_DIRS = [
   'C:/Users/default.LAPTOP-9T9UMS3I/.gemini/antigravity/brain/2cc3cdd9-0f13-4c1a-bbe7-141069b357d2/evidence',
   'E:/CTU/LuanVan/verification/fe-gov-002-r8/run-2/evidence',
+  'E:/CTU/LuanVan/verification/fe-gov-002-r8/run-3/evidence',
 ];
 const PORT = 5184;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -509,6 +510,8 @@ async function runE2ESuite() {
     let delayedSourceAReloadResolver = null;
     let holdSourceAMutation = false;
     let delayedSourceAMutationResolver = null;
+    let holdSourceACreateRevision = false;
+    let delayedSourceACreateRevisionResolver = null;
 
     // Intercept network requests
     page.on('request', req => {
@@ -607,6 +610,13 @@ async function runE2ESuite() {
             version: 1,
             title: 'TEST — Quy trình quản lý nước tưới giai đoạn xử lý ra hoa sầu riêng (Rev 2)',
           };
+          if (holdSourceACreateRevision) {
+            delayedSourceACreateRevisionResolver = () => {
+              currentRevision = newRev;
+              respondJson(201, newRev);
+            };
+            return;
+          }
           currentRevision = newRev;
           return respondJson(201, newRev);
         }
@@ -661,6 +671,22 @@ async function runE2ESuite() {
         return respondJson(200, SOURCE_CHANGES_REQUESTED);
       }
       if (url.includes('/api/knowledge/sources/src-changes-req/revisions')) {
+        if (method === 'POST') {
+          const newRev = {
+            ...REVISION_DRAFT_VALID,
+            id: 'rev-cr-02',
+            sourceId: 'src-changes-req',
+            revisionNumber: 2,
+            status: 'DRAFT',
+            version: 1,
+            title: 'TEST — Hướng dẫn phục hồi vườn sầu riêng sau ngập úng (Rev 2)',
+          };
+          if (holdSourceACreateRevision) {
+            delayedSourceACreateRevisionResolver = () => respondJson(201, newRev);
+            return;
+          }
+          return respondJson(201, newRev);
+        }
         return respondJson(200, {
           content: [
             {
@@ -1617,37 +1643,95 @@ async function runE2ESuite() {
     assert.strictEqual(probeRevSwitchModal.confirmSubmitPresent, false, 'Modal must close on revision switch without transferring target');
     console.log('  ✓ Switching revision within same source closes modal without transferring target (Case 3 verified)');
 
-    // Case 4: Pending mutation on Source A, in-SPA navigate to Source B, mutation resolves
-    console.log('  Testing pending mutation on Source A resolved after in-SPA transition to Source B (Case 4)...');
+    // Case 4a (P2 Regression Test): Submit on Source A in-flight -> navigate to Source B -> open withdraw dialog & type on B -> Source A resolves -> B dialog & text preserved
+    console.log('  Testing pending submit mutation on Source A resolved while dialog on Source B is open with text (Case 4a P2)...');
     await page.$eval('[data-testid="revision-tab-2"]', btn => btn.click());
     await page.waitForSelector('[data-testid="submit-for-review-button"]');
     await page.click('[data-testid="submit-for-review-button"]');
     await page.waitForSelector('[data-testid="confirm-submit-button"]');
 
-    // Arm mutation delay
+    // Arm mutation delay on Source A
     holdSourceAMutation = true;
     delayedSourceAMutationResolver = null;
     await page.click('[data-testid="confirm-submit-button"]');
     await new Promise(r => setTimeout(r, 100));
-    assert(typeof delayedSourceAMutationResolver === 'function', 'Source A mutation request must be captured in-flight');
+    assert(typeof delayedSourceAMutationResolver === 'function', 'Source A submit request must be captured in-flight');
 
-    // In-SPA navigate to Source B while mutation on Source A is in-flight
+    // In-SPA navigate to Source B (src-eligible-02) while submit on Source A is in-flight
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/knowledge/sources/src-eligible-02');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await page.waitForSelector('[data-testid="withdraw-button"]');
+
+    // On Source B, open the withdrawal dialog and enter text
+    await page.click('[data-testid="withdraw-button"]');
+    await page.waitForSelector('[data-testid="withdraw-reason-input"]');
+    const inputMsgOnB = 'Lý do rút hồ sơ trên nguồn B đang được tác giả soạn thảo...';
+    await page.type('[data-testid="withdraw-reason-input"]', inputMsgOnB);
+
+    const valBefore = await page.$eval('[data-testid="withdraw-reason-input"]', el => el.value);
+    assert.strictEqual(valBefore, inputMsgOnB, 'Reason text must be typed in Source B dialog');
+
+    // Now resolve delayed submit mutation of Source A
+    delayedSourceAMutationResolver();
+    delayedSourceAMutationResolver = null;
+    holdSourceAMutation = false;
+    await new Promise(r => setTimeout(r, 300));
+
+    // Assert Source B dialog is STILL open and text is preserved (Source A did not close B dialog!)
+    const withdrawDialogOnB = await page.$('[data-testid="withdraw-reason-input"]');
+    assert(withdrawDialogOnB !== null, 'Dialog on Source B must remain open after delayed Source A response');
+    const valAfter = await page.$eval('[data-testid="withdraw-reason-input"]', el => el.value);
+    assert.strictEqual(valAfter, inputMsgOnB, 'Input text in Source B dialog must not be wiped by delayed Source A response');
+    console.log('  ✓ Delayed submit response from Source A did not close Source B dialog or discard input (Case 4a P2 verified)');
+
+    // Close Source B modal cleanly
+    await page.click('[data-testid="close-withdraw-modal-button"]');
+    await new Promise(r => setTimeout(r, 200));
+
+    // Case 4b (P2 Regression Test): Create revision on Source A in-flight -> navigate to Source B -> Source A resolves -> no redirect back to Source A
+    console.log('  Testing pending create revision on Source A resolved after in-SPA transition to Source B (Case 4b P2)...');
+    // Navigate to Source A (src-changes-req) which is terminal and has create subsequent revision button
     await page.evaluate(() => {
       window.history.pushState({}, '', '/knowledge/sources/src-changes-req');
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
-    await page.waitForSelector('[data-testid="changes-requested-notice-banner"]');
+    await page.waitForSelector('[data-testid="create-subsequent-revision-button"]');
 
-    // Resolve delayed mutation of Source A while user is on Source B
-    delayedSourceAMutationResolver();
-    delayedSourceAMutationResolver = null;
-    holdSourceAMutation = false;
-    await new Promise(r => setTimeout(r, 200));
+    await page.click('[data-testid="create-subsequent-revision-button"]');
+    await page.waitForSelector('[data-testid="confirm-new-revision-button"]');
 
-    // Assert Source B remains intact and was not redirected or clobbered
-    await page.waitForSelector('[data-testid="changes-requested-notice-banner"]');
-    await page.waitForSelector('[data-testid="decision-detail-card"]');
-    console.log('  ✓ Pending mutation response from Source A safely ignored on Source B (Case 4 verified)');
+    // Arm create revision delay on Source A
+    holdSourceACreateRevision = true;
+    delayedSourceACreateRevisionResolver = null;
+    await page.click('[data-testid="confirm-new-revision-button"]');
+    await new Promise(r => setTimeout(r, 100));
+    assert(typeof delayedSourceACreateRevisionResolver === 'function', 'Source A create revision request must be captured in-flight');
+
+    // In-SPA navigate to Source B (src-expert-01) while create revision is in-flight
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/knowledge/sources/src-expert-01');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await page.waitForSelector('[data-testid="revision-tab-2"]');
+
+    // Now resolve delayed create revision response of Source A
+    delayedSourceACreateRevisionResolver();
+    delayedSourceACreateRevisionResolver = null;
+    holdSourceACreateRevision = false;
+    await new Promise(r => setTimeout(r, 400));
+
+    // Assert that the page is STILL on Source B and NOT navigated back to Source A edit page
+    const currentUrlOnB = await page.evaluate(() => window.location.pathname);
+    assert.strictEqual(
+      currentUrlOnB,
+      '/knowledge/sources/src-expert-01',
+      'Delayed create revision response from Source A must NOT redirect user back to Source A'
+    );
+    const rev2TabOnB = await page.$('[data-testid="revision-tab-2"]');
+    assert(rev2TabOnB !== null, 'Source B view must remain active and rendered');
+    console.log('  ✓ Delayed create revision response from Source A did not redirect user away from Source B (Case 4b P2 verified)');
 
     // Case 5: Pending reload on Source A, in-SPA navigate to Source B, reload resolves
     console.log('  Testing pending reload on Source A resolved after in-SPA transition to Source B (Case 5)...');
