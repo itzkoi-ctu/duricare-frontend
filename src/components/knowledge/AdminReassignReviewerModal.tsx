@@ -114,6 +114,13 @@ export default function AdminReassignReviewerModal({
     try {
       const fresh = await onReload();
       if (!isMountedRef.current || !isOpen || revision.id !== targetRevisionId || activeAssignment.id !== targetAssignmentId) return;
+      if (fresh && typeof fresh === 'object' && 'stale' in fresh) {
+        return;
+      }
+      if (fresh && typeof fresh === 'object' && 'committed' in fresh) {
+        onClose();
+        return;
+      }
       if (!fresh || (typeof fresh === 'object' && 'status' in fresh && (fresh as { status?: string }).status !== 'IN_REVIEW')) {
         // Reassignment succeeded or revision transitioned; close modal
         onClose();

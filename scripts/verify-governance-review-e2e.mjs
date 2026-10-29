@@ -493,6 +493,16 @@ async function runE2ESuite() {
         submittedAt: '2026-10-23T08:00:00Z',
         updatedAt: '2026-10-25T14:00:00Z',
       },
+      {
+        id: 'rev-cr-filter-01',
+        sourceId: 'src-cr-01',
+        revisionNumber: 1,
+        status: 'CHANGES_REQUESTED',
+        version: 3,
+        title: 'TEST — Hướng dẫn xử lý ra hoa sầu riêng nghịch vụ (Yêu cầu sửa)',
+        submittedAt: '2026-10-22T08:00:00Z',
+        updatedAt: '2026-10-25T15:00:00Z',
+      },
     ];
     let currentAssignmentDetail = { ...ASSIGNMENT_DETAIL };
     let decisionAttempt = 0;
@@ -1314,6 +1324,18 @@ async function runE2ESuite() {
     await page.waitForSelector('[data-testid="terminal-filter-APPROVED"]');
     await page.waitForSelector('[data-testid="submission-row-rev-approved-01"]');
     console.log('  ✓ ADMIN terminal tab successfully queries APPROVED records with preserved count (P2 verified)');
+
+    // Test terminal sub-filter transition to CHANGES_REQUESTED
+    await page.click('[data-testid="terminal-filter-CHANGES_REQUESTED"]');
+    await page.waitForSelector('[data-testid="submission-row-rev-cr-filter-01"]');
+    const hasApprovedRow = await page.$('[data-testid="submission-row-rev-approved-01"]');
+    assert.strictEqual(hasApprovedRow, null, 'APPROVED row must not appear when CHANGES_REQUESTED filter is active');
+    console.log('  ✓ Terminal sub-filter CHANGES_REQUESTED successfully queried and rendered (P2 verified)');
+
+    // Switch back to APPROVED sub-filter
+    await page.click('[data-testid="terminal-filter-APPROVED"]');
+    await page.waitForSelector('[data-testid="submission-row-rev-approved-01"]');
+    console.log('  ✓ Returned to APPROVED terminal sub-filter cleanly');
 
     // Switch back to Actionable tab for Scene 4 reassignment
     await page.click('[data-testid="tab-actionable"]');

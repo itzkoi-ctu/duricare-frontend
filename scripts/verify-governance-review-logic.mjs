@@ -181,7 +181,10 @@ it('AdminKnowledgeSubmissionsPage does NOT expose professional decision controls
 
 it('AdminKnowledgeSubmissionsPage queries terminal results by status param and preserves server pagination', () => {
   assert(adminPageContent.includes('terminalStatus'));
-  assert(adminPageContent.includes("statusParam = terminalStatus"));
+  assert(
+    adminPageContent.includes("statusParam = targetTerminalStatus") ||
+    adminPageContent.includes("statusParam = terminalStatus")
+  );
   assert(adminPageContent.includes('terminal-status-filter-group'));
   assert(!adminPageContent.includes("content.filter(s => s.status === 'APPROVED'"));
 });
