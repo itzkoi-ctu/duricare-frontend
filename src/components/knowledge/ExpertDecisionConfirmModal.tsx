@@ -38,6 +38,16 @@ export default function ExpertDecisionConfirmModal({
 
   const openRevVersionRef = useRef<number | null>(null);
   const openAssignVersionRef = useRef<number | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   if (isOpen && openRevVersionRef.current === null) {
     openRevVersionRef.current = assignment.revision.version;
@@ -55,6 +65,7 @@ export default function ExpertDecisionConfirmModal({
 
   useEffect(() => {
     if (!isOpen) {
+      abortControllerRef.current?.abort();
       setError(null);
       setErrorType(null);
       setIsReloading(false);
@@ -72,9 +83,12 @@ export default function ExpertDecisionConfirmModal({
 
   const handleReloadAndVerify = async () => {
     if (!onReload) return;
+    const targetAssignmentId = assignment.id;
+    const targetRevId = assignment.revision.id;
     setIsReloading(true);
     try {
       const fresh = await onReload();
+      if (!isMountedRef.current || !isOpen || assignment.id !== targetAssignmentId || assignment.revision.id !== targetRevId) return;
       if (fresh && typeof fresh === 'object' && 'version' in fresh && 'revision' in fresh) {
         const freshAssignment = fresh as AssignmentDetail;
         if (
@@ -98,14 +112,23 @@ export default function ExpertDecisionConfirmModal({
       setError(null);
       setErrorType(null);
     } catch {
+      if (!isMountedRef.current || !isOpen || assignment.id !== targetAssignmentId || assignment.revision.id !== targetRevId) return;
       setError(t('Không thể tải lại dữ liệu từ máy chủ. Vui lòng thử lại.'));
     } finally {
-      setIsReloading(false);
+      if (isMountedRef.current) {
+        setIsReloading(false);
+      }
     }
   };
 
   const handleConfirmDecision = async () => {
     if (versionMismatch || isSubmitting || mustVerifyReload) return;
+
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const targetAssignmentId = assignment.id;
+    const targetRevId = assignment.revision.id;
 
     setIsSubmitting(true);
     setError(null);
@@ -118,10 +141,16 @@ export default function ExpertDecisionConfirmModal({
     };
 
     try {
-      const res = await submitDecision(assignment.id, payload);
+      const res = await submitDecision(assignment.id, payload, controller.signal);
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || assignment.id !== targetAssignmentId || assignment.revision.id !== targetRevId) {
+        return;
+      }
       onSuccess(res);
       onClose();
     } catch (err: unknown) {
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || assignment.id !== targetAssignmentId || assignment.revision.id !== targetRevId) {
+        return;
+      }
       const parsed = parseGovernanceError(err, t('Không thể gửi quyết định thẩm định.'));
       setError(parsed.message);
 

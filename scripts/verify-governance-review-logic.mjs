@@ -181,7 +181,10 @@ it('AdminKnowledgeSubmissionsPage does NOT expose professional decision controls
 
 it('AdminKnowledgeSubmissionsPage queries terminal results by status param and preserves server pagination', () => {
   assert(adminPageContent.includes('terminalStatus'));
-  assert(adminPageContent.includes("statusParam = terminalStatus"));
+  assert(
+    adminPageContent.includes("statusParam = targetTerminalStatus") ||
+    adminPageContent.includes("statusParam = terminalStatus")
+  );
   assert(adminPageContent.includes('terminal-status-filter-group'));
   assert(!adminPageContent.includes("content.filter(s => s.status === 'APPROVED'"));
 });
@@ -263,11 +266,30 @@ it('KnowledgeSourceDetailPage binds author dialogs to source/revision and invali
   assert(detailPageContent.includes('activeModal.sourceId === source?.id'));
   assert(detailPageContent.includes('activeModal.revisionId === safeRevision?.id'));
   assert(detailPageContent.includes('setActiveModal(null)'));
+  assert(detailPageContent.includes('closeModalFor'));
   assert(detailPageContent.includes('indeterminateLocks[`${safeRevision.id}:submit`]'));
   assert(detailPageContent.includes('indeterminateLocks[`${safeRevision.id}:withdraw`]'));
   assert(detailPageContent.includes('isWithdrawModalOpen && canWithdraw'));
   assert(detailPageContent.includes('isSubmitModalOpen && canSubmit'));
   assert(detailPageContent.includes('isNewRevisionModalOpen && canCreateNextRevision'));
+});
+
+it('Mutation modals guard against unmount and late callback leakage (P2 resolution)', () => {
+  const submitModalContent = fs.readFileSync(path.join('src', 'components', 'knowledge', 'KnowledgeSubmitModal.tsx'), 'utf8');
+  const withdrawModalContent = fs.readFileSync(path.join('src', 'components', 'knowledge', 'KnowledgeWithdrawModal.tsx'), 'utf8');
+  const newRevModalContent = fs.readFileSync(path.join('src', 'components', 'knowledge', 'KnowledgeNewRevisionModal.tsx'), 'utf8');
+
+  assert(submitModalContent.includes('isMountedRef'));
+  assert(submitModalContent.includes('abortControllerRef'));
+  assert(submitModalContent.includes('!isMountedRef.current') && submitModalContent.includes('controller.signal.aborted'));
+
+  assert(withdrawModalContent.includes('isMountedRef'));
+  assert(withdrawModalContent.includes('abortControllerRef'));
+  assert(withdrawModalContent.includes('!isMountedRef.current') && withdrawModalContent.includes('controller.signal.aborted'));
+
+  assert(newRevModalContent.includes('isMountedRef'));
+  assert(newRevModalContent.includes('abortControllerRef'));
+  assert(newRevModalContent.includes('!isMountedRef.current') && newRevModalContent.includes('controller.signal.aborted'));
 });
 
 // 7. Navigation items

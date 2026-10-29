@@ -164,6 +164,15 @@ export default function KnowledgeSourceDetailPage() {
     canCreateNextRevision
   );
 
+  const closeModalFor = (targetSourceId: string, targetRevisionId: string) => {
+    setActiveModal((current) => {
+      if (current && current.sourceId === targetSourceId && current.revisionId === targetRevisionId) {
+        return null;
+      }
+      return current;
+    });
+  };
+
   const handleActionSuccess = (updatedRev: RevisionResponse) => {
     // Guard against late callback from previous source or route
     if (updatedRev.sourceId !== currentSourceIdRef.current) {
@@ -177,7 +186,7 @@ export default function KnowledgeSourceDetailPage() {
       delete next[`${updatedRev.id}:newRev`];
       return next;
     });
-    setActiveModal(null);
+    closeModalFor(updatedRev.sourceId, updatedRev.id);
     setRevisionDirectly(updatedRev);
     reload().catch(() => {});
   };
@@ -925,13 +934,15 @@ export default function KnowledgeSourceDetailPage() {
         <KnowledgeSubmitModal
           revision={safeRevision}
           isOpen={isSubmitModalOpen}
-          onClose={() => setActiveModal(null)}
+          onClose={() => closeModalFor(source.id, safeRevision.id)}
           onSuccess={handleActionSuccess}
           onReload={handleReload}
           mustVerifyReload={Boolean(indeterminateLocks[`${safeRevision.id}:submit`])}
-          onIndeterminateError={() =>
-            setIndeterminateLocks((prev) => ({ ...prev, [`${safeRevision.id}:submit`]: true }))
-          }
+          onIndeterminateError={() => {
+            if (currentSourceIdRef.current === source.id) {
+              setIndeterminateLocks((prev) => ({ ...prev, [`${safeRevision.id}:submit`]: true }));
+            }
+          }}
         />
       )}
 
@@ -939,13 +950,15 @@ export default function KnowledgeSourceDetailPage() {
         <KnowledgeWithdrawModal
           revision={safeRevision}
           isOpen={isWithdrawModalOpen}
-          onClose={() => setActiveModal(null)}
+          onClose={() => closeModalFor(source.id, safeRevision.id)}
           onSuccess={handleActionSuccess}
           onReload={handleReload}
           mustVerifyReload={Boolean(indeterminateLocks[`${safeRevision.id}:withdraw`])}
-          onIndeterminateError={() =>
-            setIndeterminateLocks((prev) => ({ ...prev, [`${safeRevision.id}:withdraw`]: true }))
-          }
+          onIndeterminateError={() => {
+            if (currentSourceIdRef.current === source.id) {
+              setIndeterminateLocks((prev) => ({ ...prev, [`${safeRevision.id}:withdraw`]: true }));
+            }
+          }}
         />
       )}
 
@@ -954,13 +967,15 @@ export default function KnowledgeSourceDetailPage() {
           source={source}
           baseRevision={safeRevision}
           isOpen={isNewRevisionModalOpen}
-          onClose={() => setActiveModal(null)}
+          onClose={() => closeModalFor(source.id, safeRevision.id)}
           onSuccess={handleActionSuccess}
           onReload={handleReload}
           mustVerifyReload={Boolean(indeterminateLocks[`${safeRevision.id}:newRev`])}
-          onIndeterminateError={() =>
-            setIndeterminateLocks((prev) => ({ ...prev, [`${safeRevision.id}:newRev`]: true }))
-          }
+          onIndeterminateError={() => {
+            if (currentSourceIdRef.current === source.id) {
+              setIndeterminateLocks((prev) => ({ ...prev, [`${safeRevision.id}:newRev`]: true }));
+            }
+          }}
         />
       )}
     </div>

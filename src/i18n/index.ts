@@ -44,11 +44,16 @@ export function t(source: string, values: readonly (string | number | null)[] = 
   if (!source) return '';
   const count = source === '{0} ({1} sự kiện)' ? values[1] : values[0];
   const interpolation = Object.fromEntries(values.map((value, index) => [String(index), value ?? `{${index}}`]));
-  return i18n.t(source, {
+  const translated = i18n.t(source, {
     ...interpolation,
     defaultValue: source.replace(/\{(\d+)\}/g, '{{$1}}'),
     ...(typeof count === 'number' ? { count } : {}),
   });
+  if (values.length === 0) return translated;
+  return values.reduce<string>(
+    (acc, val, idx) => acc.replace(new RegExp(`\\{${idx}\\}`, 'g'), String(val ?? '')),
+    translated
+  );
 }
 
 export default i18n;

@@ -41,12 +41,32 @@ export default function AdminKnowledgeSubmissionsPage() {
 
   // Modal target state
   const [assignTarget, setAssignTarget] = useState<RevisionSummary | null>(null);
+  const assignTargetRef = useRef<RevisionSummary | null>(null);
+  assignTargetRef.current = assignTarget;
+  const assignSessionRef = useRef<number>(0);
+
   const [reassignTarget, setReassignTarget] = useState<{
     revision: RevisionSummary;
     assignment: AssignmentSummary;
   } | null>(null);
-  const [loadingTargetDetail, setLoadingTargetDetail] = useState(false);
+  const reassignTargetRef = useRef<{
+    revision: RevisionSummary;
+    assignment: AssignmentSummary;
+  } | null>(null);
+  reassignTargetRef.current = reassignTarget;
+  const reassignSessionRef = useRef<number>(0);
+
+  const [loadingTargetDetailRevId, setLoadingTargetDetailRevId] = useState<string | null>(null);
   const [indeterminateLocks, setIndeterminateLocks] = useState<Record<string, boolean>>({});
+
+  const activeTabRef = useRef<TabFilter>(activeTab);
+  activeTabRef.current = activeTab;
+
+  const terminalStatusRef = useRef<RevisionStatus>(terminalStatus);
+  terminalStatusRef.current = terminalStatus;
+
+  const pageRef = useRef<number>(page);
+  pageRef.current = page;
 
   const activeRequestRef = useRef<AbortController | null>(null);
 
@@ -60,33 +80,42 @@ export default function AdminKnowledgeSubmissionsPage() {
     setLoading(true);
     setError(null);
 
+    const targetTab = activeTabRef.current;
+    const targetTerminalStatus = terminalStatusRef.current;
+    const targetPage = pageRef.current;
+
     let statusParam: RevisionStatus | undefined;
-    if (activeTab === 'SUBMITTED') {
+    if (targetTab === 'SUBMITTED') {
       statusParam = 'SUBMITTED';
-    } else if (activeTab === 'IN_REVIEW') {
+    } else if (targetTab === 'IN_REVIEW') {
       statusParam = 'IN_REVIEW';
-    } else if (activeTab === 'TERMINAL') {
-      statusParam = terminalStatus;
+    } else if (targetTab === 'TERMINAL') {
+      statusParam = targetTerminalStatus;
     }
-    // When activeTab === 'ACTIONABLE', statusParam remains undefined:
+    // When targetTab === 'ACTIONABLE', statusParam remains undefined:
     // Backend reviews.submissions returns findByStatusIn([SUBMITTED, IN_REVIEW]) preserving pagination!
 
     try {
-      const res = await listSubmissions(page, 15, statusParam, controller.signal);
-      if (!controller.signal.aborted) {
+      const res = await listSubmissions(targetPage, 15, statusParam, controller.signal);
+      if (
+        !controller.signal.aborted &&
+        activeTabRef.current === targetTab &&
+        terminalStatusRef.current === targetTerminalStatus &&
+        pageRef.current === targetPage
+      ) {
         setSubmissions(res.content);
         setTotalPages(res.totalPages);
         setTotalElements(res.totalElements);
         setLoading(false);
       }
     } catch (err) {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && activeTabRef.current === targetTab) {
         const parsed = parseGovernanceError(err, t('Không thể tải hàng đợi thẩm định.'));
         setError(parsed.message);
         setLoading(false);
       }
     }
-  }, [page, activeTab, terminalStatus]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -95,23 +124,37 @@ export default function AdminKnowledgeSubmissionsPage() {
         activeRequestRef.current.abort();
       }
     };
-  }, [loadData]);
+  }, [activeTab, page, terminalStatus, loadData]);
 
   const handleTabChange = (tab: TabFilter) => {
+    assignSessionRef.current += 1;
+    reassignSessionRef.current += 1;
     setActiveTab(tab);
     setPage(0);
     setAssignTarget(null);
     setReassignTarget(null);
+    setLoadingTargetDetailRevId(null);
   };
 
   const handleOpenAssign = (rev: RevisionSummary) => {
+    assignSessionRef.current += 1;
     setAssignTarget(rev);
   };
 
+  const handleCloseAssign = () => {
+    assignSessionRef.current += 1;
+    setAssignTarget(null);
+  };
+
   const handleOpenReassign = async (rev: RevisionSummary) => {
-    setLoadingTargetDetail(true);
+    reassignSessionRef.current += 1;
+    const session = reassignSessionRef.current;
+    setLoadingTargetDetailRevId(rev.id);
     try {
       const detail: RevisionResponse = await getRevision(rev.id);
+      if (reassignSessionRef.current !== session) {
+        return;
+      }
       if (detail.activeAssignment) {
         setReassignTarget({
           revision: rev,
@@ -119,14 +162,22 @@ export default function AdminKnowledgeSubmissionsPage() {
         });
       } else {
         // Fallback to assign if no active assignment found
+        assignSessionRef.current += 1;
         setAssignTarget(rev);
       }
     } catch (err) {
+      if (reassignSessionRef.current !== session) return;
       const parsed = parseGovernanceError(err, t('Không thể tải chi tiết phân công.'));
       setError(parsed.message);
     } finally {
-      setLoadingTargetDetail(false);
+      setLoadingTargetDetailRevId(prev => (prev === rev.id ? null : prev));
     }
+  };
+
+  const handleCloseReassign = () => {
+    reassignSessionRef.current += 1;
+    setReassignTarget(null);
+    setLoadingTargetDetailRevId(null);
   };
 
   const handleAssignSuccess = (_assignment: AssignmentDetail) => {
@@ -144,17 +195,28 @@ export default function AdminKnowledgeSubmissionsPage() {
         return next;
       });
     }
+    assignSessionRef.current += 1;
+    reassignSessionRef.current += 1;
     setAssignTarget(null);
     setReassignTarget(null);
+    setLoadingTargetDetailRevId(null);
     loadData();
   };
 
   const handleReloadAssignTarget = async () => {
-    if (!assignTarget) return;
+    if (!assignTarget) return null;
+    const session = assignSessionRef.current;
+    const targetRevId = assignTarget.id;
     try {
-      const freshDetail: RevisionResponse = await getRevision(assignTarget.id);
+      const freshDetail: RevisionResponse = await getRevision(targetRevId);
+      // Guard against stale response if session changed or target changed
+      if (assignSessionRef.current !== session || assignTargetRef.current?.id !== targetRevId) {
+        return { stale: true };
+      }
+
       if (freshDetail.activeAssignment || freshDetail.status !== 'SUBMITTED') {
-        // The assignment was committed or revision state transitioned
+        // The assignment was committed or revision state transitioned on the server
+        assignSessionRef.current += 1;
         setAssignTarget(null);
         setIndeterminateLocks(prev => {
           const next = { ...prev };
@@ -162,8 +224,9 @@ export default function AdminKnowledgeSubmissionsPage() {
           return next;
         });
         loadData();
-        return null;
+        return { committed: true };
       }
+
       const freshSummary: RevisionSummary = {
         id: freshDetail.id,
         sourceId: freshDetail.sourceId,
@@ -179,20 +242,36 @@ export default function AdminKnowledgeSubmissionsPage() {
       loadData();
       return freshSummary;
     } catch (err) {
+      // If stale, do NOT propagate error or corrupt current modal/target
+      if (assignSessionRef.current !== session || assignTargetRef.current?.id !== targetRevId) {
+        return { stale: true };
+      }
       loadData();
       throw err;
     }
   };
 
   const handleReloadReassignTarget = async () => {
-    if (!reassignTarget) return;
+    if (!reassignTarget) return null;
+    const session = reassignSessionRef.current;
+    const targetRevId = reassignTarget.revision.id;
+    const targetAssignmentId = reassignTarget.assignment.id;
     try {
-      const freshDetail: RevisionResponse = await getRevision(reassignTarget.revision.id);
+      const freshDetail: RevisionResponse = await getRevision(targetRevId);
+      if (
+        reassignSessionRef.current !== session ||
+        reassignTargetRef.current?.revision.id !== targetRevId ||
+        reassignTargetRef.current?.assignment.id !== targetAssignmentId
+      ) {
+        return { stale: true };
+      }
+
       if (
         !freshDetail.activeAssignment ||
         freshDetail.status !== 'IN_REVIEW' ||
-        freshDetail.activeAssignment.id !== reassignTarget.assignment.id
+        freshDetail.activeAssignment.id !== targetAssignmentId
       ) {
+        reassignSessionRef.current += 1;
         setReassignTarget(null);
         setIndeterminateLocks(prev => {
           const next = { ...prev };
@@ -200,7 +279,7 @@ export default function AdminKnowledgeSubmissionsPage() {
           return next;
         });
         loadData();
-        return null;
+        return { committed: true };
       }
 
       const freshSummary: RevisionSummary = {
@@ -221,6 +300,13 @@ export default function AdminKnowledgeSubmissionsPage() {
       loadData();
       return freshSummary;
     } catch (err) {
+      if (
+        reassignSessionRef.current !== session ||
+        reassignTargetRef.current?.revision.id !== targetRevId ||
+        reassignTargetRef.current?.assignment.id !== targetAssignmentId
+      ) {
+        return { stale: true };
+      }
       loadData();
       throw err;
     }
@@ -427,7 +513,7 @@ export default function AdminKnowledgeSubmissionsPage() {
                             <button
                               type="button"
                               data-testid={`reassign-button-${item.id}`}
-                              disabled={loadingTargetDetail}
+                              disabled={loadingTargetDetailRevId === item.id}
                               onClick={() => handleOpenReassign(item)}
                               className="px-3 py-1.5 rounded-lg bg-amber/15 border border-amber/40 text-amber hover:bg-amber/25 text-xs font-semibold shadow-2xs inline-flex items-center gap-1 cursor-pointer"
                             >
@@ -493,7 +579,7 @@ export default function AdminKnowledgeSubmissionsPage() {
         <AdminAssignReviewerModal
           revision={assignTarget}
           isOpen={Boolean(assignTarget)}
-          onClose={() => setAssignTarget(null)}
+          onClose={handleCloseAssign}
           onSuccess={handleAssignSuccess}
           onReload={handleReloadAssignTarget}
           mustVerifyReload={Boolean(indeterminateLocks[`assign-${assignTarget.id}`])}
@@ -508,7 +594,7 @@ export default function AdminKnowledgeSubmissionsPage() {
           revision={reassignTarget.revision}
           activeAssignment={reassignTarget.assignment}
           isOpen={Boolean(reassignTarget)}
-          onClose={() => setReassignTarget(null)}
+          onClose={handleCloseReassign}
           onSuccess={handleAssignSuccess}
           onReload={handleReloadReassignTarget}
           mustVerifyReload={Boolean(indeterminateLocks[`reassign-${reassignTarget.revision.id}`])}

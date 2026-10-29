@@ -40,6 +40,16 @@ export default function AdminReassignReviewerModal({
   const [isReloading, setIsReloading] = useState<boolean>(false);
 
   const openVersionRef = useRef<number | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   if (isOpen && openVersionRef.current === null) {
     openVersionRef.current = revision.version;
@@ -71,6 +81,8 @@ export default function AdminReassignReviewerModal({
           setCandidateError(parsed.message);
           setLoadingCandidates(false);
         });
+    } else {
+      abortControllerRef.current?.abort();
     }
   }, [isOpen, revision.id, activeAssignment.reviewerUserId]);
 
@@ -96,9 +108,19 @@ export default function AdminReassignReviewerModal({
 
   const handleReloadAndVerify = async () => {
     if (!onReload) return;
+    const targetRevisionId = revision.id;
+    const targetAssignmentId = activeAssignment.id;
     setIsReloading(true);
     try {
       const fresh = await onReload();
+      if (!isMountedRef.current || !isOpen || revision.id !== targetRevisionId || activeAssignment.id !== targetAssignmentId) return;
+      if (fresh && typeof fresh === 'object' && 'stale' in fresh) {
+        return;
+      }
+      if (fresh && typeof fresh === 'object' && 'committed' in fresh) {
+        onClose();
+        return;
+      }
       if (!fresh || (typeof fresh === 'object' && 'status' in fresh && (fresh as { status?: string }).status !== 'IN_REVIEW')) {
         // Reassignment succeeded or revision transitioned; close modal
         onClose();
@@ -111,28 +133,47 @@ export default function AdminReassignReviewerModal({
       openVersionRef.current = freshVersion;
       setSubmitError(null);
     } catch {
+      if (!isMountedRef.current || !isOpen || revision.id !== targetRevisionId || activeAssignment.id !== targetAssignmentId) return;
       setSubmitError(t('Không thể tải lại dữ liệu từ máy chủ. Vui lòng thử lại.'));
     } finally {
-      setIsReloading(false);
+      if (isMountedRef.current) {
+        setIsReloading(false);
+      }
     }
   };
 
   const handleReassign = async () => {
     if (!isFormValid || !selectedCandidate || versionMismatch || isSubmitting || mustVerifyReload) return;
 
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const targetRevisionId = revision.id;
+    const targetAssignmentId = activeAssignment.id;
+
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      const assignment = await reassignReviewer(revision.id, {
-        version: capturedVersion,
-        activeAssignmentId: activeAssignment.id,
-        reviewerUserId: selectedCandidate.userId,
-        reason: trimmedReason,
-      });
+      const assignment = await reassignReviewer(
+        revision.id,
+        {
+          version: capturedVersion,
+          activeAssignmentId: activeAssignment.id,
+          reviewerUserId: selectedCandidate.userId,
+          reason: trimmedReason,
+        },
+        controller.signal
+      );
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || revision.id !== targetRevisionId || activeAssignment.id !== targetAssignmentId) {
+        return;
+      }
       onSuccess(assignment);
       onClose();
     } catch (err) {
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || revision.id !== targetRevisionId || activeAssignment.id !== targetAssignmentId) {
+        return;
+      }
       const parsed = parseGovernanceError(err, t('Không thể đổi người thẩm định.'));
       setSubmitError(parsed.message);
 
@@ -149,7 +190,9 @@ export default function AdminReassignReviewerModal({
         onIndeterminateError?.();
       }
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 

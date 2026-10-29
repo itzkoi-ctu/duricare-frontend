@@ -31,6 +31,16 @@ export default function KnowledgeWithdrawModal({
   const [isReloading, setIsReloading] = useState<boolean>(false);
 
   const openVersionRef = useRef<number | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   if (isOpen && openVersionRef.current === null) {
     openVersionRef.current = revision.version;
@@ -43,6 +53,7 @@ export default function KnowledgeWithdrawModal({
 
   useEffect(() => {
     if (!isOpen) {
+      abortControllerRef.current?.abort();
       setReason('');
       setError(null);
       setIsReloading(false);
@@ -61,9 +72,11 @@ export default function KnowledgeWithdrawModal({
 
   const handleReloadAndVerify = async () => {
     if (!onReload) return;
+    const targetRevisionId = revision.id;
     setIsReloading(true);
     try {
       const res = await onReload();
+      if (!isMountedRef.current || !isOpen || revision.id !== targetRevisionId) return;
       const freshRev =
         (res as { revision?: RevisionResponse | null })?.revision ??
         (res as RevisionResponse | null) ??
@@ -88,23 +101,37 @@ export default function KnowledgeWithdrawModal({
       }
       setError(null);
     } catch {
+      if (!isMountedRef.current || !isOpen || revision.id !== targetRevisionId) return;
       setError(t('Không thể tải lại dữ liệu từ máy chủ. Vui lòng thử lại.'));
     } finally {
-      setIsReloading(false);
+      if (isMountedRef.current) {
+        setIsReloading(false);
+      }
     }
   };
 
   const handleWithdraw = async () => {
     if (!isReasonValid || versionMismatch || isSubmitting || mustVerifyReload) return;
 
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const targetRevisionId = revision.id;
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const updated = await withdrawRevision(revision.id, capturedVersion, trimmedReason);
+      const updated = await withdrawRevision(revision.id, capturedVersion, trimmedReason, controller.signal);
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || revision.id !== targetRevisionId) {
+        return;
+      }
       onSuccess(updated);
       onClose();
     } catch (err) {
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || revision.id !== targetRevisionId) {
+        return;
+      }
       const parsed = parseGovernanceError(err, t('Không thể rút hồ sơ thẩm định.'));
       setError(parsed.message);
 
@@ -120,7 +147,9 @@ export default function KnowledgeWithdrawModal({
         onIndeterminateError?.();
       }
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 

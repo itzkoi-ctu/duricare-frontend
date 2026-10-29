@@ -31,6 +31,16 @@ export default function KnowledgeSubmitModal({
   const [isReloading, setIsReloading] = useState<boolean>(false);
 
   const openVersionRef = useRef<number | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   if (isOpen && openVersionRef.current === null) {
     openVersionRef.current = revision.version;
@@ -43,6 +53,7 @@ export default function KnowledgeSubmitModal({
 
   useEffect(() => {
     if (!isOpen) {
+      abortControllerRef.current?.abort();
       setGeneralError(null);
       setFieldErrors({});
       setIsReloading(false);
@@ -105,9 +116,11 @@ export default function KnowledgeSubmitModal({
 
   const handleReloadAndVerify = async () => {
     if (!onReload) return;
+    const targetRevisionId = revision.id;
     setIsReloading(true);
     try {
       const res = await onReload();
+      if (!isMountedRef.current || !isOpen || revision.id !== targetRevisionId) return;
       const freshRev =
         (res as { revision?: RevisionResponse | null })?.revision ??
         (res as RevisionResponse | null) ??
@@ -133,24 +146,38 @@ export default function KnowledgeSubmitModal({
       setGeneralError(null);
       setFieldErrors({});
     } catch {
+      if (!isMountedRef.current || !isOpen || revision.id !== targetRevisionId) return;
       setGeneralError(t('Không thể tải lại dữ liệu từ máy chủ. Vui lòng thử lại.'));
     } finally {
-      setIsReloading(false);
+      if (isMountedRef.current) {
+        setIsReloading(false);
+      }
     }
   };
 
   const handleSubmit = async () => {
     if (hasPreflightErrors || versionMismatch || isSubmitting || mustVerifyReload) return;
 
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const targetRevisionId = revision.id;
+
     setIsSubmitting(true);
     setGeneralError(null);
     setFieldErrors({});
 
     try {
-      const updated = await submitRevision(revision.id, capturedVersion);
+      const updated = await submitRevision(revision.id, capturedVersion, controller.signal);
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || revision.id !== targetRevisionId) {
+        return;
+      }
       onSuccess(updated);
       onClose();
     } catch (err) {
+      if (!isMountedRef.current || controller.signal.aborted || !isOpen || revision.id !== targetRevisionId) {
+        return;
+      }
       const parsed = parseGovernanceError(err, t('Không thể gửi thẩm định hồ sơ.'));
       setGeneralError(parsed.message);
       if (Object.keys(parsed.fieldErrors).length > 0) {
@@ -169,7 +196,9 @@ export default function KnowledgeSubmitModal({
         onIndeterminateError?.();
       }
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 
