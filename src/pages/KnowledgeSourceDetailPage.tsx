@@ -13,6 +13,7 @@ import KnowledgeHistoryTable from '../components/knowledge/KnowledgeHistoryTable
 import KnowledgeSubmitModal from '../components/knowledge/KnowledgeSubmitModal';
 import KnowledgeWithdrawModal from '../components/knowledge/KnowledgeWithdrawModal';
 import KnowledgeNewRevisionModal from '../components/knowledge/KnowledgeNewRevisionModal';
+import PublicationHeadCard from '../components/knowledge/publication/PublicationHeadCard';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import { SOURCE_TYPE_CONFIG, TOPIC_CONFIG, GROWTH_STAGE_CONFIG } from '../utils/governanceStatus';
@@ -613,6 +614,18 @@ export default function KnowledgeSourceDetailPage() {
             </div>
           </div>
         </section>
+      )}
+
+      {/* RAG Publication Head Card for ADMIN */}
+      {user?.role === 'ADMIN' && (
+        <PublicationHeadCard
+          source={source}
+          currentRevision={safeRevision}
+          isAdmin={true}
+          onPublicationChanged={() => {
+            reload().catch(() => {});
+          }}
+        />
       )}
 
       {/* Metadata Card */}

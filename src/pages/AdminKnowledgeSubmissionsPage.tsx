@@ -9,6 +9,7 @@ import AdminAssignReviewerModal from '../components/knowledge/AdminAssignReviewe
 import AdminReassignReviewerModal from '../components/knowledge/AdminReassignReviewerModal';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
+import AdminPublicationsTab from '../components/knowledge/publication/AdminPublicationsTab';
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
@@ -25,7 +26,7 @@ function formatDate(iso: string | null | undefined): string {
   }
 }
 
-type TabFilter = 'ACTIONABLE' | 'SUBMITTED' | 'IN_REVIEW' | 'TERMINAL';
+type TabFilter = 'ACTIONABLE' | 'SUBMITTED' | 'IN_REVIEW' | 'TERMINAL' | 'PUBLICATIONS';
 
 export default function AdminKnowledgeSubmissionsPage() {
   useLanguage();
@@ -81,6 +82,10 @@ export default function AdminKnowledgeSubmissionsPage() {
     setError(null);
 
     const targetTab = activeTabRef.current;
+    if (targetTab === 'PUBLICATIONS') {
+      setLoading(false);
+      return;
+    }
     const targetTerminalStatus = terminalStatusRef.current;
     const targetPage = pageRef.current;
 
@@ -395,6 +400,19 @@ export default function AdminKnowledgeSubmissionsPage() {
         >
           {t('Đã có kết quả')}
         </button>
+
+        <button
+          type="button"
+          data-testid="tab-publications"
+          onClick={() => handleTabChange('PUBLICATIONS')}
+          className={`pb-2.5 px-3 text-xs md:text-sm font-semibold border-b-2 cursor-pointer transition-colors shrink-0 ${
+            activeTab === 'PUBLICATIONS'
+              ? 'border-navy text-navy dark:border-blue dark:text-blue'
+              : 'border-transparent text-gray hover:text-text'
+          }`}
+        >
+          {t('Xuất bản RAG')}
+        </button>
       </div>
 
       {/* Sub-status filter for Terminal Tab */}
@@ -429,7 +447,9 @@ export default function AdminKnowledgeSubmissionsPage() {
       )}
 
       {/* Main Content */}
-      {loading ? (
+      {activeTab === 'PUBLICATIONS' ? (
+        <AdminPublicationsTab />
+      ) : loading ? (
         <LoadingState />
       ) : error ? (
         <ErrorState message={error} onRetry={loadData} />
