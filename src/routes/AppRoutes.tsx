@@ -23,6 +23,7 @@ const ZoneEditorPage = lazy(() => import('../pages/ZoneEditorPage'));
 const KnowledgePage = lazy(() => import('../pages/KnowledgePage'));
 const KnowledgeSourcesPage = lazy(() => import('../pages/KnowledgeSourcesPage'));
 const KnowledgeSourceCreatePage = lazy(() => import('../pages/KnowledgeSourceCreatePage'));
+const KnowledgeImportPage = lazy(() => import('../pages/KnowledgeImportPage'));
 const KnowledgeSourceDetailPage = lazy(() => import('../pages/KnowledgeSourceDetailPage'));
 const KnowledgeSourceEditPage = lazy(() => import('../pages/KnowledgeSourceEditPage'));
 const AdminKnowledgeSubmissionsPage = lazy(() => import('../pages/AdminKnowledgeSubmissionsPage'));
@@ -79,6 +80,7 @@ export default function AppRoutes() {
               <Route element={<KnowledgeSourcesShell />}>
                 <Route path="/knowledge/sources" element={<KnowledgeSourcesPage />} />
                 <Route path="/knowledge/sources/new" element={<KnowledgeSourceCreatePage />} />
+                <Route path="/knowledge/import" element={<KnowledgeImportPage />} />
                 <Route path="/knowledge/sources/:id" element={<KnowledgeSourceDetailPage />} />
                 <Route path="/knowledge/sources/:sourceId/revisions/:revisionId/edit" element={<KnowledgeSourceEditPage />} />
                 <Route path="/knowledge/reviews" element={<ExpertAssignedReviewsPage />} />
