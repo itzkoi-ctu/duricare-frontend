@@ -1,63 +1,32 @@
 {
-  "taskId": "FE-RAG-PUB-001",
-  "taskTitle": "DuriCare P2 FE — Publication UI",
-  "recordedAtUtc": "2026-11-01T05:35:00Z",
-  "baselinePolicy": "E:/CTU/LuanVan/DURICARE-BASELINE-POLICY.md",
-  "discoveryTransport": "connected GitHub MCP get_commit(main, detail=none) verified this turn",
-  "remoteMain": {
-    "duricare-backend": {
-      "repository": "itzkoi-ctu/duricare-backend",
-      "ref": "main",
-      "sha": "80ac19e3614d13ce8b86ed6a69742a282e561e43",
-      "message": "merge: pull request #18 from itzkoi-ctu/be/RAG-PUB-001A-foundation"
-    },
-    "duricare-frontend": {
-      "repository": "itzkoi-ctu/duricare-frontend",
-      "ref": "main",
-      "sha": "d08482238f45d30d87a1f052bf7df84eb50479dd",
-      "message": "Merge pull request #7 from itzkoi-ctu/fe/FE-GOV-002-review-workflow"
-    },
-    "duricare-docs": {
-      "repository": "itzkoi-ctu/duricare-docs",
-      "ref": "main",
-      "sha": "3903e3a3adc3e5a7dd74583012bdda32c618b995",
-      "message": "Merge pull request #5 from itzkoi-ctu/docs/IOT-003-thesis-evidence"
-    }
+  "task": "FE-KNOWLEDGE-IMPORT-001",
+  "phase": "IMPLEMENTATION",
+  "owner": "ANTIGRAVITY_FE",
+  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-knowledge-import-001",
+  "branch": "fe/FE-KNOWLEDGE-IMPORT-001-multiformat-draft",
+  "baseCommit": "fda252e27b0ce8b97369d10ebbc7004e5c53925e",
+  "verificationTimestampUtc": "2026-11-10T11:13:56Z",
+  "verificationTimestampLocal": "2026-11-10T18:13:56+07:00",
+  "transport": "GitHub MCP get_commit(main)",
+  "observedRemoteMain": {
+    "backend": "bf370f176926eb400e66b792396692780986fd26",
+    "frontend": "fda252e27b0ce8b97369d10ebbc7004e5c53925e",
+    "docs": "ae5370b7cc5c36f77897f049d4f095a28b438a1c"
   },
-  "docsReference": {
-    "repository": "itzkoi-ctu/duricare-docs",
-    "sha": "13705fec163a4178eeb31b94489beb44ac9edb23",
-    "description": "Reference-only docs commit for next-phase plan & thesis registers; unmerged on docs main"
+  "approvedContract": {
+    "path": "E:/CTU/LuanVan/duricare-worktrees/knowledge-import-001/DuriCare/docs/knowledge-import-001/c0-v2",
+    "revision": "C0-v2-P1-2026-11-09",
+    "aggregateSha256": "f7f91ddbedd2dcf24dc31de3712c6ef951fa5442b3a71bbb25973ec075a3f6a8",
+    "approvalReference": "E:/CTU/LuanVan/verification/knowledge-import-001-implementation-2026-11-09/APPROVAL.json"
   },
-  "contractPacket": {
-    "approvedContractPacketSha256": "d8d3fc8685eb70e17de3b244a7cce390bf92e389717a38eb0705ff44e329043e",
-    "contractRoot": "E:/CTU/LuanVan/verification/rag-pub-001-contract/",
-    "sharedTaskRecord": "E:/CTU/LuanVan/verification/rag-pub-001a-foundation/SHARED-TASK-RECORD.json",
-    "humanApproval": "E:/CTU/LuanVan/verification/rag-pub-001a-foundation/HUMAN-APPROVAL.json"
+  "approvedSharedDocs": {
+    "root": "E:/CTU/LuanVan/verification/gov-p0-next-phase-readiness/inputs/approved-shared-packet",
+    "revision": "3903e3a3adc3e5a7dd74583012bdda32c618b995"
   },
-  "taskWorkspace": {
-    "repository": "duricare-frontend",
-    "worktreePath": "E:/CTU/LuanVan/duricare-worktrees/fe-rag-publication",
-    "branch": "fe/FE-RAG-PUB-001-publication-ui",
-    "pinnedBaseSha": "d08482238f45d30d87a1f052bf7df84eb50479dd",
-    "localHead": "d08482238f45d30d87a1f052bf7df84eb50479dd",
-    "workingTreeStatus": "clean (newly provisioned with node_modules junction from duricare-frontend)"
-  },
-  "worktreeInventory": {
-    "frontend": [
-      { "path": "E:/CTU/LuanVan/duricare-frontend", "head": "829853a", "branch": "fe/FE-002-sensor-contract-soil-s1" },
-      { "path": "E:/CTU/LuanVan/duricare-worktrees/fe-003-admin-knowledge-edit", "head": "9b1ed45", "branch": "fe/FE-003-admin-knowledge-edit" },
-      { "path": "E:/CTU/LuanVan/duricare-worktrees/fe-governance-review", "head": "a2386d1", "branch": "fe/FE-GOV-002-review-workflow" },
-      { "path": "E:/CTU/LuanVan/duricare-worktrees/fe-rag-publication", "head": "d084822", "branch": "fe/FE-RAG-PUB-001-publication-ui" }
-    ],
-    "backend": [
-      { "path": "E:/CTU/LuanVan/duricare-backend", "head": "7386f35", "branch": "feature/expert-role", "protected": "41 staged items intact" },
-      { "path": "E:/CTU/LuanVan/duricare-worktrees/be-001-expert-phase1a", "head": "a17ecac", "branch": "be/BE-001-expert-phase1a" },
-      { "path": "E:/CTU/LuanVan/duricare-worktrees/be-002-api-robustness", "head": "526c5fe", "branch": "be/BE-002-api-robustness" },
-      { "path": "E:/CTU/LuanVan/duricare-worktrees/gov-002-review-workflow", "head": "0e5b283", "branch": "be/GOV-002-review-workflow" },
-      { "path": "E:/CTU/LuanVan/duricare-worktrees/iot-003-multisource-routing", "head": "ebcb3c0", "branch": "be/IOT-003-multisource-routing" },
-      { "path": "E:/CTU/LuanVan/duricare-worktrees/iot-004-source-identity", "head": "ebdd1da", "branch": "be/IOT-004-source-device-identity" },
-      { "path": "E:/CTU/LuanVan/duricare-worktrees/rag-pub-001a-foundation", "head": "08d911a", "branch": "be/RAG-PUB-001A-foundation" }
-    ]
+  "backendGate": {
+    "status": "OFF_PENDING_P2_REMEDIATION",
+    "finding": "P2 - DOCX w:noBreakHyphen ignored, could merge numeric endpoints (1-2 giờ into 12 giờ)",
+    "review": "E:/CTU/LuanVan/verification/knowledge-import-001-independent-review-2026-11-10/REVIEW.md",
+    "integrationScope": "Frontend implemented and verified via contract mocks/fixtures; real live backend acceptance gated on backend P2 fix."
   }
 }

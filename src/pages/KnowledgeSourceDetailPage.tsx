@@ -13,6 +13,7 @@ import KnowledgeHistoryTable from '../components/knowledge/KnowledgeHistoryTable
 import KnowledgeSubmitModal from '../components/knowledge/KnowledgeSubmitModal';
 import KnowledgeWithdrawModal from '../components/knowledge/KnowledgeWithdrawModal';
 import KnowledgeNewRevisionModal from '../components/knowledge/KnowledgeNewRevisionModal';
+import RevisionProvenanceModal from '../components/knowledge/import/RevisionProvenanceModal';
 import PublicationHeadCard from '../components/knowledge/publication/PublicationHeadCard';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
@@ -42,6 +43,7 @@ export default function KnowledgeSourceDetailPage() {
   const { profile, loading: profileLoading, error: profileError } = useExpertProfile();
 
   const [activeTab, setActiveTab] = useState<'chunks' | 'history'>('chunks');
+  const [isProvenanceModalOpen, setIsProvenanceModalOpen] = useState(false);
 
   // Active author modal identity binding
   interface ActiveAuthorModal {
@@ -369,6 +371,22 @@ export default function KnowledgeSourceDetailPage() {
                 post_add
               </span>
               <span>{t('Tạo phiên bản mới từ bản này')}</span>
+            </button>
+          )}
+
+          {/* Provenance Action */}
+          {safeRevision && (
+            <button
+              type="button"
+              data-testid="view-provenance-button"
+              onClick={() => setIsProvenanceModalOpen(true)}
+              className="min-h-10 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-bg text-gray hover:text-text hover:bg-card text-xs font-semibold shadow-xs cursor-pointer transition-colors"
+              title="Xem nguồn gốc tài liệu và dòng dõi dữ liệu"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-base text-navy dark:text-blue">
+                account_tree
+              </span>
+              <span>{t('Nguồn gốc')}</span>
             </button>
           )}
         </div>
@@ -989,6 +1007,14 @@ export default function KnowledgeSourceDetailPage() {
               setIndeterminateLocks((prev) => ({ ...prev, [`${safeRevision.id}:newRev`]: true }));
             }
           }}
+        />
+      )}
+
+      {safeRevision && isProvenanceModalOpen && (
+        <RevisionProvenanceModal
+          isOpen={isProvenanceModalOpen}
+          onClose={() => setIsProvenanceModalOpen(false)}
+          revisionId={safeRevision.id}
         />
       )}
     </div>

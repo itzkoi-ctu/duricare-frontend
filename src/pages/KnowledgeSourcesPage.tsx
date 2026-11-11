@@ -76,15 +76,26 @@ export default function KnowledgeSourcesPage() {
         </div>
 
         {canCreate && (
-          <Link
-            to="/knowledge/sources/new"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-xs md:text-sm font-semibold text-surface dark:text-bg hover:opacity-95 transition-opacity shadow-xs"
-          >
-            <span aria-hidden="true" className="material-symbols-outlined text-lg">
-              add
-            </span>
-            <span>{t('Tạo nguồn tri thức mới')}</span>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/knowledge/import"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-navy/30 bg-navy/10 px-4 py-2.5 text-xs md:text-sm font-semibold text-navy dark:border-blue/30 dark:bg-blue/10 dark:text-blue hover:bg-navy/15 dark:hover:bg-blue/20 transition-all shadow-xs"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-lg">
+                upload_file
+              </span>
+              <span>{t('Nhập tài liệu')}</span>
+            </Link>
+            <Link
+              to="/knowledge/sources/new"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-xs md:text-sm font-semibold text-surface dark:text-bg hover:opacity-95 transition-opacity shadow-xs"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-lg">
+                add
+              </span>
+              <span>{t('Tạo nguồn tri thức mới')}</span>
+            </Link>
+          </div>
         )}
       </div>
 
