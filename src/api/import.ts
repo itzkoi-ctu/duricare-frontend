@@ -26,9 +26,10 @@ export interface ParsedImportError {
 }
 
 export function parseImportError(err: unknown, fallbackMessage = 'Đã có lỗi xảy ra.'): ParsedImportError {
-  if (axios.isAxiosError(err) && err.response) {
-    const status = err.response.status;
-    const data = err.response.data as Partial<ImportError> | undefined;
+  if (axios.isAxiosError(err)) {
+    if (err.response) {
+      const status = err.response.status;
+      const data = err.response.data as Partial<ImportError> | undefined;
     const fieldErrors: Record<string, string> = {};
 
     if (data?.fieldErrors && Array.isArray(data.fieldErrors)) {
@@ -119,22 +120,72 @@ export function parseImportError(err: unknown, fallbackMessage = 'Đã có lỗi
       }
     }
 
+      return {
+        status,
+        error: data?.error || (status >= 500 ? 'Server Error' : 'Request Error'),
+        code: data?.code,
+        message,
+        fieldErrors,
+        retryAfterSeconds,
+      };
+    }
+
+    // Axios error without response: Timeout, Network Error, or Abort
+    if (axios.isCancel(err) || err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+      return {
+        status: 0,
+        error: 'Canceled',
+        code: 'request_cancelled',
+        message: 'Thao tác đã bị hủy bởi người dùng.',
+        fieldErrors: {},
+      };
+    }
+
+    if (err.code === 'ECONNABORTED' || (err.message && err.message.toLowerCase().includes('timeout'))) {
+      return {
+        status: 0,
+        error: 'Timeout',
+        code: 'request_timeout',
+        message: 'Quá thời gian chờ tải lên hoặc xử lý tài liệu. Vui lòng kiểm tra Phiên chờ xác nhận trước khi thử lại.',
+        fieldErrors: {},
+      };
+    }
+
+    if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+      return {
+        status: 0,
+        error: 'Network Error',
+        code: 'network_error',
+        message: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng.',
+        fieldErrors: {},
+      };
+    }
+
     return {
-      status,
-      error: data?.error || (status >= 500 ? 'Server Error' : 'Request Error'),
-      code: data?.code,
-      message,
-      fieldErrors,
-      retryAfterSeconds,
+      status: 0,
+      error: 'Network Error',
+      code: err.code,
+      message: err.message || fallbackMessage,
+      fieldErrors: {},
     };
   }
 
   if (err instanceof Error) {
-    if (err.name === 'CanceledError' || err.message === 'canceled') {
+    if (err.name === 'CanceledError' || err.name === 'AbortError' || err.message === 'canceled') {
       return {
         status: 0,
         error: 'Canceled',
+        code: 'request_cancelled',
         message: 'Thao tác đã bị hủy bởi người dùng.',
+        fieldErrors: {},
+      };
+    }
+    if (err.name === 'TimeoutError' || err.message?.toLowerCase().includes('timeout')) {
+      return {
+        status: 0,
+        error: 'Timeout',
+        code: 'request_timeout',
+        message: 'Quá thời gian chờ tải lên hoặc xử lý tài liệu. Vui lòng kiểm tra Phiên chờ xác nhận trước khi thử lại.',
         fieldErrors: {},
       };
     }
@@ -153,6 +204,13 @@ export function parseImportError(err: unknown, fallbackMessage = 'Đã có lỗi
     fieldErrors: {},
   };
 }
+
+/**
+ * Upload-specific timeout: 120,000ms (120 seconds).
+ * Bounded finite timeout allowing large document transmission and server-side PDFBox extraction
+ * while keeping general client APIs at the default 15,000ms.
+ */
+export const UPLOAD_TIMEOUT_MS = 120000;
 
 /**
  * 1. GET /knowledge/imports/capabilities
@@ -178,6 +236,7 @@ export async function uploadImportFile(
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+    timeout: UPLOAD_TIMEOUT_MS,
     onUploadProgress,
   });
   return res.data;
