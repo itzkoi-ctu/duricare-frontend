@@ -1131,5 +1131,15 @@
   "Vui lòng chọn chủ đề cho mảnh tri thức.": "Please select a topic for the knowledge chunk.",
   "{0} / 8.000 ký tự UTF-16": "{0} / 8,000 UTF-16 characters",
   "Đang phát lại yêu cầu xác nhận trước đó (idempotent replay) để đảm bảo tính lũy kế.": "Replaying prior confirmation request (idempotent replay) to ensure operation idempotency.",
-  "Tính năng nhập tài liệu hiện không khả dụng": "Document import feature is currently unavailable"
+  "Tính năng nhập tài liệu hiện không khả dụng": "Document import feature is currently unavailable",
+  "Quá thời gian chờ tải lên hoặc xử lý tài liệu. Vui lòng kiểm tra Phiên chờ xác nhận trước khi thử lại.": "The document upload or processing timed out. Please check Pending Sessions before trying again.",
+  "Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng.": "Unable to connect to the server. Please check your network connection.",
+  "Thao tác đã bị hủy bởi người dùng.": "The operation was cancelled by the user.",
+  "Kiểm tra Phiên chờ xác nhận": "Check Pending Sessions",
+  "Đang trích xuất và phân tích cấu trúc trên máy chủ...": "Extracting and analyzing structure on the server...",
+  "Tiến trình máy chủ đang kiểm tra an toàn, định chuẩn UTF-8 và tạo phân đoạn.": "Server is performing security checks, UTF-8 normalization, and segmentation.",
+  "Tiến trình tải lên là tốc độ truyền dẫn của trình duyệt.": "Upload progress indicates browser transmission speed.",
+  "Không thể tải lên hoặc xử lý tệp tài liệu.": "Unable to upload or process document file.",
+  "Đã hủy quá trình tải lên theo yêu cầu của bạn.": "Upload process was cancelled as requested.",
+  "Máy chủ có thể vẫn đang xử lý hoặc đã tạo phiên làm việc.": "The server may still be processing or may have already created a session."
 }

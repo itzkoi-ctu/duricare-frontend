@@ -40,9 +40,20 @@ export default function ImportUploadStep({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const uploadGenerationRef = useRef<number>(0);
 
   const isImportDisabled = Boolean(capabilities && capabilities.enabled === false);
   const isWriteBlocked = !canWrite || isImportDisabled;
+
+  // Cleanup in-flight upload on unmount
+  useEffect(() => {
+    return () => {
+      uploadGenerationRef.current++;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Countdown timer for 429 Retry-After
   useEffect(() => {
@@ -81,6 +92,8 @@ export default function ImportUploadStep({
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (uploading || isWriteBlocked) return;
+    uploadGenerationRef.current++;
     setServerError(null);
     setClientError(null);
     if (e.target.files && e.target.files.length > 0) {
@@ -98,7 +111,7 @@ export default function ImportUploadStep({
   const handleDrag = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (isWriteBlocked) return;
+    if (uploading || isWriteBlocked) return;
     if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
     } else if (e.type === 'dragleave') {
@@ -110,7 +123,8 @@ export default function ImportUploadStep({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (isWriteBlocked) return;
+    if (uploading || isWriteBlocked) return;
+    uploadGenerationRef.current++;
     setServerError(null);
     setClientError(null);
 
@@ -133,6 +147,7 @@ export default function ImportUploadStep({
   const handleStartUpload = async () => {
     if (!selectedFile || uploading || isWriteBlocked) return;
 
+    const currentGen = ++uploadGenerationRef.current;
     setUploading(true);
     setUploadPercent(0);
     setServerExtracting(false);
@@ -147,6 +162,7 @@ export default function ImportUploadStep({
         selectedFile,
         controller.signal,
         (progressEvent: AxiosProgressEvent) => {
+          if (uploadGenerationRef.current !== currentGen) return;
           if (progressEvent.total) {
             const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
             setUploadPercent(percent);
@@ -156,30 +172,39 @@ export default function ImportUploadStep({
           }
         }
       );
+      if (uploadGenerationRef.current !== currentGen) return;
       setUploading(false);
       setServerExtracting(false);
       onUploadSuccess(session);
     } catch (err: unknown) {
+      if (uploadGenerationRef.current !== currentGen) return;
       setUploading(false);
       setServerExtracting(false);
       const parsed = parseImportError(err, t('Không thể tải lên hoặc xử lý tệp tài liệu.'));
+      if (parsed.code === 'request_cancelled') {
+        return;
+      }
       setServerError(parsed);
       if (parsed.retryAfterSeconds) {
         setRetryCountdown(parsed.retryAfterSeconds);
       }
     } finally {
-      abortControllerRef.current = null;
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
     }
   };
 
   const handleCancelUpload = () => {
+    uploadGenerationRef.current++;
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
-      setUploading(false);
-      setServerExtracting(false);
-      setClientError(t('Đã hủy quá trình tải lên theo yêu cầu của bạn.'));
     }
+    setUploading(false);
+    setServerExtracting(false);
+    setServerError(null);
+    setClientError(t('Đã hủy quá trình tải lên theo yêu cầu của bạn.'));
   };
 
   return (
@@ -256,7 +281,7 @@ export default function ImportUploadStep({
           dragActive
             ? 'border-navy bg-navy/5 dark:border-blue dark:bg-blue/10 scale-[1.005]'
             : 'border-border/80 bg-card hover:border-gray/50'
-        } ${isWriteBlocked ? 'opacity-60 pointer-events-none' : ''}`}
+        } ${isWriteBlocked ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
       >
         <input
           ref={fileInputRef}
@@ -268,24 +293,27 @@ export default function ImportUploadStep({
           className="hidden"
         />
 
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-navy/10 text-navy dark:bg-blue/20 dark:text-blue">
-          <span className="material-symbols-outlined text-3xl">cloud_upload</span>
-        </div>
+        {/* File Selection Content (disabled/hidden when uploading) */}
+        <div className={uploading ? 'pointer-events-none select-none opacity-40' : ''}>
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-navy/10 text-navy dark:bg-blue/20 dark:text-blue">
+            <span className="material-symbols-outlined text-3xl">cloud_upload</span>
+          </div>
 
-        <h3 className="mt-4 text-base font-semibold text-text">
-          {t('Kéo thả tệp tài liệu vào đây hoặc')}{' '}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading || isWriteBlocked}
-            className="text-navy dark:text-blue hover:underline font-bold focus:outline-none disabled:opacity-40"
-          >
-            {t('chọn từ máy tính')}
-          </button>
-        </h3>
-        <p className="mt-1 text-xs text-gray">
-          {t('Hỗ trợ TXT, Markdown, PDF (có lớp text số) và DOCX chuẩn (tối đa 5 MiB)')}
-        </p>
+          <h3 className="mt-4 text-base font-semibold text-text">
+            {t('Kéo thả tệp tài liệu vào đây hoặc')}{' '}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading || isWriteBlocked}
+              className="text-navy dark:text-blue hover:underline font-bold focus:outline-none disabled:opacity-40"
+            >
+              {t('chọn từ máy tính')}
+            </button>
+          </h3>
+          <p className="mt-1 text-xs text-gray">
+            {t('Hỗ trợ TXT, Markdown, PDF (có lớp text số) và DOCX chuẩn (tối đa 5 MiB)')}
+          </p>
+        </div>
 
         {/* Selected File Details */}
         {selectedFile && !uploading && (
@@ -302,6 +330,7 @@ export default function ImportUploadStep({
             <button
               type="button"
               onClick={() => {
+                uploadGenerationRef.current++;
                 setSelectedFile(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';
               }}
@@ -340,7 +369,8 @@ export default function ImportUploadStep({
             <button
               type="button"
               onClick={handleCancelUpload}
-              className="mt-2 text-xs text-coral hover:underline font-semibold"
+              data-testid="cancel-upload-btn"
+              className="mt-2 text-xs text-coral hover:underline font-semibold cursor-pointer"
             >
               {t('Hủy tải lên')}
             </button>
@@ -390,9 +420,26 @@ export default function ImportUploadStep({
                   </span>
                 )}
               </p>
-              <p className="text-xs leading-relaxed">{serverError.message}</p>
+              <p className="text-xs leading-relaxed">{t(serverError.message)}</p>
             </div>
           </div>
+
+          {/* Specific Timeout Recovery */}
+          {serverError.code === 'request_timeout' && (
+            <div className="mt-3 pt-3 border-t border-coral/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <span className="text-xs text-text">
+                {t('Máy chủ có thể vẫn đang xử lý hoặc đã tạo phiên làm việc.')}
+              </span>
+              <button
+                type="button"
+                onClick={onOpenSessions}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-coral/50 bg-bg px-3.5 py-1.5 text-xs font-semibold text-text shadow-sm hover:bg-coral/20 transition-colors shrink-0"
+              >
+                <span className="material-symbols-outlined text-sm">history</span>
+                {t('Kiểm tra Phiên chờ xác nhận')}
+              </button>
+            </div>
+          )}
 
           {/* Specific OCR Required Notice */}
           {serverError.code === 'pdf_no_text' && (
