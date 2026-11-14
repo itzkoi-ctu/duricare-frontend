@@ -1,9 +1,13 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import ReactMarkdown from 'react-markdown';
 import useAgentChat, { type AgentChatState } from '../hooks/useAgentChat';
 import type { ChatFormValues } from '../types/agent';
+import type { CitationGroup } from '../types/citation';
+import { extractCitations } from '../utils/citationParser';
+import CitationChips from './chat/CitationChips';
+import CitationDetailModal from './chat/CitationDetailModal';
 import { modelProviderLabel } from '../utils/agentAnswer';
 import { useLanguage } from '../i18n/useLanguage';
 import { getLocale, t } from '../i18n';
@@ -34,6 +38,31 @@ export function ChatPanelView({ variant, chat, onOpenHistory, disabled = false }
   useEffect(() => {
     if (full && list.current) list.current.scrollTop = list.current.scrollHeight;
   }, [messages, isLoading, full]);
+
+  const [citationModal, setCitationModal] = useState<{
+    isOpen: boolean;
+    messageId?: string;
+    initialGroupId?: string;
+    groups: CitationGroup[];
+  }>({ isOpen: false, groups: [] });
+
+  // Citation modal is open only if explicitly requested AND the message belongs to current conversation
+  const isCitationModalOpen =
+    citationModal.isOpen &&
+    (!citationModal.messageId || messages.some(m => m.id === citationModal.messageId));
+
+  const openCitations = (messageId: string, initialGroupId: string, groups: CitationGroup[]) => {
+    setCitationModal({
+      isOpen: true,
+      messageId,
+      initialGroupId,
+      groups,
+    });
+  };
+
+  const closeCitations = () => {
+    setCitationModal(prev => ({ ...prev, isOpen: false }));
+  };
 
   const submitQuestion = (question: string) => {
     if (!question.trim() || busy || historyError) return;
@@ -68,14 +97,26 @@ export function ChatPanelView({ variant, chat, onOpenHistory, disabled = false }
         {visibleMessages.map(message => {
           const user = message.role === 'user';
           const retryQuestion = message.retryQuestion;
+          const { cleanContent, citations } = !user && !message.isError
+            ? extractCitations(message.content)
+            : { cleanContent: message.content, citations: [] };
+
           return <article key={message.id} data-chat-role={message.role} data-chat-error={message.isError || undefined}
             className={`flex ${user ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[94%] sm:max-w-[88%] rounded-2xl p-3 md:p-4 text-sm leading-relaxed ${user
               ? 'bg-navy/10 text-text border border-navy/20 rounded-tr-sm'
               : message.isError ? 'bg-coral/10 text-coral border border-coral/30 rounded-tl-sm' : 'bg-bg text-text border border-border rounded-tl-sm'}`}>
-              {user ? <p className="whitespace-pre-wrap">{message.content}</p> : <div className="space-y-2 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_h1]:font-bold [&_h2]:font-bold [&_h3]:font-bold [&_a]:text-navy [&_a]:underline [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-surface [&_pre]:p-3 [&_code]:break-words">
-                <ReactMarkdown>{message.isError ? t(message.content) : message.content}</ReactMarkdown>
-              </div>}
+              {user ? <p className="whitespace-pre-wrap">{message.content}</p> : <>
+                <div className="space-y-2 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_h1]:font-bold [&_h2]:font-bold [&_h3]:font-bold [&_a]:text-navy [&_a]:underline [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-surface [&_pre]:p-3 [&_code]:break-words">
+                  <ReactMarkdown>{message.isError ? t(message.content) : cleanContent}</ReactMarkdown>
+                </div>
+                {citations.length > 0 && (
+                  <CitationChips
+                    groups={citations}
+                    onSelectGroup={group => openCitations(message.id, group.id, citations)}
+                  />
+                )}
+              </>}
               {message.modelUsed && <p className="mt-2 text-[11px] text-gray" title={message.modelUsed}>{t('Trả lời bởi {0}', [modelProviderLabel(message.modelUsed)])}</p>}
               {!user && !!message.toolsUsed?.length && <div aria-label={t('Công cụ đã dùng')} className="mt-2 flex flex-wrap gap-1.5">
                 {Array.from(new Set(message.toolsUsed.map(tool => tool.name))).map(name => {
@@ -105,6 +146,12 @@ export function ChatPanelView({ variant, chat, onOpenHistory, disabled = false }
       {!full && <Link to={`/agent${conversationId || zoneCode ? '?' + new URLSearchParams({ ...(conversationId ? { conversationId } : {}), ...(zoneCode ? { zoneCode } : {}) }).toString() : ''}`} className="min-h-11 flex items-center justify-center gap-2 text-xs font-semibold text-navy dark:text-blue hover:underline">
         {t('Mở rộng cuộc trò chuyện')}<span aria-hidden="true" className="material-symbols-outlined text-base">open_in_full</span>
       </Link>}
+      <CitationDetailModal
+        isOpen={isCitationModalOpen}
+        onClose={closeCitations}
+        groups={citationModal.groups}
+        initialGroupId={citationModal.initialGroupId}
+      />
     </section>
   );
 }

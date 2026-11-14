@@ -1,32 +1,31 @@
 {
-  "task": "FE-KNOWLEDGE-IMPORT-001",
+  "task": "FE-RAG-CITATION-UX-001",
   "phase": "IMPLEMENTATION",
   "owner": "ANTIGRAVITY_FE",
-  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-knowledge-import-001",
-  "branch": "fe/FE-KNOWLEDGE-IMPORT-001-multiformat-draft",
-  "baseCommit": "fda252e27b0ce8b97369d10ebbc7004e5c53925e",
-  "verificationTimestampUtc": "2026-11-10T11:13:56Z",
-  "verificationTimestampLocal": "2026-11-10T18:13:56+07:00",
-  "transport": "GitHub MCP get_commit(main)",
+  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-rag-citation-ux-001",
+  "branch": "fe/FE-RAG-CITATION-UX-001",
+  "baseCommit": "2b0ed8e7b55595b614e1f1b8c9dca8accb7de5fb",
+  "verificationTimestampUtc": "2026-11-14T05:22:00Z",
+  "verificationTimestampLocal": "2026-11-14T12:22:00+07:00",
+  "transport": "git ls-remote per DURICARE-BASELINE-POLICY.md",
   "observedRemoteMain": {
-    "backend": "bf370f176926eb400e66b792396692780986fd26",
-    "frontend": "fda252e27b0ce8b97369d10ebbc7004e5c53925e",
-    "docs": "ae5370b7cc5c36f77897f049d4f095a28b438a1c"
+    "backend": "24ded99ad8418e057db190bee45b931d0bda2ef2",
+    "frontend": "2b0ed8e7b55595b614e1f1b8c9dca8accb7de5fb",
+    "docs": "69a5db9bcf0e7e284387b12b1e3afd58a560222b"
   },
   "approvedContract": {
-    "path": "E:/CTU/LuanVan/duricare-worktrees/knowledge-import-001/DuriCare/docs/knowledge-import-001/c0-v2",
-    "revision": "C0-v2-P1-2026-11-09",
-    "aggregateSha256": "f7f91ddbedd2dcf24dc31de3712c6ef951fa5442b3a71bbb25973ec075a3f6a8",
-    "approvalReference": "E:/CTU/LuanVan/verification/knowledge-import-001-implementation-2026-11-09/APPROVAL.json"
+    "path": "E:/CTU/LuanVan/duricare-worktrees/rag-int-001-governed-retrieval/DuriCare/docs/rag-int-001",
+    "revision": "RAG-INT-001-2026-11-03",
+    "evidenceExample": "synthetic-citation-example.json",
+    "serverPattern": "GovernedKnowledgeRepository.citations(references)"
   },
   "approvedSharedDocs": {
-    "root": "E:/CTU/LuanVan/verification/gov-p0-next-phase-readiness/inputs/approved-shared-packet",
-    "revision": "3903e3a3adc3e5a7dd74583012bdda32c618b995"
+    "root": "E:/CTU/LuanVan/docs/ai",
+    "revision": "69a5db9bcf0e7e284387b12b1e3afd58a560222b"
   },
-  "backendGate": {
-    "status": "OFF_PENDING_P2_REMEDIATION",
-    "finding": "P2 - DOCX w:noBreakHyphen ignored, could merge numeric endpoints (1-2 giờ into 12 giờ)",
-    "review": "E:/CTU/LuanVan/verification/knowledge-import-001-independent-review-2026-11-10/REVIEW.md",
-    "integrationScope": "Frontend implemented and verified via contract mocks/fixtures; real live backend acceptance gated on backend P2 fix."
+  "scope": {
+    "presentationOnly": true,
+    "backendChanges": false,
+    "retrievalChanges": false
   }
 }
