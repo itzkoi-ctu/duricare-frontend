@@ -1,23 +1,22 @@
 {
-  "task": "FE-RAG-CITATION-UX-001",
-  "phase": "IMPLEMENTATION",
+  "task": "UI-REFRESH-CTU-001",
+  "phase": "IMPLEMENTATION_P2",
   "owner": "ANTIGRAVITY_FE",
-  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-rag-citation-ux-001",
-  "branch": "fe/FE-RAG-CITATION-UX-001",
-  "baseCommit": "2b0ed8e7b55595b614e1f1b8c9dca8accb7de5fb",
-  "verificationTimestampUtc": "2026-11-14T05:22:00Z",
-  "verificationTimestampLocal": "2026-11-14T12:22:00+07:00",
-  "transport": "git ls-remote per DURICARE-BASELINE-POLICY.md",
+  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-001",
+  "branch": "fe/UI-REFRESH-CTU-001-pilot",
+  "baseCommit": "dcc2d94a0d097cf56e9d6cd829d7cd4ad5491198",
+  "verificationTimestampUtc": "2026-11-15T14:00:00Z",
+  "verificationTimestampLocal": "2026-11-15T21:00:00+07:00",
+  "transport": "Connected GitHub MCP get_commit(main)",
   "observedRemoteMain": {
-    "backend": "24ded99ad8418e057db190bee45b931d0bda2ef2",
-    "frontend": "2b0ed8e7b55595b614e1f1b8c9dca8accb7de5fb",
+    "backend": "76ce8bde2b39550d1f17886c3b69d70a3cbe7e87",
+    "frontend": "dcc2d94a0d097cf56e9d6cd829d7cd4ad5491198",
     "docs": "69a5db9bcf0e7e284387b12b1e3afd58a560222b"
   },
-  "approvedContract": {
-    "path": "E:/CTU/LuanVan/duricare-worktrees/rag-int-001-governed-retrieval/DuriCare/docs/rag-int-001",
-    "revision": "RAG-INT-001-2026-11-03",
-    "evidenceExample": "synthetic-citation-example.json",
-    "serverPattern": "GovernedKnowledgeRepository.citations(references)"
+  "approvedDesignReference": {
+    "stitchProjectId": "12367919978060270881",
+    "stitchScreenId": "9715e627d0e44e39b145431bce1bfdb4",
+    "name": "DuriCare - Tổng quan tinh gọn"
   },
   "approvedSharedDocs": {
     "root": "E:/CTU/LuanVan/docs/ai",
@@ -26,6 +25,6 @@
   "scope": {
     "presentationOnly": true,
     "backendChanges": false,
-    "retrievalChanges": false
+    "pilotFoundation": true
   }
 }

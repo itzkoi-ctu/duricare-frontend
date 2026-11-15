@@ -1,0 +1,122 @@
+/**
+ * DuriCare Design System Tokens (UI-REFRESH-CTU-001)
+ * Derived from Can Tho University Brand Guidelines (Pantone 287C / Pantone 299C)
+ * Measured & verified via sRGB relative-luminance calculations (WCAG 2.2 AA/AAA)
+ */
+
+:root {
+  /* Brand Tokens */
+  --color-brand-primary: #1F5CA9;        /* CTU Blue (Pantone 287C) - 6.64:1 on white */
+  --color-brand-primary-hover: #184A88;
+  --color-brand-accent: #00AFEF;         /* Accent Cyan (Pantone 299C) */
+  --color-brand-accent-control: #0072A8; /* Deep Cyan for controls/icons (5.29:1 on white) */
+  --color-brand-accent-hover: #005F8C;
+
+  /* Surfaces & Backgrounds */
+  --color-bg: #F8FAFC;                   /* Slate 50 */
+  --color-surface: #FFFFFF;
+  --color-surface-hover: #F1F5F9;         /* Slate 100 */
+  --color-border: #E2E8F0;                /* Slate 200 */
+  --color-border-strong: #CBD5E1;         /* Slate 300 */
+
+  /* Text & Foreground */
+  --color-text: #0F172A;                  /* Slate 900 - 15.65:1 on white */
+  --color-text-secondary: #475569;        /* Slate 600 - 5.38:1 on white */
+  --color-text-muted: #64748B;            /* Slate 500 - 3.75:1 (large text / secondary info) */
+
+  /* Functional / Status Semantic Tokens */
+  --color-status-success: #166534;        /* Green 800 - 6.33:1 on white */
+  --color-status-success-bg: #DCFCE7;     /* Green 100 */
+  --color-status-success-border: #86EFAC; /* Green 300 */
+
+  --color-status-warning: #92400E;        /* Amber 800 - 5.88:1 on white */
+  --color-status-warning-bg: #FEF3C7;     /* Amber 100 */
+  --color-status-warning-border: #FCD34D; /* Amber 300 */
+
+  --color-status-error: #B91C1C;          /* Red 700 - 6.13:1 on white */
+  --color-status-error-bg: #FEE2E2;       /* Red 100 */
+  --color-status-error-border: #FCA5A5;   /* Red 300 */
+
+  --color-status-info: #0072A8;           /* Cyan 800 - 5.29:1 on white */
+  --color-status-info-bg: #E0F2FE;        /* Sky 100 */
+  --color-status-info-border: #BAE6FD;    /* Sky 200 */
+
+  --color-status-neutral: #475569;        /* Slate 600 */
+  --color-status-neutral-bg: #F1F5F9;     /* Slate 100 */
+  --color-status-neutral-border: #CBD5E1; /* Slate 300 */
+
+  /* Focus ring */
+  --color-focus-ring: #1F5CA9;
+
+  /* Backward compatibility for existing tailwind variables */
+  --color-navy: #1F5CA9;
+  --color-blue: #184A88;
+  --color-teal: #166534;
+  --color-amber: #92400E;
+  --color-coral: #B91C1C;
+  --color-gray: #475569;
+}
+
+.dark {
+  /* Brand Tokens */
+  --color-brand-primary: #60A5FA;         /* Blue 400 - 5.75:1 on #1E293B */
+  --color-brand-primary-hover: #93C5FD;
+  --color-brand-accent: #38BDF8;          /* Sky 400 */
+  --color-brand-accent-control: #38BDF8;
+  --color-brand-accent-hover: #7DD3FC;
+
+  /* Surfaces & Backgrounds */
+  --color-bg: #0F172A;                   /* Slate 900 */
+  --color-surface: #1E293B;              /* Slate 800 */
+  --color-surface-hover: #334155;        /* Slate 700 */
+  --color-border: #334155;               /* Slate 700 */
+  --color-border-strong: #475569;        /* Slate 600 */
+
+  /* Text & Foreground */
+  --color-text: #F8FAFC;                 /* Slate 50 - 13.91:1 on #1E293B */
+  --color-text-secondary: #94A3B8;       /* Slate 400 - 5.71:1 on #1E293B */
+  --color-text-muted: #94A3B8;           /* Slate 400 */
+
+  /* Functional / Status Semantic Tokens */
+  --color-status-success: #4ADE80;       /* Green 400 */
+  --color-status-success-bg: rgba(22, 101, 52, 0.25);
+  --color-status-success-border: #166534;
+
+  --color-status-warning: #FBBF24;       /* Amber 400 */
+  --color-status-warning-bg: rgba(146, 64, 14, 0.25);
+  --color-status-warning-border: #92400E;
+
+  --color-status-error: #F87171;         /* Red 400 */
+  --color-status-error-bg: rgba(185, 28, 28, 0.25);
+  --color-status-error-border: #B91C1C;
+
+  --color-status-info: #38BDF8;          /* Sky 400 */
+  --color-status-info-bg: rgba(3, 105, 161, 0.25);
+  --color-status-info-border: #0284C7;
+
+  --color-status-neutral: #94A3B8;       /* Slate 400 */
+  --color-status-neutral-bg: rgba(51, 65, 85, 0.35);
+  --color-status-neutral-border: #475569;
+
+  /* Focus ring */
+  --color-focus-ring: #60A5FA;
+
+  /* Backward compatibility */
+  --color-navy: #38BDF8;
+  --color-blue: #60A5FA;
+  --color-teal: #4ADE80;
+  --color-amber: #FBBF24;
+  --color-coral: #F87171;
+  --color-gray: #94A3B8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

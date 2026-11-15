@@ -1,58 +1,33 @@
 @import "tailwindcss";
+@import "./tokens.css";
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root {
-  /* Màu chủ đạo thương hiệu CTU */
-  --color-navy: #00569D;
-  /* Xanh đậm chuẩn logo CTU */
-  --color-blue: #144194;
-  /* Xanh thương hiệu CTU cho Hover/Accent */
-
-  /* Màu trạng thái cảm biến (Tươi rõ, dễ nhìn ngoài trời) */
-  --color-teal: #22C55E;
-  /* Xanh lá - Cảm biến AN TOÀN / ĐỦ NƯỚC */
-  --color-amber: #EAB308;
-  /* Vàng/Cam - CẢNH BÁO / PIN YẾU */
-  --color-coral: #EF4444;
-  /* Đỏ - NGUY HIỂM / MẤT KẾT NỐI */
-
-  /* Màu nền và giao diện (Bento Grid) */
-  --color-gray: #64748B;
-  /* Xám icon/text phụ */
-  --color-bg: #F8FAFC;
-  /* Nền web xám cực nhẹ (đỡ lóa mắt hơn trắng tinh) */
-  --color-surface: #FFFFFF;
-  /* Nền của các ô thẻ Bento (Nổi bật trên nền bg) */
-  --color-text: #0F172A;
-  /* Chữ đen đậm để nông dân dễ đọc */
-  --color-border: #E2E8F0;
-  /* Đường viền mảnh */
-}
-
-.dark {
-  --color-gray: #94A3B8;
-  /* Chế độ ban đêm - Hạ độ chói để bảo vệ mắt */
-  --color-navy: #38BDF8;
-  /* Xanh CTU dạng sáng (Light Blue) cho darkmode */
-  --color-blue: #60A5FA;
-
-  /* Trạng thái cảm biến trong tối (Giảm độ chói nhưng giữ rõ màu) */
-  --color-teal: #4ADE80;
-  --color-amber: #FACC15;
-  --color-coral: #F87171;
-
-  /* Nền tối phát quang công nghệ */
-  --color-bg: #0F172A;
-  /* Xanh đen sâu Slate 900 */
-  --color-surface: #1E293B;
-  /* Khối bento màu Slate 800 */
-  --color-text: #F1F5F9;
-  /* Chữ trắng sáng */
-  --color-border: #334155;
-}
-
-
 @theme {
+  --color-brand-primary: var(--color-brand-primary);
+  --color-brand-primary-hover: var(--color-brand-primary-hover);
+  --color-brand-accent: var(--color-brand-accent);
+  --color-brand-accent-control: var(--color-brand-accent-control);
+  --color-brand-accent-hover: var(--color-brand-accent-hover);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-status-success: var(--color-status-success);
+  --color-status-success-bg: var(--color-status-success-bg);
+  --color-status-success-border: var(--color-status-success-border);
+  --color-status-warning: var(--color-status-warning);
+  --color-status-warning-bg: var(--color-status-warning-bg);
+  --color-status-warning-border: var(--color-status-warning-border);
+  --color-status-error: var(--color-status-error);
+  --color-status-error-bg: var(--color-status-error-bg);
+  --color-status-error-border: var(--color-status-error-border);
+  --color-status-info: var(--color-status-info);
+  --color-status-info-bg: var(--color-status-info-bg);
+  --color-status-info-border: var(--color-status-info-border);
+  --color-status-neutral: var(--color-status-neutral);
+  --color-status-neutral-bg: var(--color-status-neutral-bg);
+  --color-status-neutral-border: var(--color-status-neutral-border);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-border-strong: var(--color-border-strong);
+
   --color-navy: var(--color-navy);
   --color-blue: var(--color-blue);
   --color-teal: var(--color-teal);
@@ -70,13 +45,5 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  transition: background-color 0.2s ease, color 0.2s ease;
   margin: 0;
-}
-
-/* Smooth theme transitions for all themed elements */
-*,
-*::before,
-*::after {
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }

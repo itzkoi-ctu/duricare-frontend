@@ -21,8 +21,13 @@ export default function ChatPanel({ variant, zoneCode }: { variant: 'full' | 'co
   return <ChatPanelView key={chat.conversationId ?? 'new'} variant={variant} chat={chat} />;
 }
 
-export function ChatPanelView({ variant, chat, onOpenHistory, disabled = false }: {
-  variant: 'full' | 'compact'; chat: AgentChatState; onOpenHistory?: () => void; disabled?: boolean;
+export function ChatPanelView({ variant, chat, onOpenHistory, onToggleContext, isContextOpen, disabled = false }: {
+  variant: 'full' | 'compact';
+  chat: AgentChatState;
+  onOpenHistory?: () => void;
+  onToggleContext?: () => void;
+  isContextOpen?: boolean;
+  disabled?: boolean;
 }) {
   useLanguage();
   const { messages, sendQuestion, isLoading, isHistoryLoading, historyError, conversationId, zoneCode,
@@ -82,6 +87,21 @@ export function ChatPanelView({ variant, chat, onOpenHistory, disabled = false }
         {onOpenHistory && <button type="button" onClick={onOpenHistory} className="lg:hidden min-h-11 rounded-lg border border-border px-3 text-xs font-semibold text-text cursor-pointer">{t('Lịch sử hội thoại')}</button>}
         <button type="button" disabled={busy} onClick={newConversation} className="min-h-11 rounded-lg border border-border px-3 text-xs font-semibold text-navy dark:text-blue disabled:opacity-50 cursor-pointer">{t('Cuộc trò chuyện mới')}</button>
         {zoneCode && <span className="text-xs text-gray break-all">{t('Khu vực: {0}', [zoneCode])}</span>}
+        {onToggleContext && (
+          <button
+            type="button"
+            data-testid="toggle-context-rail-btn"
+            onClick={onToggleContext}
+            aria-label={isContextOpen ? t("Ẩn ngữ cảnh trạm đo") : t("Hiện ngữ cảnh trạm đo")}
+            title={isContextOpen ? t("Ẩn ngữ cảnh trạm đo") : t("Hiện ngữ cảnh trạm đo")}
+            className={`ml-auto min-h-11 flex items-center gap-1.5 px-3 rounded-lg border border-border text-xs font-semibold transition-colors cursor-pointer ${
+              isContextOpen ? 'bg-teal/15 text-teal border-teal/40' : 'text-gray hover:text-text hover:bg-border/30'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">sensors</span>
+            <span className="hidden sm:inline">{t("Ngữ cảnh trạm đo")}</span>
+          </button>
+        )}
       </div>
       <div ref={list} role="log" aria-live="polite" aria-label={t('Tin nhắn')} className={`${full ? 'flex-1 min-h-0 overflow-y-auto p-4 md:p-5' : 'max-h-96 overflow-y-auto'} space-y-4 [overflow-wrap:anywhere]`}>
         {isHistoryLoading && <p role="status" className="animate-pulse text-sm text-gray">{t('Đang tải cuộc trò chuyện...')}</p>}
