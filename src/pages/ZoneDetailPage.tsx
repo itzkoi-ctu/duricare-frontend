@@ -6,12 +6,18 @@ import useZoneDetail from '../hooks/useZoneDetail';
 import useGrowthStage from '../hooks/useGrowthStage';
 import { useOverviewContext } from '../context/OverviewContext';
 import type { ReadingPeriod } from '../types/zoneDetail';
+import type { MetricData } from '../types/overview';
 import { getReadingRange } from '../utils/readingRange';
-import { formatObservedCadence } from '../utils/metricLabels';
+import {
+  formatObservedCadence,
+  formatProvenanceLabel,
+  formatTargetHint,
+  formatMetricValue,
+  formatTimeHHmm,
+  formatNoSignalHint,
+} from '../utils/metricLabels';
 import SensorChart from '../components/SensorChart';
-import MetricChip from '../components/MetricChip';
 import CareLogTimeline from '../components/CareLogTimeline';
-import AlertBadge from '../components/AlertBadge';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import GrowthStageControl from '../components/GrowthStageControl';
@@ -45,7 +51,6 @@ function ZoneDetailContent({ zoneCode }: { zoneCode: string }) {
   const [activeTab, setActiveTab] = useState<'CHARTS' | 'CARE_LOGS'>('CHARTS');
   const [period, setPeriod] = useState<ReadingPeriod>('LAST_24_HOURS');
   const overviewZone = overview.data?.zones.find(zone => zone.code === zoneCode);
-  // Never show thresholds for the previous stage if the overview refresh fails or is still pending.
   const metrics = overviewZone?.growthStage === data.zone?.growthStage ? overviewZone?.metrics : undefined;
   const cadenceLabel = formatObservedCadence(overviewZone?.observedCadenceSeconds);
 
@@ -55,80 +60,345 @@ function ZoneDetailContent({ zoneCode }: { zoneCode: string }) {
     setFrom(range.from);
     setTo(range.to);
   };
-  const formatDate = (date: string) => new Date(date).toLocaleString(getLocale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+  const formatDateRange = (dFrom: string, dTo: string) => {
+    const f1 = new Date(dFrom).toLocaleString(getLocale(), {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const f2 = new Date(dTo).toLocaleString(getLocale(), {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `${f1} – ${f2} · UTC+7`;
+  };
+
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} onRetry={retry} />;
   if (!data.zone) return <ErrorState message={t('Không tìm thấy vùng canh tác')} onRetry={retry} />;
   const { zone } = data;
 
-  return <div className="space-y-5">
-    {saved && <p role="status" className="rounded-xl border border-teal/30 bg-teal/10 p-3 text-sm text-text">{t(saved === 'created'
-      ? 'Đã tạo khu vực. Cây đại diện và 3 cảm biến đã được khởi tạo.' : 'Đã lưu thay đổi khu vực.')}</p>}
-    <header className="rounded-2xl border border-border bg-surface p-4 md:p-6 shadow-sm">
-      <Link to={farmId ? `/?farmId=${encodeURIComponent(farmId)}` : '/'} className="mb-4 inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-navy dark:text-blue">
-        <span aria-hidden="true" className="material-symbols-outlined text-lg">arrow_back</span>{t('Quay lại tổng quan')}
-      </Link>
-      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
-        <div className="min-w-0"><div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold text-text">{zone.name}</h1>
-          <span className="rounded-lg border border-border bg-bg px-2 py-1 text-[11px] font-semibold text-gray">{zone.code}</span>
-          {cadenceLabel && (
-            <span
-              title={t('Tần suất nhận dữ liệu quan sát được, không phải chu kỳ đo cố định của cảm biến')}
-              className="rounded-lg border border-border bg-bg px-2 py-1 text-[11px] font-medium text-gray inline-flex items-center gap-1"
+  // Check common provenance across available active metrics
+  const activeMetrics = [metrics?.soilMoisture, metrics?.temperature, metrics?.humidity].filter(Boolean);
+  const activeSources = activeMetrics.map(m => m?.source).filter(Boolean);
+  const allSameSource =
+    activeSources.length > 0 &&
+    activeMetrics.length === activeSources.length &&
+    activeSources.every(s => s === activeSources[0]);
+  const commonSourceLabel = allSameSource
+    ? formatProvenanceLabel(activeSources[0])
+    : activeSources.length > 0
+      ? t('Nguồn hỗn hợp')
+      : null;
+
+  // Helper for per-tile footer (provenance + timestamp or no signal hint)
+  const getTileFooter = (m?: MetricData | null) => {
+    const prov = formatProvenanceLabel(m?.source);
+    if (m?.status === 'NO_SIGNAL') {
+      return `${prov} · ${formatNoSignalHint(m?.recordedAt ?? null)}`;
+    }
+    const time = formatTimeHHmm(m?.recordedAt);
+    return time ? `${prov} · ${time}` : prov;
+  };
+
+  const isSoilAbnormal = metrics?.soilMoisture?.status === 'HIGH' || metrics?.soilMoisture?.status === 'LOW';
+
+  return (
+    <div className="bg-[#f8f9ff] dark:bg-bg -m-4 sm:-m-6 p-4 sm:p-6 min-h-full">
+      <div className="space-y-6 max-w-[1248px] mx-auto w-full">
+        {saved && (
+          <p role="status" className="rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-3 text-sm text-emerald-800 dark:text-emerald-300 font-medium">
+            {t(saved === 'created'
+              ? 'Đã tạo khu vực. Cây đại diện và 3 cảm biến đã được khởi tạo.'
+              : 'Đã lưu thay đổi khu vực.')}
+          </p>
+        )}
+
+        {/* 1. BREADCRUMB & HEADER OF ZONE DETAIL */}
+        <div className="space-y-3">
+          {/* Breadcrumb back link */}
+          <div>
+            <Link
+              id="breadcrumb-back-overview"
+              to={farmId ? `/?farmId=${encodeURIComponent(farmId)}` : '/'}
+              className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[#0072a8] dark:text-[#60A5FA] hover:underline min-h-11"
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[13px]">schedule</span>
-              <span>{cadenceLabel}</span>
-            </span>
-          )}
-        </div><GrowthStageControl stage={zone.growthStage} treeId={zone.representativeTreeId} isSaving={growthStage.isSaving}
-          error={growthStage.error} saved={growthStage.saved} onSave={growthStage.save} onOpen={growthStage.clearFeedback} />
-        <div className="mt-3"><AlertBadge count={data.alertCount} dominantSource={data.dominantAlertSource} /></div></div>
-        {metrics ? <div aria-label={t('Thông số hiện tại')} className="grid grid-cols-3 gap-2 xl:min-w-[480px]">
-          <MetricChip metricKey="temperature" metric={metrics.temperature} variant="detail" />
-          <MetricChip metricKey="humidity" metric={metrics.humidity} variant="detail" />
-          <MetricChip metricKey="soilMoisture" metric={metrics.soilMoisture} variant="detail" />
-        </div> : overview.loading || overview.refreshing ? <p role="status" className="text-sm text-gray">{t('Đang tải thông số hiện tại...')}</p>
-          : <div role="alert" className="text-xs text-coral"><p>{t('Không thể tải thông số và khoảng mục tiêu.')}</p>
-            <button onClick={() => void overview.refresh()} className="mt-2 min-h-11 rounded-lg border border-border px-3 cursor-pointer">{t('Thử lại')}</button></div>}
-      </div>
-      <Link to={`/agent?zoneCode=${encodeURIComponent(zone.code)}`} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-xs font-semibold text-navy dark:text-blue">
-        <span aria-hidden="true" className="material-symbols-outlined text-lg">psychology</span>{t('Hỏi trợ lý về khu vực này')}
-      </Link>
-    </header>
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_back</span>
+              <span>{t('Quay lại tổng quan')}</span>
+            </Link>
+          </div>
 
-    {/* Soil S1 Raw Chemistry Profile (F4: Distinguish loading / error / empty) */}
-    <SoilProfileCard
-      profile={overviewZone?.soilProfile}
-      observedCadenceSeconds={overviewZone?.observedCadenceSeconds}
-      zoneCode={zone.code}
-      loading={overview.loading && !overview.data}
-      error={overview.error && !overview.data ? overview.error : null}
-      onRetry={() => void overview.refresh()}
-    />
+          {/* Title Row with Metas and Right Action CTA */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-[24px] font-bold text-text tracking-tight">{zone.name}</h1>
+              <span className="px-2 py-0.5 bg-[#f1f5f9] dark:bg-surface text-[#475569] dark:text-gray font-mono text-[13px] font-semibold rounded border border-[#e2e8f0] dark:border-border">
+                {zone.code}
+              </span>
 
-    <div className="rounded-xl border border-border bg-surface px-3 md:px-5 shadow-sm">
-      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
-        <div role="tablist" aria-label={t('Chi tiết khu vực')} className="grid grid-cols-2 gap-2">
-          {(['CHARTS', 'CARE_LOGS'] as const).map(tab => <button key={tab} id={tab === 'CHARTS' ? 'tab-charts' : 'tab-care-logs'}
-            role="tab" aria-selected={activeTab === tab} aria-controls="zone-tab-content" onClick={() => setActiveTab(tab)}
-            className={`flex min-h-14 items-center justify-center gap-1.5 border-b-2 py-3 text-xs md:text-sm font-semibold cursor-pointer ${activeTab === tab ? 'border-navy text-navy dark:text-blue' : 'border-transparent text-gray'}`}>
-            <span aria-hidden="true" className="material-symbols-outlined text-lg">{tab === 'CHARTS' ? 'analytics' : 'edit_note'}</span>{t(tab === 'CHARTS' ? 'Biểu đồ cảm biến' : 'Nhật ký chăm sóc')}
-          </button>)}
+              {cadenceLabel && (
+                <span
+                  title={t('Tần suất nhận dữ liệu quan sát được, không phải chu kỳ đo cố định của cảm biến')}
+                  className="rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-medium text-gray inline-flex items-center gap-1"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-[13px]">schedule</span>
+                  <span>{cadenceLabel}</span>
+                </span>
+              )}
+
+              {/* Growth stage control badge with accessible change stage modal */}
+              <GrowthStageControl
+                stage={zone.growthStage}
+                treeId={zone.representativeTreeId}
+                isSaving={growthStage.isSaving}
+                error={growthStage.error}
+                saved={growthStage.saved}
+                onSave={growthStage.save}
+                onOpen={growthStage.clearFeedback}
+              />
+
+              {/* Alerts badge */}
+              {data.alertCount > 0 && (
+                <Link
+                  to={`/alerts?zoneCode=${encodeURIComponent(zone.code)}${farmId ? `&farmId=${encodeURIComponent(farmId)}` : ''}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#fef3c7] dark:bg-amber-950/40 text-[#b45309] dark:text-amber-400 text-[13px] font-semibold border border-[#fde68a] dark:border-amber-800/40 hover:opacity-90 transition-opacity"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">warning</span>
+                  <span>{t('{0} cảnh báo', [data.alertCount])}</span>
+                </Link>
+              )}
+            </div>
+
+            {/* Right Action CTA Button: "Hỏi trợ lý về khu vực này" (Full-width on mobile) */}
+            <div className="w-full sm:w-auto">
+              <Link
+                id="btn-agent-zone"
+                to={`/agent?zoneCode=${encodeURIComponent(zone.code)}${farmId ? `&farmId=${encodeURIComponent(farmId)}` : ''}`}
+                className="w-full sm:w-auto h-[44px] px-4 rounded-lg bg-[#0072a8] hover:bg-[#005f8c] text-white text-[14px] font-medium flex items-center justify-center gap-2 shadow-xs transition-colors"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px]">smart_toy</span>
+                <span>{t('Hỏi trợ lý về khu vực này')}</span>
+              </Link>
+            </div>
+          </div>
         </div>
-        {activeTab === 'CHARTS' && <div aria-label={t('Khoảng thời gian')} className="mb-3 xl:mb-0 grid grid-cols-3 gap-1 rounded-xl bg-bg p-1">
-          {PERIODS.map(option => <button key={option.value} aria-pressed={period === option.value} onClick={() => selectPeriod(option.value)}
-            className={`min-h-11 whitespace-nowrap rounded-lg px-2 md:px-4 text-xs font-semibold cursor-pointer ${period === option.value ? 'bg-navy text-surface dark:text-bg shadow-sm' : 'text-gray hover:text-text'}`}>{t(option.label)}</button>)}
-        </div>}
+
+        {/* 2. SỐ ĐO HIỆN TẠI (CURRENT MEASUREMENTS SUMMARY - 3 COLUMNS) */}
+        <section className="bg-surface rounded-xl border border-border p-5 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between pb-3 border-b border-border/80 gap-2">
+            <h2 className="text-[15px] font-bold text-text tracking-tight">{t('Số đo hiện tại')}</h2>
+            {commonSourceLabel && (
+              <div className="flex items-center gap-3 text-[12px] text-gray">
+                <span>
+                  {t('Nguồn:')} <strong className="font-medium text-text">{commonSourceLabel}</strong>
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            {/* Col 1: Nhiệt độ không khí */}
+            <div className="p-2.5 sm:p-4 rounded-lg bg-[#f8fafc] dark:bg-bg/60 border border-[#f1f5f9] dark:border-border/60 flex flex-col justify-between">
+              <div>
+                <div className="text-[11px] sm:text-[13px] text-gray font-medium mb-1 truncate">{t('Nhiệt độ không khí')}</div>
+                <div className="text-[18px] sm:text-[28px] font-bold text-text tracking-tight tabular-nums">
+                  {formatMetricValue(metrics?.temperature?.value ?? null, '°C', metrics?.temperature?.status || 'NORMAL')}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] sm:text-[12px] text-gray mt-1 truncate">
+                  {formatTargetHint(metrics?.temperature?.targetMin ?? null, metrics?.temperature?.targetMax ?? null, '°C') || t('Chưa cấu hình khoảng mục tiêu')}
+                </div>
+                <div className="text-[9px] sm:text-[11px] text-gray mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-border/60 truncate" title={getTileFooter(metrics?.temperature)}>
+                  {getTileFooter(metrics?.temperature)}
+                </div>
+              </div>
+            </div>
+
+            {/* Col 2: Độ ẩm không khí */}
+            <div className="p-2.5 sm:p-4 rounded-lg bg-[#f8fafc] dark:bg-bg/60 border border-[#f1f5f9] dark:border-border/60 flex flex-col justify-between">
+              <div>
+                <div className="text-[11px] sm:text-[13px] text-gray font-medium mb-1 truncate">{t('Độ ẩm không khí')}</div>
+                <div className="text-[18px] sm:text-[28px] font-bold text-text tracking-tight tabular-nums">
+                  {formatMetricValue(metrics?.humidity?.value ?? null, '%', metrics?.humidity?.status || 'NORMAL')}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] sm:text-[12px] text-gray mt-1 truncate">
+                  {formatTargetHint(metrics?.humidity?.targetMin ?? null, metrics?.humidity?.targetMax ?? null, '%') || t('Chưa cấu hình khoảng mục tiêu')}
+                </div>
+                <div className="text-[9px] sm:text-[11px] text-gray mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-border/60 truncate" title={getTileFooter(metrics?.humidity)}>
+                  {getTileFooter(metrics?.humidity)}
+                </div>
+              </div>
+            </div>
+
+            {/* Col 3: Độ ẩm đất (with Warning or Normal styling) */}
+            <div
+              className={`p-2.5 sm:p-4 rounded-lg flex flex-col justify-between ${
+                isSoilAbnormal
+                  ? 'bg-[#fffbeb] dark:bg-amber-950/20 border border-[#fde68a] dark:border-amber-800/40'
+                  : 'bg-[#f8fafc] dark:bg-bg/60 border border-[#f1f5f9] dark:border-border/60'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className={`text-[11px] sm:text-[13px] font-medium truncate ${isSoilAbnormal ? 'text-[#92400e] dark:text-amber-300' : 'text-gray'}`}>
+                    {t('Độ ẩm đất')}
+                  </span>
+                  {isSoilAbnormal && (
+                    <span className="text-[9px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded bg-[#fef3c7] dark:bg-amber-900/40 text-[#b45309] dark:text-amber-400 border border-[#fcd34d] dark:border-amber-800/60 shrink-0">
+                      {metrics?.soilMoisture?.status === 'HIGH' ? t('Cao hơn ngưỡng') : t('Thấp hơn ngưỡng')}
+                    </span>
+                  )}
+                </div>
+                <div className={`text-[18px] sm:text-[28px] font-bold tracking-tight tabular-nums ${isSoilAbnormal ? 'text-[#b45309] dark:text-amber-400' : 'text-text'}`}>
+                  {formatMetricValue(metrics?.soilMoisture?.value ?? null, '%', metrics?.soilMoisture?.status || 'NORMAL')}
+                </div>
+              </div>
+              <div>
+                <div className={`text-[10px] sm:text-[12px] mt-1 truncate ${isSoilAbnormal ? 'text-[#92400e] dark:text-amber-300' : 'text-gray'}`}>
+                  {metrics?.soilMoisture?.targetMin != null && metrics?.soilMoisture?.targetMax != null
+                    ? <>{t('Mục tiêu:')} <strong className="font-semibold">{metrics.soilMoisture.targetMin}–{metrics.soilMoisture.targetMax}%</strong></>
+                    : t('Chưa cấu hình khoảng mục tiêu')}
+                </div>
+                <div className="text-[9px] sm:text-[11px] text-gray mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-border/60 truncate" title={getTileFooter(metrics?.soilMoisture)}>
+                  {getTileFooter(metrics?.soilMoisture)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      {/* 3. SOIL RAW CHEMISTRY COMPACT PANEL (S1 Trắc diện hóa tính đất) */}
+      <SoilProfileCard
+        profile={overviewZone?.soilProfile}
+        observedCadenceSeconds={overviewZone?.observedCadenceSeconds}
+        zoneCode={zone.code}
+        loading={overview.loading && !overview.data}
+        error={overview.error && !overview.data ? overview.error : null}
+        onRetry={() => void overview.refresh()}
+      />
+
+      {/* 4. SENSOR TABS & TIMELINE BAR */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-1">
+          {/* 2 Tabs */}
+          <div role="tablist" aria-label={t('Chi tiết khu vực')} className="flex items-center gap-6">
+            <button
+              id="tab-charts"
+              role="tab"
+              aria-selected={activeTab === 'CHARTS'}
+              aria-controls="zone-tab-panel"
+              type="button"
+              onClick={() => setActiveTab('CHARTS')}
+              className={`pb-2.5 text-[15px] inline-flex items-center gap-2 cursor-pointer border-b-2 transition-colors ${
+                activeTab === 'CHARTS'
+                  ? 'font-bold text-[#1F5CA9] dark:text-[#60A5FA] border-[#1F5CA9] dark:border-[#60A5FA]'
+                  : 'font-medium text-gray hover:text-text border-transparent'
+              }`}
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">show_chart</span>
+              <span>{t('Biểu đồ cảm biến')}</span>
+            </button>
+
+            <button
+              id="tab-care-logs"
+              role="tab"
+              aria-selected={activeTab === 'CARE_LOGS'}
+              aria-controls="zone-tab-panel"
+              type="button"
+              onClick={() => setActiveTab('CARE_LOGS')}
+              className={`pb-2.5 text-[15px] inline-flex items-center gap-2 cursor-pointer border-b-2 transition-colors ${
+                activeTab === 'CARE_LOGS'
+                  ? 'font-bold text-[#1F5CA9] dark:text-[#60A5FA] border-[#1F5CA9] dark:border-[#60A5FA]'
+                  : 'font-medium text-gray hover:text-text border-transparent'
+              }`}
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">edit_note</span>
+              <span>{t('Nhật ký chăm sóc')}</span>
+            </button>
+          </div>
+
+          {/* Date Chips & Text window when in CHARTS tab */}
+          {activeTab === 'CHARTS' && (
+            <div className="flex flex-wrap items-center gap-3">
+              <div aria-label={t('Khoảng thời gian')} className="inline-flex rounded-lg border border-border bg-surface p-0.5 text-[13px] shadow-2xs">
+                {PERIODS.map((option) => (
+                  <button
+                    key={option.value}
+                    aria-pressed={period === option.value}
+                    type="button"
+                    onClick={() => selectPeriod(option.value)}
+                    className={`px-3 py-1 font-medium transition-colors cursor-pointer rounded-md ${
+                      period === option.value
+                        ? 'font-semibold bg-[#1F5CA9] text-white shadow-xs'
+                        : 'text-gray hover:text-text'
+                    }`}
+                  >
+                    {t(option.label)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="text-[12px] font-medium text-gray bg-surface px-2.5 py-1.5 rounded-lg border border-border shadow-2xs">
+                {formatDateRange(from, to)}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tab Panel Content */}
+        <section id="zone-tab-panel" role="tabpanel" aria-labelledby={activeTab === 'CHARTS' ? 'tab-charts' : 'tab-care-logs'}>
+          {activeTab === 'CHARTS' ? (
+            <div className="space-y-4">
+              {/* CHART 1: SOIL MOISTURE (Full-width for focus) */}
+              <SensorChart
+                title={t('Độ ẩm đất')}
+                unit="%"
+                color="#b45309"
+                chart={data.soilMoisture}
+                metric={metrics?.soilMoisture}
+                onRetry={retry}
+                isMain={true}
+              />
+
+              {/* CHARTS 2 & 3: TEMPERATURE & AIR HUMIDITY SIDE BY SIDE */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SensorChart
+                  title={t('Nhiệt độ không khí')}
+                  unit="°C"
+                  color="#1F5CA9"
+                  chart={data.temperature}
+                  metric={metrics?.temperature}
+                  onRetry={retry}
+                  isMain={false}
+                />
+                <SensorChart
+                  title={t('Độ ẩm không khí')}
+                  unit="%"
+                  color="#0072A8"
+                  chart={data.humidity}
+                  metric={metrics?.humidity}
+                  onRetry={retry}
+                  isMain={false}
+                />
+              </div>
+            </div>
+          ) : (
+            <CareLogTimeline zoneCode={zoneCode} zoneId={zone.id} zoneName={zone.name ?? undefined} />
+          )}
+        </section>
       </div>
     </div>
-    <section id="zone-tab-content" role="tabpanel" aria-labelledby={activeTab === 'CHARTS' ? 'tab-charts' : 'tab-care-logs'}>
-      {activeTab === 'CHARTS' ? <div className="space-y-4 md:space-y-5">
-        <p data-reading-from={from} data-reading-to={to} className="text-xs text-gray">{t('Dữ liệu từ {0} đến {1}', [formatDate(from), formatDate(to)])}</p>
-        <SensorChart title={t('Nhiệt độ không khí')} icon="device_thermostat" unit="°C" color="var(--color-blue)" chart={data.temperature} metric={metrics?.temperature} onRetry={retry} />
-        <SensorChart title={t('Độ ẩm không khí')} icon="water_drop" unit="%" color="var(--color-amber)" chart={data.humidity} metric={metrics?.humidity} onRetry={retry} />
-        <SensorChart title={t('Độ ẩm đất')} icon="water_drop" unit="%" color="var(--color-coral)" chart={data.soilMoisture} metric={metrics?.soilMoisture} onRetry={retry} />
-      </div> : <CareLogTimeline zoneCode={zoneCode} zoneId={zone.id} />}
-    </section>
-  </div>;
+  </div>
+);
 }

@@ -1,22 +1,23 @@
 {
   "task": "UI-REFRESH-CTU-001",
-  "phase": "IMPLEMENTATION_P2",
+  "phase": "IMPLEMENTATION_P3",
   "owner": "ANTIGRAVITY_FE",
-  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-001",
-  "branch": "fe/UI-REFRESH-CTU-001-pilot",
-  "baseCommit": "dcc2d94a0d097cf56e9d6cd829d7cd4ad5491198",
-  "verificationTimestampUtc": "2026-11-15T14:00:00Z",
-  "verificationTimestampLocal": "2026-11-15T21:00:00+07:00",
+  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-002",
+  "branch": "fe/UI-REFRESH-CTU-001-zone-detail",
+  "baseCommit": "159f8e55279ba98180f2ff618ac15a8769a7fd92",
+  "verificationTimestampUtc": "2026-11-15T14:48:00Z",
+  "verificationTimestampLocal": "2026-11-15T21:48:00+07:00",
   "transport": "Connected GitHub MCP get_commit(main)",
   "observedRemoteMain": {
     "backend": "76ce8bde2b39550d1f17886c3b69d70a3cbe7e87",
-    "frontend": "dcc2d94a0d097cf56e9d6cd829d7cd4ad5491198",
+    "frontend": "159f8e55279ba98180f2ff618ac15a8769a7fd92",
     "docs": "69a5db9bcf0e7e284387b12b1e3afd58a560222b"
   },
-  "approvedDesignReference": {
+  "approvedDesignReferences": {
     "stitchProjectId": "12367919978060270881",
-    "stitchScreenId": "9715e627d0e44e39b145431bce1bfdb4",
-    "name": "DuriCare - Tổng quan tinh gọn"
+    "desktopChartScreenId": "db4d9dd7644c40638279651a840107a0",
+    "mobileChartScreenId": "3ec2fb92db6945b59007724dcdf81f10",
+    "desktopCareScreenId": "ef9bcbf9c7154f399e74062ee3068678"
   },
   "approvedSharedDocs": {
     "root": "E:/CTU/LuanVan/docs/ai",
@@ -25,6 +26,6 @@
   "scope": {
     "presentationOnly": true,
     "backendChanges": false,
-    "pilotFoundation": true
+    "zoneDetailPilot": true
   }
 }
