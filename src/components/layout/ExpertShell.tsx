@@ -7,6 +7,7 @@ import LanguageSelect from './LanguageSelect';
 import ShellNavigation from './ShellNavigation';
 import { useLanguage } from '../../i18n/useLanguage';
 import { t } from '../../i18n';
+import { BrandMark } from '../BrandLogo';
 
 export default function ExpertShell() {
   useLanguage();
@@ -18,9 +19,9 @@ export default function ExpertShell() {
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 flex-col justify-between border-r border-border bg-surface">
         <div>
           <div className="h-20 flex items-center gap-3 px-6 border-b border-border">
-            <span aria-hidden="true" className="text-2xl">🌳</span>
+            <BrandMark sizeClass="w-9 h-9" />
             <div>
-              <p className="text-xl font-extrabold text-navy">DuriCare</p>
+              <p className="text-xl font-extrabold text-[#1F5CA9] dark:text-[#60A5FA]">DuriCare</p>
               <p className="text-xs text-gray">{t('Không gian chuyên gia')}</p>
             </div>
           </div>
@@ -32,9 +33,12 @@ export default function ExpertShell() {
       </aside>
       <header className="border-b border-border bg-surface px-4 md:px-8 lg:ml-64">
         <div className="h-20 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-bold text-navy lg:hidden">🌳 DuriCare</p>
-            <p className="text-xs lg:text-sm text-gray">{t('Không gian chuyên gia')}</p>
+          <div className="flex items-center gap-2">
+            <BrandMark sizeClass="w-7 h-7 lg:hidden" />
+            <div>
+              <p className="text-sm font-bold text-[#1F5CA9] dark:text-[#60A5FA] lg:hidden">DuriCare</p>
+              <p className="text-xs lg:text-sm text-gray">{t('Không gian chuyên gia')}</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <LanguageSelect />

@@ -1,5 +1,7 @@
 import type { User } from './auth';
 
+export type NavigationGroup = 'THEO_DOI' | 'QUAN_TRI';
+
 export interface NavigationItem {
   path: string;
   label: string;
@@ -8,4 +10,5 @@ export interface NavigationItem {
   mobileLabel?: string;
   tone: 'navy' | 'coral' | 'teal';
   roles?: readonly User['role'][];
+  group?: NavigationGroup;
 }
