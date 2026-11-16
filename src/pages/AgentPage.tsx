@@ -84,7 +84,7 @@ function AgentPageContent({ zoneCode, initialId }: { zoneCode?: string; initialI
 
   return (
     <div
-      className={`mx-auto grid max-w-[1600px] min-h-72 h-[calc(100dvh-14.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:h-[calc(100dvh-15.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] lg:h-[calc(100dvh-10rem)] ${
+      className={`mx-auto grid max-w-[1600px] w-full h-full min-h-0 lg:h-[calc(100dvh-10rem)] ${
         isContextOpen
           ? 'lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)_21rem]'
           : 'lg:grid-cols-[15rem_minmax(0,1fr)]'
@@ -96,7 +96,7 @@ function AgentPageContent({ zoneCode, initialId }: { zoneCode?: string; initialI
       </aside>
 
       {/* Column 2: Central Chat Stream */}
-      <div className="min-h-0 min-w-0 overflow-hidden rounded-2xl border border-[#e2e8f0] dark:border-border bg-white dark:bg-surface shadow-xs">
+      <div className="min-h-0 min-w-0 h-full flex flex-col overflow-hidden rounded-2xl border border-[#e2e8f0] dark:border-border bg-white dark:bg-surface shadow-xs">
         <ChatPanelView
           key={chat.conversationId ?? 'new'}
           variant="full"

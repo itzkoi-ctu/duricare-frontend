@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../../i18n/useLanguage';
 import { t } from '../../i18n';
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
 import LanguageSelect from './LanguageSelect';
 import { useOverviewContext } from '../../context/OverviewContext';
@@ -12,6 +12,8 @@ import { BrandLogo, BrandMark } from '../BrandLogo';
 
 export default function Shell() {
   useLanguage();
+  const location = useLocation();
+  const isAgentRoute = location.pathname.startsWith('/agent');
   const { user } = useAuth();
   const logout = useLogout();
   const { data, farms, selectedFarmId, onSelectFarm } = useOverviewContext();
@@ -405,8 +407,20 @@ export default function Shell() {
       <ShellNavigation mobile role={user.role} totalAlerts={totalAlerts} />
 
       {/* ─── Main Content ─── */}
-      <main className={`fixed inset-x-0 top-16 bottom-[calc(4rem+env(safe-area-inset-bottom))] overflow-y-auto scroll-pt-4 lg:static lg:overflow-visible lg:pt-16 lg:pb-8 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-56'} lg:min-h-screen transition-[padding-left] duration-200`}>
-        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+      <main
+        className={`fixed inset-x-0 top-16 bottom-[calc(4rem+env(safe-area-inset-bottom))] ${
+          isAgentRoute ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'
+        } scroll-pt-4 lg:static lg:overflow-visible lg:pt-16 lg:pb-8 ${
+          sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-56'
+        } lg:min-h-screen transition-[padding-left] duration-200`}
+      >
+        <div
+          className={
+            isAgentRoute
+              ? 'flex-1 min-h-0 flex flex-col p-3 sm:p-4 md:p-6 lg:p-8 max-w-[1600px] w-full mx-auto'
+              : 'p-4 md:p-6 lg:p-8 max-w-7xl mx-auto'
+          }
+        >
           <Outlet />
         </div>
       </main>
