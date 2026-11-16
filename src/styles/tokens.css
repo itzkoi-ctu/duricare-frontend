@@ -119,4 +119,10 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /* When motion is reduced, circular track spinners display a uniform subtle ring instead of an awkward frozen partial arc */
+  .animate-spin.rounded-full {
+    border-color: var(--color-navy, #1f5ca9) !important;
+    opacity: 0.6;
+  }
 }

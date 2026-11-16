@@ -1224,5 +1224,18 @@
   "Lưu nhật ký": "Lưu nhật ký",
   "Hệ thống tự động ghi nhận thời gian và người thực hiện.": "Hệ thống tự động ghi nhận thời gian và người thực hiện.",
   "Nguồn hỗn hợp": "Nguồn hỗn hợp",
-  "Mục tiêu:": "Mục tiêu:"
+  "Mục tiêu:": "Mục tiêu:",
+  "Theo dõi và xử lý cảnh báo tại các khu vực.": "Theo dõi và xử lý cảnh báo tại các khu vực.",
+  "chưa xử lý": "chưa xử lý",
+  "Tất cả khu vực": "Tất cả khu vực",
+  "Khu vực:": "Khu vực:",
+  "Nguồn cảnh báo:": "Nguồn cảnh báo:",
+  "Cảnh báo cứng (HARD)": "Cảnh báo cứng (HARD)",
+  "Cảnh báo AI (AGENTIC)": "Cảnh báo AI (AGENTIC)",
+  "Hiển thị {0}/{1} cảnh báo · Mới nhất trước": "Hiển thị {{0}}/{{1}} cảnh báo · Mới nhất trước",
+  "{0} cảnh báo cứng": "{{0}} cảnh báo cứng",
+  "{0} cảnh báo AI": "{{0}} cảnh báo AI",
+  "Đánh dấu đã xử lý chỉ cập nhật trạng thái cảnh báo trong hệ thống.": "Đánh dấu đã xử lý chỉ cập nhật trạng thái cảnh báo trong hệ thống.",
+  "Đang xử lý…": "Đang xử lý…",
+  "Nghiêm trọng": "Nghiêm trọng"
 }
