@@ -144,6 +144,13 @@ const requiredI18nKeys = [
   'Đoạn {0}',
   'Nguồn gốc',
   'Thẩm định đã hoàn tất',
+  'Không có ghi chú',
+  'Xem đầy đủ',
+  'Thu gọn',
+  'Lý do / Ghi chú',
+  'Đang tải lịch sử kiểm toán...',
+  'Chưa có bản ghi kiểm toán nào.',
+  'Thao tác tài liệu',
 ];
 
 for (const k of requiredI18nKeys) {
@@ -329,33 +336,57 @@ const mockSourceFixture = {
 const mockAuditHistory = {
   content: [
     {
-      id: 101,
+      id: 'audit-001',
       sourceId: 'src-ctu-01',
       revisionId: 'rev-ctu-01-1',
-      actorUserId: 10,
-      actorDisplayName: 'Quản trị viên CTU',
-      action: 'APPROVE',
-      fromStatus: 'IN_REVIEW',
-      toStatus: 'APPROVED',
-      notes: 'Thẩm định hoàn tất đạt yêu cầu',
-      createdAt: '2026-11-16T09:30:00Z',
+      assignmentId: null,
+      actorUserId: 101,
+      actorDisplayName: 'TS. Nguyễn Văn Chuyên Gia',
+      occurredAt: '2026-11-16T14:30:00Z',
+      action: 'DECIDED',
+      previousStatus: 'IN_REVIEW',
+      newStatus: 'APPROVED',
+      reason: 'Tài liệu kỹ thuật canh tác sầu riêng Ri6 giai đoạn ra hoa theo quy trình VietGAP của Viện Cây ăn quả Miền Nam.\nChi tiết quy trình canh tác và khuyến cáo phân bón xem tại https://duricare.example.edu.vn/guidelines/2026/durian-ri6-flowering-stage-vietgap-manual.html.\nĐã kiểm tra đối chiếu đầy đủ các chỉ tiêu kỹ thuật trước khi phê duyệt.',
+      previousVersion: 1,
+      newVersion: 2,
+      metadata: { outcome: 'APPROVED', tier: 'A' },
     },
     {
-      id: 100,
+      id: 'audit-002',
       sourceId: 'src-ctu-01',
       revisionId: 'rev-ctu-01-1',
+      assignmentId: null,
       actorUserId: 10,
       actorDisplayName: 'Quản trị viên CTU',
-      action: 'SUBMIT',
-      fromStatus: 'DRAFT',
-      toStatus: 'SUBMITTED',
-      notes: 'Gửi thẩm định chuyên môn',
-      createdAt: '2026-11-14T08:00:00Z',
+      occurredAt: '2026-11-15T09:15:00Z',
+      action: 'SUBMITTED',
+      previousStatus: 'DRAFT',
+      newStatus: 'SUBMITTED',
+      reason: 'Gửi hồ sơ thẩm định chuyên môn đợt 1',
+      previousVersion: 0,
+      newVersion: 1,
+      metadata: null,
+    },
+    {
+      id: 'audit-003',
+      sourceId: 'src-ctu-01',
+      revisionId: 'rev-ctu-01-1',
+      assignmentId: null,
+      actorUserId: 10,
+      actorDisplayName: 'Quản trị viên CTU',
+      occurredAt: '2026-11-14T08:00:00Z',
+      action: 'SOURCE_CREATED',
+      previousStatus: null,
+      newStatus: 'DRAFT',
+      reason: null,
+      previousVersion: null,
+      newVersion: 0,
+      metadata: null,
     },
   ],
   page: 0,
   size: 20,
-  totalElements: 2,
+  totalElements: 3,
   totalPages: 1,
 };
 
@@ -371,12 +402,33 @@ let currentHeadFixture = {
 
 const currentPubDetailsMap = new Map();
 let mockPublicationHeadError = null;
+let mockPublicationDetailError = null;
+let mockExpertProfile = null;
+const unhandledRequests = [];
 
 page.on('request', (req) => {
   const url = req.url();
   const method = req.method();
 
-  if (req.resourceType() === 'document' || req.resourceType() === 'script' || req.resourceType() === 'stylesheet') {
+  if (url.startsWith('data:')) {
+    return req.continue();
+  }
+
+  const isLocalServer = url.startsWith(`http://127.0.0.1:${PORT}`) || url.startsWith(`http://localhost:${PORT}`);
+  const isGoogleFont = url.startsWith('https://fonts.googleapis.com') || url.startsWith('https://fonts.gstatic.com');
+
+  if (isGoogleFont) {
+    return req.continue();
+  }
+
+  if (isLocalServer && (
+    req.resourceType() === 'document' ||
+    req.resourceType() === 'script' ||
+    req.resourceType() === 'stylesheet' ||
+    req.resourceType() === 'image' ||
+    req.resourceType() === 'font' ||
+    url.includes('/locales/')
+  )) {
     return req.continue();
   }
 
@@ -416,7 +468,7 @@ page.on('request', (req) => {
       status: 200,
       headers: CORS_HEADERS,
       contentType: 'application/json',
-      body: JSON.stringify({
+      body: JSON.stringify(mockExpertProfile || {
         userId: currentAuthUser.id,
         verificationStatus: 'VERIFIED',
         fullName: currentAuthUser.fullName,
@@ -465,6 +517,15 @@ page.on('request', (req) => {
     });
   }
 
+  if (url.includes('/trees')) {
+    return req.respond({
+      status: 200,
+      headers: CORS_HEADERS,
+      contentType: 'application/json',
+      body: JSON.stringify([{ id: 1, name: 'Cây sầu riêng Ri6 #01', zoneId: 1 }]),
+    });
+  }
+
   // Publication head endpoint (specific URL matching before source endpoint)
   if (url.includes('/admin/knowledge/sources/src-ctu-01/publication-head') || url.includes('/publication-head')) {
     if (mockPublicationHeadError) {
@@ -489,6 +550,18 @@ page.on('request', (req) => {
 
   // Publication details endpoint
   if (url.includes('/admin/knowledge/publications/')) {
+    if (mockPublicationDetailError) {
+      return req.respond({
+        status: mockPublicationDetailError.status,
+        headers: CORS_HEADERS,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'service_unavailable',
+          code: mockPublicationDetailError.code || 'publication_detail_unavailable',
+          message: mockPublicationDetailError.message,
+        }),
+      });
+    }
     const pubId = url.split('/publications/')[1]?.split('?')[0]?.replace('/', '');
     const detail = currentPubDetailsMap.get(pubId) || {
       publication: {
@@ -607,11 +680,9 @@ page.on('request', (req) => {
     });
   }
 
-  if (url.includes('/api/')) {
-    console.log('  [UNHANDLED API REQUEST]', method, url);
-  }
-
-  req.continue();
+  console.log(`  [FAIL-CLOSED ABORT] ${method} ${url}`);
+  unhandledRequests.push({ method, url });
+  return req.abort('failed');
 });
 
 // ─── [3/3] Browser E2E Scenarios & Evidence Capture ───────────
@@ -815,15 +886,203 @@ try {
   const expandedArticles = await page.$$('article');
   assert(expandedArticles.length >= 2, 'Clicking collapsed chunk expanded it into an article');
 
-  // Scenario 9: Audit History Tab Interaction
-  console.log('\n--- Scenario 9: Audit History Tab Interaction ---');
+  // Scenario 9: Audit History Tab Verification (F3 Fix)
+  console.log('\n--- Scenario 9.1: Audit History Tab - Desktop 1440x900 Verification ---');
+  await page.setViewport({ width: 1440, height: 900 });
   await page.waitForSelector('[data-testid="tab-history"]');
   await page.click('[data-testid="tab-history"]');
-  await page.waitForSelector('table', { timeout: 5000 });
-  const tableRows = await page.$$('table tbody tr');
-  assert(tableRows.length >= 2, `History table rendered ${tableRows.length} audit events`);
+  await page.waitForSelector('[data-testid="history-table-container"]', { timeout: 5000 });
 
-  // Switch back to Chunks tab
+  const tableRows = await page.$$('table tbody tr');
+  assert(tableRows.length >= 3, `History table rendered ${tableRows.length} audit events`);
+
+  // Measure Reason column width on Desktop 1440
+  const reasonColWidth1440 = await page.$eval(
+    '[data-testid="history-reason-col-audit-001"]',
+    (el) => el.getBoundingClientRect().width
+  );
+  assert(
+    reasonColWidth1440 >= 240,
+    `Desktop 1440 reason column width is >= 240px (actual: ${reasonColWidth1440.toFixed(1)}px)`
+  );
+
+  // Measure text container inside reason column
+  const reasonTextWidth1440 = await page.$eval(
+    '[data-testid="table-reason-text-audit-001"]',
+    (el) => el.getBoundingClientRect().width
+  );
+  assert(
+    reasonTextWidth1440 >= 220,
+    `Desktop 1440 reason text width is >= 220px (actual: ${reasonTextWidth1440.toFixed(1)}px)`
+  );
+
+  // Verify optimistic-lock version display (v2, v1, v0)
+  const versionRow1 = await page.$eval(
+    '[data-testid="history-row-audit-001"] td:nth-child(5)',
+    (el) => el.textContent.trim()
+  );
+  assert(versionRow1 === 'v2', `Optimistic-lock version displayed as v2 for audit-001: "${versionRow1}"`);
+
+  // Verify neutral label for null reason
+  const emptyReasonLabel = await page.$eval(
+    '[data-testid="table-empty-reason-audit-003"]',
+    (el) => el.textContent.trim()
+  );
+  assert(
+    emptyReasonLabel === 'Không có ghi chú',
+    `Null reason rendered neutral label "Không có ghi chú": "${emptyReasonLabel}"`
+  );
+
+  // Verify keyboard expand/collapse on Desktop
+  const isExpandedBeforeKb = await page.$eval(
+    '[data-testid="table-toggle-reason-audit-001"]',
+    (el) => el.getAttribute('aria-expanded')
+  );
+  assert(isExpandedBeforeKb === 'false', 'Audit reason toggle starts with aria-expanded="false"');
+  const heightBeforeKb = await page.$eval(
+    '[data-testid="table-reason-text-audit-001"]',
+    (el) => el.getBoundingClientRect().height
+  );
+
+  // Focus and press Enter key
+  await page.focus('[data-testid="table-toggle-reason-audit-001"]');
+  await page.keyboard.press('Enter');
+  await new Promise((r) => setTimeout(r, 250));
+
+  const isExpandedAfterKb = await page.$eval(
+    '[data-testid="table-toggle-reason-audit-001"]',
+    (el) => el.getAttribute('aria-expanded')
+  );
+  assert(isExpandedAfterKb === 'true', 'Audit reason toggle has aria-expanded="true" after Enter key press');
+  const btnTextAfterKb = await page.$eval(
+    '[data-testid="table-toggle-reason-audit-001"]',
+    (el) => el.textContent.trim()
+  );
+  assert(btnTextAfterKb.includes('Thu gọn'), `Button label changed to "Thu gọn": "${btnTextAfterKb}"`);
+
+  const heightAfterKb = await page.$eval(
+    '[data-testid="table-reason-text-audit-001"]',
+    (el) => el.getBoundingClientRect().height
+  );
+  assert(
+    heightAfterKb > heightBeforeKb,
+    `Expanded reason height (${heightAfterKb.toFixed(1)}px) > collapsed height (${heightBeforeKb.toFixed(1)}px)`
+  );
+
+  // Press Enter again to collapse
+  await page.keyboard.press('Enter');
+  await new Promise((r) => setTimeout(r, 250));
+  const isExpandedCollapsedKb = await page.$eval(
+    '[data-testid="table-toggle-reason-audit-001"]',
+    (el) => el.getAttribute('aria-expanded')
+  );
+  assert(isExpandedCollapsedKb === 'false', 'Audit reason toggle collapses back to aria-expanded="false"');
+
+  // Verify no page-level horizontal overflow at 1440
+  const pageOverflow1440 = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth
+  );
+  assert(!pageOverflow1440, 'History tab at 1440x900 has no page-level horizontal overflow');
+  await captureEvidence(page, 'fe_source_detail_07_history_desktop_1440.png');
+
+  // Scenario 9.2: Desktop 1280x800 Verification
+  console.log('\n--- Scenario 9.2: Audit History Tab - Desktop 1280x800 Verification ---');
+  await page.setViewport({ width: 1280, height: 800 });
+  await new Promise((r) => setTimeout(r, 200));
+
+  const reasonColWidth1280 = await page.$eval(
+    '[data-testid="history-reason-col-audit-001"]',
+    (el) => el.getBoundingClientRect().width
+  );
+  assert(
+    reasonColWidth1280 >= 240,
+    `Desktop 1280 reason column width is >= 240px (actual: ${reasonColWidth1280.toFixed(1)}px)`
+  );
+
+  const pageOverflow1280 = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth
+  );
+  assert(!pageOverflow1280, 'History tab at 1280x800 has no page-level horizontal overflow');
+  await captureEvidence(page, 'fe_source_detail_08_history_desktop_1280.png');
+
+  // Scenario 9.3: Tablet 768x1024 Verification
+  console.log('\n--- Scenario 9.3: Audit History Tab - Tablet 768x1024 Verification ---');
+  await page.setViewport({ width: 768, height: 1024 });
+  await new Promise((r) => setTimeout(r, 200));
+
+  const pageOverflow768 = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth
+  );
+  assert(!pageOverflow768, 'History tab at 768x1024 has no page-level horizontal overflow');
+  await captureEvidence(page, 'fe_source_detail_09_history_tablet_768.png');
+
+  // Scenario 9.4: Mobile 390x844 Verification (Cards Layout)
+  console.log('\n--- Scenario 9.4: Audit History Tab - Mobile 390x844 Cards Verification ---');
+  await page.setViewport({ width: 390, height: 844 });
+  await new Promise((r) => setTimeout(r, 200));
+
+  // Verify cards container is visible and table container is hidden
+  const cardsContainerVisible = await page.$eval(
+    '[data-testid="history-cards-container"]',
+    (el) => window.getComputedStyle(el).display !== 'none'
+  );
+  assert(cardsContainerVisible, 'Mobile 390 renders history cards container');
+
+  const tableContainerHidden = await page.$eval(
+    '[data-testid="history-table-container"]',
+    (el) => window.getComputedStyle(el).display === 'none'
+  );
+  assert(tableContainerHidden, 'Mobile 390 hides history table container');
+
+  // Measure full-width reason section in card
+  const mobileReasonWidth390 = await page.$eval(
+    '[data-testid="card-reason-text-audit-001"]',
+    (el) => el.getBoundingClientRect().width
+  );
+  assert(
+    mobileReasonWidth390 >= 280,
+    `Mobile 390 card reason width is >= 280px (actual: ${mobileReasonWidth390.toFixed(1)}px)`
+  );
+
+  // Test tap/click expand/collapse on Mobile Card
+  await page.click('[data-testid="card-toggle-reason-audit-001"]');
+  await new Promise((r) => setTimeout(r, 200));
+  const mobileExpanded = await page.$eval(
+    '[data-testid="card-toggle-reason-audit-001"]',
+    (el) => el.getAttribute('aria-expanded')
+  );
+  assert(mobileExpanded === 'true', 'Mobile card reason expanded on click');
+  await page.click('[data-testid="card-toggle-reason-audit-001"]');
+  await new Promise((r) => setTimeout(r, 200));
+
+  const pageOverflow390 = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth
+  );
+  assert(!pageOverflow390, 'History tab at 390x844 has no page-level horizontal overflow');
+  await captureEvidence(page, 'fe_source_detail_10_history_mobile_390.png');
+
+  // Scenario 9.5: Mobile 375x667 Verification
+  console.log('\n--- Scenario 9.5: Audit History Tab - Mobile 375x667 Verification ---');
+  await page.setViewport({ width: 375, height: 667 });
+  await new Promise((r) => setTimeout(r, 200));
+
+  const mobileReasonWidth375 = await page.$eval(
+    '[data-testid="card-reason-text-audit-001"]',
+    (el) => el.getBoundingClientRect().width
+  );
+  assert(
+    mobileReasonWidth375 >= 260,
+    `Mobile 375 card reason width is >= 260px (actual: ${mobileReasonWidth375.toFixed(1)}px)`
+  );
+
+  const pageOverflow375 = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth
+  );
+  assert(!pageOverflow375, 'History tab at 375x667 has no page-level horizontal overflow');
+  await captureEvidence(page, 'fe_source_detail_11_history_mobile_375.png');
+
+  // Reset viewport and tab before continuing
+  await page.setViewport({ width: 1440, height: 900 });
   await page.click('[data-testid="tab-chunks"]');
   await new Promise((r) => setTimeout(r, 200));
 
@@ -1006,6 +1265,722 @@ try {
 
   // Reset error
   mockPublicationHeadError = null;
+
+  // Scenario 15: Action Group Placement & Role Alignment (F4 Verification)
+  console.log('\n--- Scenario 15: Action Group Placement & Role Alignment (F4 Verification) ---');
+  currentAuthUser = {
+    id: 10,
+    email: 'admin@duricare.ctu.vn',
+    role: 'ADMIN',
+    farmId: 1,
+    fullName: 'Quản trị viên CTU',
+  };
+  currentHeadFixture = {
+    sourceId: 'src-ctu-01',
+    version: 1,
+    activePublication: null,
+    pendingPublication: null,
+    lastOperationReceipt: null,
+    updatedAt: '2026-11-16T09:30:00Z',
+  };
+
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.goto(`http://127.0.0.1:${PORT}/knowledge/sources/src-ctu-01?farmId=1`, {
+    waitUntil: 'networkidle0',
+  });
+
+  // 15.1: Desktop Header & Right Rail placement
+  const desktopHeaderProvBtn = await page.$('[data-testid="view-provenance-button"]');
+  assert(desktopHeaderProvBtn !== null, '[F4] Desktop header contains Provenance button');
+
+  // Verify header does NOT contain Create Subsequent Revision button
+  const headerCreateBtn = await page.evaluate(() => {
+    const header = document.querySelector('.flex.items-center.gap-2.shrink-0');
+    return header ? header.querySelector('[data-testid="create-subsequent-revision-button"]') : null;
+  });
+  assert(headerCreateBtn === null, '[F4] Desktop header does NOT contain Create Subsequent Revision button');
+
+  // Verify Right Rail has both Publish button and Create Subsequent Revision button
+  await page.waitForSelector('[data-testid="open-publish-modal-button"]');
+  await page.waitForSelector('[data-testid="create-subsequent-revision-button"]');
+
+  const pubRect = await page.$eval('[data-testid="open-publish-modal-button"]', (el) => {
+    const r = el.getBoundingClientRect();
+    return { y: r.y, height: r.height, width: r.width };
+  });
+  const createRect = await page.$eval('[data-testid="create-subsequent-revision-button"]', (el) => {
+    const r = el.getBoundingClientRect();
+    return { y: r.y, height: r.height, width: r.width };
+  });
+
+  assert(
+    createRect.y > pubRect.y + pubRect.height - 2,
+    `[F4] Create revision button is positioned below publish button (pub bottom: ${(pubRect.y + pubRect.height).toFixed(1)}, create top: ${createRect.y.toFixed(1)})`
+  );
+  assert(
+    createRect.y - (pubRect.y + pubRect.height) <= 12,
+    `[F4] Gap between publish and create revision is ~8px (actual: ${(createRect.y - (pubRect.y + pubRect.height)).toFixed(1)}px)`
+  );
+  assert(
+    createRect.height === 44,
+    `[F4] Create subsequent revision button meets 44px tap target height (got ${createRect.height}px)`
+  );
+  assert(
+    createRect.width >= 240,
+    `[F4] Create subsequent revision button spans full width of card (got ${createRect.width.toFixed(1)}px)`
+  );
+
+  // Test opening new revision modal from relocated button
+  await page.click('[data-testid="create-subsequent-revision-button"]');
+  await page.waitForSelector('[data-testid="new-revision-modal"]');
+  const modalText = await page.$eval('[data-testid="new-revision-modal"]', (el) => el.textContent);
+  assert(modalText.includes('Tạo phiên bản tiếp theo'), '[F4] Clicking Create Revision button opens revision modal');
+  await page.click('[data-testid="close-new-rev-modal-button"]');
+  await new Promise((r) => setTimeout(r, 200));
+
+  // 15.2: Mobile 390 Action Group Placement
+  await page.setViewport({ width: 390, height: 844 });
+  await new Promise((r) => setTimeout(r, 200));
+
+  const mobileHeaderProvDisplay = await page.$eval(
+    '[data-testid="view-provenance-button"]',
+    (el) => window.getComputedStyle(el).display
+  );
+  assert(mobileHeaderProvDisplay === 'none', '[F4] Header provenance button is hidden on mobile');
+
+  await page.waitForSelector('[data-testid="mobile-create-subsequent-revision-button"]');
+  await page.waitForSelector('[data-testid="mobile-view-provenance-button"]');
+
+  const mobileCreateH = await page.$eval(
+    '[data-testid="mobile-create-subsequent-revision-button"]',
+    (el) => el.getBoundingClientRect().height
+  );
+  const mobileProvH = await page.$eval(
+    '[data-testid="mobile-view-provenance-button"]',
+    (el) => el.getBoundingClientRect().height
+  );
+  assert(mobileCreateH === 44, `[F4] Mobile create revision button is 44px (got ${mobileCreateH}px)`);
+  assert(mobileProvH === 44, `[F4] Mobile provenance button is 44px (got ${mobileProvH}px)`);
+
+  // 15.3: ADMIN non-owner role check
+  console.log('\n--- Scenario 15.3: ADMIN Non-Owner Role Check ---');
+  currentAuthUser = {
+    id: 99,
+    email: 'admin_non_owner@duricare.ctu.vn',
+    role: 'ADMIN',
+    farmId: 1,
+    fullName: 'Admin Non Owner',
+  };
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.goto(`http://127.0.0.1:${PORT}/knowledge/sources/src-ctu-01?farmId=1`, {
+    waitUntil: 'networkidle0',
+  });
+  await page.waitForSelector('[data-testid="open-publish-modal-button"]');
+  const nonOwnerCreateBtn = await page.$('[data-testid="create-subsequent-revision-button"]');
+  assert(
+    nonOwnerCreateBtn === null,
+    '[F4] ADMIN non-owner cannot author new revision (button strictly hidden)'
+  );
+
+  // 15.4: Verified EXPERT-owner role check
+  console.log('\n--- Scenario 15.4: Verified EXPERT-Owner Role Check ---');
+  currentAuthUser = {
+    id: 10,
+    email: 'expert_owner@duricare.ctu.vn',
+    role: 'EXPERT',
+    farmId: 1,
+    fullName: 'Chuyên gia Chủ sở hữu',
+  };
+  mockExpertProfile = {
+    id: 10,
+    userId: 10,
+    email: 'expert_owner@duricare.ctu.vn',
+    enabled: true,
+    role: 'EXPERT',
+    fullName: 'Chuyên gia Chủ sở hữu',
+    affiliation: 'Trường Đại học Cần Thơ',
+    specialties: 'Bệnh học cây trồng',
+    verificationStatus: 'VERIFIED',
+    verifiedAt: '2026-10-01T08:00:00Z',
+    createdAt: '2026-09-01T08:00:00Z',
+    updatedAt: '2026-10-01T08:00:00Z',
+    version: 1,
+  };
+  await page.goto(`http://127.0.0.1:${PORT}/knowledge/sources/src-ctu-01?farmId=1`, {
+    waitUntil: 'networkidle0',
+  });
+  const expertPubCard = await page.$('[data-testid="publication-head-card"]');
+  assert(expertPubCard === null, '[F4] Verified EXPERT does not receive publication card or call publication API');
+
+  await page.waitForSelector('[data-testid="expert-document-actions-card"]');
+  await page.waitForSelector('[data-testid="create-subsequent-revision-button"]');
+  const expertCreateBtnText = await page.$eval(
+    '[data-testid="create-subsequent-revision-button"]',
+    (el) => el.textContent.trim()
+  );
+  assert(
+    expertCreateBtnText.includes('Tạo phiên bản mới'),
+    `[F4] Verified EXPERT owner has access to Create Revision button: "${expertCreateBtnText}"`
+  );
+
+  // 15.5: Restricted EXPERT role check
+  console.log('\n--- Scenario 15.5: Restricted EXPERT Role Check ---');
+  currentAuthUser = {
+    id: 88,
+    email: 'expert_non_owner@duricare.ctu.vn',
+    role: 'EXPERT',
+    farmId: 1,
+    fullName: 'Chuyên gia Không sở hữu',
+  };
+  await page.goto(`http://127.0.0.1:${PORT}/knowledge/sources/src-ctu-01?farmId=1`, {
+    waitUntil: 'networkidle0',
+  });
+  const restrExpertPubCard = await page.$('[data-testid="publication-head-card"]');
+  const restrExpertDocCardVisible = await page.$eval(
+    '[data-testid="expert-document-actions-card"]',
+    (el) => window.getComputedStyle(el).display !== 'none'
+  ).catch(() => false);
+  const restrCreateBtn = await page.$('[data-testid="create-subsequent-revision-button"]');
+  assert(restrExpertPubCard === null, '[F4] Restricted EXPERT has no publication card');
+  assert(!restrExpertDocCardVisible, '[F4] Restricted EXPERT has no visible document actions card on desktop');
+  assert(restrCreateBtn === null, '[F4] Restricted EXPERT has no create revision button');
+
+  // Helper for F5 badge geometry extraction
+  async function getBadgeGeometry(sel) {
+    return await page.$eval(sel, (el) => {
+      const r = el.getBoundingClientRect();
+      const cs = window.getComputedStyle(el);
+      const icon = el.querySelector('.material-symbols-outlined, .badge-icon');
+      let iconBox = null;
+      if (icon) {
+        const ir = icon.getBoundingClientRect();
+        const ics = window.getComputedStyle(icon);
+        iconBox = {
+          width: ir.width,
+          height: ir.height,
+          fontSize: ics.fontSize,
+          lineHeight: ics.lineHeight,
+        };
+      }
+      const dot = el.querySelector('.rounded-full:not(svg)');
+      let dotBox = null;
+      if (dot) {
+        const dr = dot.getBoundingClientRect();
+        dotBox = { width: dr.width, height: dr.height };
+      }
+      return {
+        x: r.x,
+        y: r.y,
+        width: r.width,
+        height: r.height,
+        borderRadius: cs.borderRadius,
+        fontSize: cs.fontSize,
+        fontWeight: cs.fontWeight,
+        lineHeight: cs.lineHeight,
+        paddingTop: cs.paddingTop,
+        paddingBottom: cs.paddingBottom,
+        paddingLeft: cs.paddingLeft,
+        paddingRight: cs.paddingRight,
+        iconBox,
+        dotBox,
+        text: el.textContent.trim(),
+      };
+    });
+  }
+
+  // ================================================================
+  // Scenario 16: Badge Shape, Height & Alignment Suite (F5 Verification)
+  // ================================================================
+  console.log('\n--- Scenario 16.1: Badge Standardization on Desktop 1440x900 (Light / VI) ---');
+  // Switch back to ADMIN user
+  currentAuthUser = {
+    id: 10,
+    email: 'admin_ctu@duricare.ctu.vn',
+    role: 'ADMIN',
+    farmId: 1,
+    fullName: 'Quản trị viên CTU',
+  };
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.goto(`http://127.0.0.1:${PORT}/knowledge/sources/src-ctu-01?farmId=1`, {
+    waitUntil: 'networkidle0',
+  });
+  await page.evaluate(() => {
+    document.documentElement.classList.remove('dark');
+    localStorage.setItem('duricare-language', 'vi');
+  });
+  await page.reload({ waitUntil: 'networkidle0' });
+
+  // 16.1.1: Header Badges
+  const hStatus = await getBadgeGeometry('[data-testid="status-badge-APPROVED"]');
+  const hTier = await getBadgeGeometry('[data-testid="header-assessed-tier-badge"]');
+
+  console.log(`  Header Status: ${hStatus.height}px, radius: ${hStatus.borderRadius}, font: ${hStatus.fontSize}, text: "${hStatus.text}"`);
+  console.log(`  Header Tier:   ${hTier.height}px, radius: ${hTier.borderRadius}, font: ${hTier.fontSize}, text: "${hTier.text}"`);
+
+  assert(
+    Math.abs(hStatus.height - hTier.height) <= 1,
+    `[F5] Header Tier badge height (${hTier.height}px) matches Status badge height (${hStatus.height}px)`
+  );
+  assert(
+    hStatus.borderRadius === hTier.borderRadius,
+    `[F5] Header badges have identical border radius (${hStatus.borderRadius})`
+  );
+  assert(
+    hStatus.fontSize === hTier.fontSize,
+    `[F5] Header badges have identical font size (${hStatus.fontSize})`
+  );
+  assert(
+    hTier.iconBox !== null && hTier.iconBox.height <= 16 && hTier.iconBox.width <= 16,
+    `[F5] Header Tier badge icon is bounded (got ${hTier.iconBox?.width}x${hTier.iconBox?.height}px)`
+  );
+
+  // 16.1.2: Decision Card Badges
+  const cOutcome = await getBadgeGeometry('[data-testid="decision-outcome-badge"]');
+  const cTier = await getBadgeGeometry('[data-testid="card-assessed-tier-badge"]');
+
+  console.log(`  Card Outcome:  ${cOutcome.height}px, radius: ${cOutcome.borderRadius}, font: ${cOutcome.fontSize}, text: "${cOutcome.text}"`);
+  console.log(`  Card Tier:     ${cTier.height}px, radius: ${cTier.borderRadius}, font: ${cTier.fontSize}, text: "${cTier.text}"`);
+
+  assert(
+    Math.abs(cOutcome.height - cTier.height) <= 1,
+    `[F5] Card Outcome badge height (${cOutcome.height}px) matches Card Tier badge height (${cTier.height}px)`
+  );
+  assert(
+    cOutcome.borderRadius === cTier.borderRadius,
+    `[F5] Card Outcome and Tier badges have identical border radius (${cOutcome.borderRadius})`
+  );
+  assert(
+    cOutcome.borderRadius === '8px' || cOutcome.borderRadius === '0.5rem',
+    `[F5] Card Outcome badge uses rounded-lg rectangle (got ${cOutcome.borderRadius}, NOT pill rounded-full)`
+  );
+  assert(
+    cTier.borderRadius === '8px' || cTier.borderRadius === '0.5rem',
+    `[F5] Card Tier badge uses rounded-lg rectangle (got ${cTier.borderRadius})`
+  );
+  assert(
+    Math.abs(cOutcome.y - cTier.y) <= 2,
+    `[F5] Card Outcome and Tier badges stay on the same horizontal row (Outcome Y: ${cOutcome.y}, Tier Y: ${cTier.y})`
+  );
+
+  // 16.2: Desktop 1280x800 Viewport
+  console.log('\n--- Scenario 16.2: Badge Standardization on Desktop 1280x800 ---');
+  await page.setViewport({ width: 1280, height: 800 });
+  await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+  const d1280cOutcome = await getBadgeGeometry('[data-testid="decision-outcome-badge"]');
+  const d1280cTier = await getBadgeGeometry('[data-testid="card-assessed-tier-badge"]');
+  assert(
+    Math.abs(d1280cOutcome.height - d1280cTier.height) <= 1,
+    `[F5] Desktop 1280: Card Outcome (${d1280cOutcome.height}px) matches Tier (${d1280cTier.height}px)`
+  );
+  assert(
+    d1280cOutcome.borderRadius === d1280cTier.borderRadius,
+    `[F5] Desktop 1280: Card badges have identical radius (${d1280cOutcome.borderRadius})`
+  );
+  assert(
+    Math.abs(d1280cOutcome.y - d1280cTier.y) <= 2,
+    `[F5] Desktop 1280: Badges remain on one row without breaking each other (Y diff: ${Math.abs(d1280cOutcome.y - d1280cTier.y)}px)`
+  );
+
+  // 16.3: Mobile 390x844 (iPhone 15)
+  console.log('\n--- Scenario 16.3: Badge Standardization on Mobile 390x844 (Light / Dark) ---');
+  await page.setViewport({ width: 390, height: 844 });
+  await page.reload({ waitUntil: 'networkidle0' });
+  const m390hStatus = await getBadgeGeometry('[data-testid="status-badge-APPROVED"]');
+  const m390hTier = await getBadgeGeometry('[data-testid="header-assessed-tier-badge"]');
+  assert(
+    Math.abs(m390hStatus.height - m390hTier.height) <= 1,
+    `[F5] Mobile 390: Header Tier (${m390hTier.height}px) matches Status (${m390hStatus.height}px)`
+  );
+  const m390cOutcome = await getBadgeGeometry('[data-testid="decision-outcome-badge"]');
+  const m390cTier = await getBadgeGeometry('[data-testid="card-assessed-tier-badge"]');
+  assert(
+    Math.abs(m390cOutcome.height - m390cTier.height) <= 1,
+    `[F5] Mobile 390: Card Outcome (${m390cOutcome.height}px) matches Tier (${m390cTier.height}px)`
+  );
+  assert(
+    m390cOutcome.borderRadius === m390cTier.borderRadius,
+    `[F5] Mobile 390: Card badges share identical radius (${m390cOutcome.borderRadius})`
+  );
+  assert(
+    Math.abs(m390cOutcome.y - m390cTier.y) <= 2,
+    `[F5] Mobile 390: Card Outcome & Tier remain together on the same row (Y diff: ${Math.abs(m390cOutcome.y - m390cTier.y)}px)`
+  );
+
+  // Dark mode on mobile 390
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  const m390DarkOutcome = await getBadgeGeometry('[data-testid="decision-outcome-badge"]');
+  const m390DarkTier = await getBadgeGeometry('[data-testid="card-assessed-tier-badge"]');
+  assert(
+    Math.abs(m390DarkOutcome.height - m390DarkTier.height) <= 1,
+    `[F5] Mobile 390 Dark: Outcome (${m390DarkOutcome.height}px) matches Tier (${m390DarkTier.height}px)`
+  );
+  await page.evaluate(() => document.documentElement.classList.remove('dark'));
+
+  // 16.4: Mobile 375x667 (iPhone SE Narrow)
+  console.log('\n--- Scenario 16.4: Badge Standardization on Mobile 375x667 ---');
+  await page.setViewport({ width: 375, height: 667 });
+  await page.reload({ waitUntil: 'networkidle0' });
+  const m375cOutcome = await getBadgeGeometry('[data-testid="decision-outcome-badge"]');
+  const m375cTier = await getBadgeGeometry('[data-testid="card-assessed-tier-badge"]');
+  assert(
+    Math.abs(m375cOutcome.height - m375cTier.height) <= 1,
+    `[F5] Mobile 375: Card Outcome (${m375cOutcome.height}px) matches Tier (${m375cTier.height}px)`
+  );
+  assert(
+    Math.abs(m375cOutcome.y - m375cTier.y) <= 2,
+    `[F5] Mobile 375: Card Outcome & Tier remain together without breaking apart (Y diff: ${Math.abs(m375cOutcome.y - m375cTier.y)}px)`
+  );
+
+  // 16.5: English Locale Verification
+  console.log('\n--- Scenario 16.5: Badge Standardization in EN Locale ---');
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.evaluate(() => {
+    localStorage.setItem('duricare-language', 'en');
+  });
+  await page.reload({ waitUntil: 'networkidle0' });
+
+  const enHtmlLang = await page.$eval('html', (el) => el.getAttribute('lang'));
+  assert(enHtmlLang === 'en', `[F5/R6] Document language attribute is "en" (got "${enHtmlLang}")`);
+
+  const enCardTitle = await page.$eval(
+    '[data-testid="decision-card-title"] h3',
+    (el) => el.textContent.trim()
+  );
+  assert(
+    enCardTitle === 'Review Results',
+    `[F5/R6] Decision Card title is translated to English ("${enCardTitle}")`
+  );
+
+  const enHStatus = await getBadgeGeometry('[data-testid="status-badge-APPROVED"]');
+  const enHTier = await getBadgeGeometry('[data-testid="header-assessed-tier-badge"]');
+  const enCOutcome = await getBadgeGeometry('[data-testid="decision-outcome-badge"]');
+  const enCTier = await getBadgeGeometry('[data-testid="card-assessed-tier-badge"]');
+
+  assert(
+    enCOutcome.text === 'Approved',
+    `[F5/R6] Decision Outcome Badge is translated to English ("${enCOutcome.text}")`
+  );
+  assert(
+    Math.abs(enHStatus.height - enHTier.height) <= 1,
+    `[F5] EN Header: Tier height (${enHTier.height}px) matches Status height (${enHStatus.height}px)`
+  );
+  assert(
+    Math.abs(enCOutcome.height - enCTier.height) <= 1,
+    `[F5] EN Card: Outcome height (${enCOutcome.height}px) matches Tier height (${enCTier.height}px)`
+  );
+  assert(
+    enCOutcome.borderRadius === enCTier.borderRadius,
+    `[F5] EN Card: Outcome & Tier share identical radius (${enCOutcome.borderRadius})`
+  );
+
+  // Restore VI locale for visual evidence capture
+  await page.evaluate(() => {
+    localStorage.setItem('duricare-language', 'vi');
+  });
+  await page.reload({ waitUntil: 'networkidle0' });
+  const viHtmlLang = await page.$eval('html', (el) => el.getAttribute('lang'));
+  assert(viHtmlLang === 'vi', `[F5/R6] Restored document language attribute is "vi" (got "${viHtmlLang}")`);
+
+  // Re-capture screenshots with standardized badges
+  await page.setViewport({ width: 1440, height: 900 });
+  await captureEvidence(page, 'fe_source_detail_01_desktop_light_1440.png');
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  await captureEvidence(page, 'fe_source_detail_02_desktop_dark_1440.png');
+  await page.evaluate(() => document.documentElement.classList.remove('dark'));
+
+  await page.setViewport({ width: 1280, height: 800 });
+  await captureEvidence(page, 'fe_source_detail_03_desktop_1280.png');
+
+  await page.setViewport({ width: 390, height: 844 });
+  await captureEvidence(page, 'fe_source_detail_04_mobile_light_390.png');
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  await captureEvidence(page, 'fe_source_detail_05_mobile_dark_390.png');
+  await page.evaluate(() => document.documentElement.classList.remove('dark'));
+
+  await page.setViewport({ width: 375, height: 667 });
+  await captureEvidence(page, 'fe_source_detail_06_mobile_375.png');
+
+  // ================================================================
+  // Scenario 17: Review Remediation Verification (R1, R2, R3, R4, R5, R6)
+  // ================================================================
+  console.log('\n================================================================');
+  console.log('Scenario 17: Review Remediation Verification (R1, R2, R3, R4, R5, R6)');
+  console.log('================================================================\n');
+
+  // --- Scenario 17.1 (R1): Verified EXPERT Non-Owner Mobile Provenance Button ---
+  console.log('--- Scenario 17.1: R1 Verified EXPERT Non-Owner Mobile Provenance Access ---');
+  currentAuthUser = {
+    id: 88,
+    email: 'expert_non_owner@duricare.ctu.vn',
+    role: 'EXPERT',
+    farmId: 1,
+    fullName: 'Chuyên gia Nông nghiệp',
+  };
+  mockExpertProfile = {
+    userId: 88,
+    verificationStatus: 'VERIFIED',
+    fullName: 'Chuyên gia Nông nghiệp',
+  };
+  await page.setViewport({ width: 390, height: 844 });
+  await page.goto(`http://127.0.0.1:${PORT}/knowledge/sources/src-ctu-01?farmId=1`, {
+    waitUntil: 'networkidle0',
+  });
+
+  const m17MobileProvBtn = await page.$('[data-testid="mobile-view-provenance-button"]');
+  assert(m17MobileProvBtn !== null, '[R1] Mobile 390 has visible Provenance button for verified EXPERT non-owner');
+  const m17MobileProvBtnHeight = await page.$eval(
+    '[data-testid="mobile-view-provenance-button"]',
+    (el) => el.getBoundingClientRect().height
+  );
+  assert(m17MobileProvBtnHeight >= 44, `[R1] Mobile provenance button satisfies 44px tap target (got ${m17MobileProvBtnHeight}px)`);
+
+  // Open modal via mobile provenance button
+  await page.click('[data-testid="mobile-view-provenance-button"]');
+  await page.waitForSelector('[data-testid="close-provenance-modal-button"]', { timeout: 4000 });
+  assert(true, '[R1] Mobile provenance button opens provenance modal successfully');
+  await page.click('[data-testid="close-provenance-modal-button"]');
+  await new Promise((r) => setTimeout(r, 400));
+  await page.waitForFunction(
+    () => !document.querySelector('[data-testid="close-provenance-modal-button"]'),
+    { timeout: 4000 }
+  );
+
+  // On desktop 1440, verify provenance button is in header and actions card is hidden
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.reload({ waitUntil: 'networkidle0' });
+  const d17HeaderProvBtn = await page.$('[data-testid="view-provenance-button"]');
+  assert(d17HeaderProvBtn !== null, '[R1] Desktop 1440 has Provenance button in header for non-owner');
+  const d17ActionsCardDisplay = await page.$eval(
+    '[data-testid="expert-document-actions-card"]',
+    (el) => window.getComputedStyle(el).display
+  ).catch(() => 'none');
+  assert(d17ActionsCardDisplay === 'none', '[R1] Desktop 1440 hides actions card when non-owner cannot author new revision');
+
+  // --- Scenario 17.2 (R1): Owner Non-Terminal Revision (SUBMITTED) Mobile Provenance ---
+  console.log('\n--- Scenario 17.2: R1 Owner Non-Terminal Revision Mobile Provenance Access ---');
+  currentAuthUser = {
+    id: 10,
+    email: 'expert_owner@duricare.ctu.vn',
+    role: 'EXPERT',
+    farmId: 1,
+    fullName: 'Chuyên gia Tác giả',
+  };
+  mockExpertProfile = {
+    userId: 10,
+    verificationStatus: 'VERIFIED',
+    fullName: 'Chuyên gia Tác giả',
+  };
+  // Temporarily set revision status to SUBMITTED
+  const originalRevisionStatus = mockRevision1.status;
+  mockRevision1.status = 'SUBMITTED';
+
+  await page.setViewport({ width: 390, height: 844 });
+  await page.reload({ waitUntil: 'networkidle0' });
+
+  const m17OwnerSubmittedProvBtn = await page.$('[data-testid="mobile-view-provenance-button"]');
+  const m17OwnerSubmittedCreateBtn = await page.$('[data-testid="create-subsequent-revision-button"]');
+  assert(m17OwnerSubmittedProvBtn !== null, '[R1] Owner with SUBMITTED revision has visible mobile Provenance button');
+  assert(m17OwnerSubmittedCreateBtn === null, '[R1] Owner with SUBMITTED revision cannot create subsequent revision');
+
+  // Restore revision status
+  mockRevision1.status = originalRevisionStatus;
+
+  // --- Scenario 17.3 (R2): Detail 503 Truthful Error State ---
+  console.log('\n--- Scenario 17.3: R2 Truthful Error State when Publication Detail 503s ---');
+  currentAuthUser = {
+    id: 1,
+    email: 'admin@duricare.ctu.vn',
+    role: 'ADMIN',
+    farmId: 1,
+    fullName: 'Quản trị viên CTU',
+  };
+  currentHeadFixture = {
+    sourceId: 'src-ctu-01',
+    version: 1,
+    generation: 1,
+    activePublicationId: 'pub-active-01',
+    pendingPublicationId: null,
+    updatedAt: '2026-11-16T09:35:00Z',
+  };
+  mockPublicationDetailError = {
+    status: 503,
+    message: 'Publication detail service temporarily unavailable',
+  };
+
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.reload({ waitUntil: 'networkidle0' });
+
+  const r2RagBadgeText = await page.$eval(
+    '[data-testid="rag-status-badge"]',
+    (el) => el.textContent.trim()
+  );
+  console.log(`  R2 RAG Badge on detail 503: "${r2RagBadgeText}"`);
+  assert(
+    !r2RagBadgeText.includes('Chưa xuất bản'),
+    `[R2] UI does NOT falsely state "Chưa xuất bản" when active publication exists but detail fails: "${r2RagBadgeText}"`
+  );
+  assert(
+    r2RagBadgeText.includes('Chưa sẵn sàng'),
+    `[R2] UI displays truthful "Chưa sẵn sàng" badge on detail fetch error: "${r2RagBadgeText}"`
+  );
+  const r2PublishModalBtn = await page.$('[data-testid="open-publish-modal-button"]');
+  assert(
+    r2PublishModalBtn === null,
+    '[R2] Admin cannot open publish modal when active publication detail is in error state'
+  );
+  const r2RetryBtn = await page.$('[data-testid="retry-publication-detail-button"]');
+  assert(r2RetryBtn !== null, '[R2] Retry publication detail button is available to recover');
+
+  // --- Scenario 17.4 (R2): Recovery from Detail Error ---
+  console.log('\n--- Scenario 17.4: R2 Publication Detail Recovery on Retry ---');
+  mockPublicationDetailError = null;
+  await page.click('[data-testid="retry-publication-detail-button"]');
+  await page.waitForFunction(() => {
+    const b = document.querySelector('[data-testid="rag-status-badge"]');
+    return b && b.textContent.includes('Đang hoạt động');
+  });
+  const r2RecoveredText = await page.$eval(
+    '[data-testid="rag-status-badge"]',
+    (el) => el.textContent.trim()
+  );
+  assert(
+    r2RecoveredText.includes('RAG · Đang hoạt động'),
+    `[R2] After retry, RAG badge recovers to active: "${r2RecoveredText}"`
+  );
+
+  // --- Scenario 17.5 (R3): Decision Card Initial Collapsed on Mobile (< 1024px) ---
+  console.log('\n--- Scenario 17.5: R3 Decision Card Initial Collapsed on Mobile (< 1024px) ---');
+  await page.setViewport({ width: 390, height: 844 });
+  await page.reload({ waitUntil: 'networkidle0' });
+  const m17CardOpenInitial = await page.$eval(
+    '[data-testid="decision-detail-card"]',
+    (el) => el.hasAttribute('open')
+  );
+  assert(!m17CardOpenInitial, '[R3] Decision detail card is initially COLLAPSED on mobile (< 1024px)');
+
+  // Toggle open
+  await page.click('[data-testid="decision-detail-summary"]');
+  const m17CardOpenAfterClick = await page.$eval(
+    '[data-testid="decision-detail-card"]',
+    (el) => el.hasAttribute('open')
+  );
+  assert(m17CardOpenAfterClick, '[R3] Decision detail card opens on mobile tap');
+
+  // Toggle closed again
+  await page.click('[data-testid="decision-detail-summary"]');
+  const m17CardOpenAfterSecondClick = await page.$eval(
+    '[data-testid="decision-detail-card"]',
+    (el) => el.hasAttribute('open')
+  );
+  assert(!m17CardOpenAfterSecondClick, '[R3] Decision detail card collapses on second tap');
+
+  // --- Scenario 17.6 (R3): Decision Card Initial Open on Desktop (>= 1024px) ---
+  console.log('\n--- Scenario 17.6: R3 Decision Card Initial Open on Desktop (>= 1024px) ---');
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.reload({ waitUntil: 'networkidle0' });
+  const d17CardOpenInitial = await page.$eval(
+    '[data-testid="decision-detail-card"]',
+    (el) => el.hasAttribute('open')
+  );
+  assert(d17CardOpenInitial, '[R3] Decision detail card is initially OPEN on desktop (>= 1024px)');
+
+  // --- Scenario 17.7 (R5/R6): Decision Card Summary 2D Non-Collision across Viewports & Locales ---
+  console.log('\n--- Scenario 17.7: R5/R6 Decision Card Summary 2D Non-Collision across Viewports & Locales ---');
+  for (const locale of ['vi', 'en']) {
+    await page.evaluate((loc) => {
+      localStorage.setItem('duricare-language', loc);
+    }, locale);
+
+    for (const vp of [{ width: 1440, height: 900 }, { width: 1280, height: 800 }, { width: 1024, height: 768 }]) {
+      await page.setViewport(vp);
+      await page.reload({ waitUntil: 'networkidle0' });
+
+      const geom = await page.$eval('[data-testid="decision-detail-summary"]', (summaryEl) => {
+        const titleEl = summaryEl.querySelector('[data-testid="decision-card-title"]');
+        const h3El = summaryEl.querySelector('h3');
+        const badgesContainer = summaryEl.querySelector('[data-testid="decision-card-badges"]');
+        const outcomeEl = summaryEl.querySelector('[data-testid="decision-outcome-badge"]');
+        const tierEl = summaryEl.querySelector('[data-testid="card-assessed-tier-badge"]');
+
+        if (!titleEl || !h3El || !badgesContainer || !outcomeEl) return null;
+
+        const titleRect = titleEl.getBoundingClientRect();
+        const h3Rect = h3El.getBoundingClientRect();
+        const badgesRect = badgesContainer.getBoundingClientRect();
+        const outcomeRect = outcomeEl.getBoundingClientRect();
+        const tierRect = tierEl ? tierEl.getBoundingClientRect() : null;
+
+        // 2D collision check:
+        // Two boxes collide in 2D if and only if they intersect along BOTH X and Y axes
+        const xOverlap = Math.max(0, Math.min(titleRect.right, badgesRect.right) - Math.max(titleRect.left, badgesRect.left));
+        const yOverlap = Math.max(0, Math.min(titleRect.bottom, badgesRect.bottom) - Math.max(titleRect.top, badgesRect.top));
+        const is2dColliding = (xOverlap > 0 && yOverlap > 0);
+
+        // Also check h3 vs outcome badge specifically
+        const h3xOverlap = Math.max(0, Math.min(h3Rect.right, outcomeRect.right) - Math.max(h3Rect.left, outcomeRect.left));
+        const h3yOverlap = Math.max(0, Math.min(h3Rect.bottom, outcomeRect.bottom) - Math.max(h3Rect.top, outcomeRect.top));
+        const isH3CollidingWithOutcome = (h3xOverlap > 0 && h3yOverlap > 0);
+
+        // Check if title text is clipped/truncated
+        const isTitleClipped = h3El.scrollWidth > h3El.clientWidth + 1;
+
+        // Check badge pair stay strictly together as a pair on their row
+        const badgePairDiffY = tierRect ? Math.abs(outcomeRect.top - tierRect.top) : 0;
+
+        // Is wrapped
+        const isWrapped = badgesRect.top >= titleRect.bottom - 4;
+
+        return {
+          titleRect: { left: titleRect.left, right: titleRect.right, top: titleRect.top, bottom: titleRect.bottom, width: titleRect.width },
+          badgesRect: { left: badgesRect.left, right: badgesRect.right, top: badgesRect.top, bottom: badgesRect.bottom, width: badgesRect.width },
+          xOverlap,
+          yOverlap,
+          is2dColliding,
+          isH3CollidingWithOutcome,
+          isTitleClipped,
+          badgePairDiffY,
+          isWrapped,
+          titleText: h3El.textContent.trim(),
+          outcomeText: outcomeEl.textContent.trim(),
+        };
+      });
+
+      assert(geom !== null, `[R5] Decision card summary elements present at ${vp.width}px (${locale})`);
+      assert(
+        !geom.is2dColliding && !geom.isH3CollidingWithOutcome,
+        `[R5] No 2D intersection between title and badges at ${vp.width}px (${locale}): title "${geom.titleText}" vs outcome "${geom.outcomeText}" (xOverlap: ${geom.xOverlap.toFixed(1)}px, yOverlap: ${geom.yOverlap.toFixed(1)}px)`
+      );
+      assert(
+        !geom.isTitleClipped,
+        `[R5] Title text "${geom.titleText}" is NOT clipped at ${vp.width}px (${locale})`
+      );
+      assert(
+        geom.badgePairDiffY <= 2,
+        `[R5] Outcome and Tier badges remain strictly together as a pair at ${vp.width}px (${locale}) (Y diff: ${geom.badgePairDiffY.toFixed(1)}px <= 2px)`
+      );
+      console.log(`  [R5] ${vp.width}px (${locale.toUpperCase()}): 2D collision=NONE, clipped=NO, wrapped=${geom.isWrapped ? 'YES' : 'NO'}, badgePairYDiff=${geom.badgePairDiffY.toFixed(1)}px`);
+    }
+  }
+
+  // Restore VI locale and default desktop viewport
+  await page.evaluate(() => {
+    localStorage.setItem('duricare-language', 'vi');
+  });
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.reload({ waitUntil: 'networkidle0' });
+  const restoredLang = await page.$eval('html', (el) => el.getAttribute('lang'));
+  assert(restoredLang === 'vi', `[R5/R6] Restored document language is "vi" (got "${restoredLang}")`);
+
+  // --- Scenario 17.8 (R4): Network Fail-Closed Verification ---
+  console.log('\n--- Scenario 17.8: R4 Fail-Closed Network Protection ---');
+  console.log(`  Total unhandled requests intercepted & aborted: ${unhandledRequests.length}`);
+  if (unhandledRequests.length > 0) {
+    unhandledRequests.forEach((r) => console.error(`    LEAKED: ${r.method} ${r.url}`));
+  }
+  assert(
+    unhandledRequests.length === 0,
+    `[R4] Zero unhandled / leaked requests reached network (actual: ${unhandledRequests.length})`
+  );
 
   console.log('\n================================================================');
   console.log(`All ${passed}/${total} assertions PASSED!`);

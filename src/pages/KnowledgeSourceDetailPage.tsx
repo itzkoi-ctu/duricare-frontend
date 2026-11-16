@@ -91,6 +91,12 @@ export default function KnowledgeSourceDetailPage() {
   const [isProvenanceModalOpen, setIsProvenanceModalOpen] = useState(false);
   const [isRevisionDropdownOpen, setIsRevisionDropdownOpen] = useState(false);
   const [expandedChunkIndices, setExpandedChunkIndices] = useState<Record<number, boolean>>({ 0: true });
+  const [isDecisionCardOpen, setIsDecisionCardOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
 
   // Active author modal identity binding
   interface ActiveAuthorModal {
@@ -398,23 +404,32 @@ export default function KnowledgeSourceDetailPage() {
               {/* Review Status Badge */}
               <span
                 data-testid={`status-badge-${status}`}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${statusConfig.badgeClass}`}
+                className={`inline-flex items-center gap-1.5 px-2.5 h-6 rounded-lg text-xs font-semibold leading-none border shrink-0 ${statusConfig.badgeClass}`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotClass}`} />
-                <span>{t(statusConfig.label)}</span>
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusConfig.dotClass}`} />
+                <span className="leading-none">{t(statusConfig.label)}</span>
               </span>
 
               {/* Assessed / Proposed Tier Badge */}
               {decision?.assessedTier ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-primary border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
-                  <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
+                <span
+                  data-testid="header-assessed-tier-badge"
+                  className="inline-flex items-center gap-1 px-2.5 h-6 rounded-lg text-xs font-semibold leading-none bg-blue-50 text-primary border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 shrink-0"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="material-symbols-outlined badge-icon text-primary dark:text-blue-300 shrink-0"
+                  >
                     verified
                   </span>
-                  <span>{t('Tầng {0} đã xác nhận', [decision.assessedTier])}</span>
+                  <span className="leading-none">{t('Tầng {0} đã xác nhận', [decision.assessedTier])}</span>
                 </span>
               ) : meta?.proposedTier ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-surface border border-border text-gray">
-                  <span>{t('Tầng {0} đề xuất', [meta.proposedTier])}</span>
+                <span
+                  data-testid="header-proposed-tier-badge"
+                  className="inline-flex items-center gap-1 px-2.5 h-6 rounded-lg text-xs font-semibold leading-none bg-surface border border-border text-gray shrink-0"
+                >
+                  <span className="leading-none">{t('Tầng {0} đề xuất', [meta.proposedTier])}</span>
                 </span>
               ) : null}
 
@@ -447,13 +462,13 @@ export default function KnowledgeSourceDetailPage() {
               </span>
             </button>
 
-            {/* Provenance Action */}
+            {/* Provenance Action (Desktop header per approved desktop screen; mobile uses action card row) */}
             {safeRevision && (
               <button
                 type="button"
                 data-testid="view-provenance-button"
                 onClick={() => setIsProvenanceModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-text hover:bg-surface-hover text-xs font-semibold shadow-2xs cursor-pointer transition-colors"
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-text hover:bg-surface-hover text-xs font-semibold shadow-2xs cursor-pointer transition-colors"
                 title={t('Xem nguồn gốc tài liệu và dòng dõi dữ liệu')}
               >
                 <span aria-hidden="true" className="material-symbols-outlined text-[16px] text-secondary">
@@ -523,26 +538,7 @@ export default function KnowledgeSourceDetailPage() {
               </button>
             )}
 
-            {/* Terminal Action: Create Subsequent Revision */}
-            {canCreateNextRevision && safeRevision && (
-              <button
-                type="button"
-                data-testid="create-subsequent-revision-button"
-                onClick={() =>
-                  setActiveModal({
-                    type: 'newRevision',
-                    sourceId: source.id,
-                    revisionId: safeRevision.id,
-                  })
-                }
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-secondary text-secondary hover:bg-surface-hover text-xs font-semibold shadow-xs cursor-pointer transition-colors"
-              >
-                <span aria-hidden="true" className="material-symbols-outlined text-base">
-                  add_circle
-                </span>
-                <span>{t('Tạo phiên bản mới')}</span>
-              </button>
-            )}
+            {/* Terminal actions (e.g. Create Subsequent Revision) are now integrated into the Right Rail Action Card per approved Stitch designs */}
           </div>
         </div>
       </div>
@@ -707,7 +703,7 @@ export default function KnowledgeSourceDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* RIGHT RAIL COLUMN (On mobile: order-1 so publication & review actions appear right after header; on desktop: lg:order-2 lg:col-span-4) */}
         <div className="order-1 lg:order-2 lg:col-span-4 space-y-4 w-full">
-          {/* Card 1: RAG Publication Head Card for ADMIN */}
+          {/* Card 1: RAG Publication Head Card for ADMIN (includes Create Revision below Publish on desktop & mobile) */}
           {user?.role === 'ADMIN' && (
             <PublicationHeadCard
               source={source}
@@ -716,7 +712,70 @@ export default function KnowledgeSourceDetailPage() {
               onPublicationChanged={() => {
                 reload().catch(() => {});
               }}
+              canCreateNextRevision={canCreateNextRevision}
+              onCreateNextRevision={
+                canCreateNextRevision && safeRevision
+                  ? () =>
+                      setActiveModal({
+                        type: 'newRevision',
+                        sourceId: source.id,
+                        revisionId: safeRevision.id,
+                      })
+                  : undefined
+              }
+              onViewProvenance={
+                safeRevision ? () => setIsProvenanceModalOpen(true) : undefined
+              }
             />
+          )}
+
+          {/* Non-ADMIN document author actions (e.g. verified EXPERT owner creating subsequent revision, and mobile provenance access) */}
+          {user?.role !== 'ADMIN' && safeRevision && (
+            <div
+              className={`p-4 md:p-5 rounded-xl border border-border bg-surface shadow-xs space-y-3 ${
+                !canCreateNextRevision ? 'md:hidden' : ''
+              }`}
+              data-testid="expert-document-actions-card"
+            >
+              <div className="flex items-center gap-2 border-b border-border pb-2.5">
+                <span aria-hidden="true" className="material-symbols-outlined text-primary text-lg">
+                  description
+                </span>
+                <h3 className="font-semibold text-xs text-text">{t('Thao tác tài liệu')}</h3>
+              </div>
+              <div className="space-y-2">
+                {canCreateNextRevision && (
+                  <button
+                    type="button"
+                    data-testid="create-subsequent-revision-button"
+                    onClick={() =>
+                      setActiveModal({
+                        type: 'newRevision',
+                        sourceId: source.id,
+                        revisionId: safeRevision.id,
+                      })
+                    }
+                    className="w-full h-11 min-h-[44px] px-4 rounded-xl border border-secondary text-secondary hover:bg-surface-hover text-sm font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                      add_circle
+                    </span>
+                    <span>{t('Tạo phiên bản mới')}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  data-testid="mobile-view-provenance-button"
+                  onClick={() => setIsProvenanceModalOpen(true)}
+                  className="md:hidden w-full h-11 min-h-[44px] px-4 rounded-xl border border-border text-text hover:bg-surface-hover text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-[16px] text-secondary">
+                    account_tree
+                  </span>
+                  <span>{t('Nguồn gốc')}</span>
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Card 2: Reviewer Decision Details Card (if decision exists) */}
@@ -724,27 +783,39 @@ export default function KnowledgeSourceDetailPage() {
             <details
               data-testid="decision-detail-card"
               className="group bg-surface border border-border rounded-xl shadow-xs overflow-hidden"
-              open
+              open={isDecisionCardOpen}
+              onToggle={(e) => setIsDecisionCardOpen(e.currentTarget.open)}
             >
-              <summary className="flex items-center justify-between p-3.5 px-4 cursor-pointer select-none hover:bg-surface-hover transition-colors lg:cursor-default list-none">
-                <div className="flex items-center gap-2">
-                  <span aria-hidden="true" className="material-symbols-outlined text-secondary text-[20px]">
+              <summary
+                data-testid="decision-detail-summary"
+                className="flex flex-wrap items-center justify-between gap-y-2 gap-x-2.5 p-3.5 px-4 cursor-pointer select-none hover:bg-surface-hover transition-colors lg:cursor-default list-none"
+              >
+                <div className="flex items-center gap-2 shrink-0" data-testid="decision-card-title">
+                  <span aria-hidden="true" className="material-symbols-outlined text-secondary text-[20px] shrink-0">
                     verified
                   </span>
-                  <h3 className="text-sm font-semibold text-text">
+                  <h3 className="text-sm font-semibold text-text whitespace-nowrap">
                     {t('Kết quả thẩm định')}
                   </h3>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <DecisionOutcomeBadge outcome={decision.outcome} />
+                <div className="flex items-center gap-1.5 shrink-0 flex-nowrap" data-testid="decision-card-badges">
+                  <DecisionOutcomeBadge
+                    outcome={decision.outcome}
+                    shape="rounded"
+                    size="sm"
+                    showIcon={false}
+                  />
                   {decision.assessedTier && (
-                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-blue-50 text-primary border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
-                      {t('Tầng {0}', [decision.assessedTier])}
+                    <span
+                      data-testid="card-assessed-tier-badge"
+                      className="inline-flex items-center px-2.5 h-6 rounded-lg text-xs font-semibold leading-none bg-blue-50 text-primary border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 shrink-0"
+                    >
+                      <span className="leading-none">{t('Tầng {0}', [decision.assessedTier])}</span>
                     </span>
                   )}
                   <span
                     aria-hidden="true"
-                    className="material-symbols-outlined text-[20px] text-gray group-open:rotate-180 transition-transform duration-200 lg:hidden ml-1"
+                    className="material-symbols-outlined text-[20px] text-gray group-open:rotate-180 transition-transform duration-200 lg:hidden ml-0.5"
                   >
                     expand_more
                   </span>

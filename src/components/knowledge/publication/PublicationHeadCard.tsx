@@ -20,6 +20,9 @@ interface PublicationHeadCardProps {
   currentRevision: RevisionResponse | null;
   isAdmin: boolean;
   onPublicationChanged?: () => void;
+  canCreateNextRevision?: boolean;
+  onCreateNextRevision?: () => void;
+  onViewProvenance?: () => void;
 }
 
 export default function PublicationHeadCard({
@@ -27,6 +30,9 @@ export default function PublicationHeadCard({
   currentRevision,
   isAdmin,
   onPublicationChanged,
+  canCreateNextRevision = false,
+  onCreateNextRevision,
+  onViewProvenance,
 }: PublicationHeadCardProps) {
   useLanguage();
 
@@ -35,6 +41,8 @@ export default function PublicationHeadCard({
   const [pendingPublication, setPendingPublication] = useState<PublicationSummary | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeDetailError, setActiveDetailError] = useState<string | null>(null);
+  const [pendingDetailError, setPendingDetailError] = useState<string | null>(null);
 
   // Active modal state
   const [isPublishModalOpen, setIsPublishModalOpen] = useState<boolean>(false);
@@ -112,6 +120,9 @@ export default function PublicationHeadCard({
     }
 
     try {
+      setError(null);
+      setActiveDetailError(null);
+      setPendingDetailError(null);
       const headRes = await getPublicationHead(source.id, controller.signal);
       if (!isMountedRef.current || sessionRef.current !== session) return;
 
@@ -123,6 +134,8 @@ export default function PublicationHeadCard({
       // Fetch active & pending publication summaries if IDs are present
       let activePub: PublicationSummary | null = null;
       let pendingPub: PublicationSummary | null = null;
+      let actErr: string | null = null;
+      let pendErr: string | null = null;
 
       if (headRes.activePublicationId) {
         try {
@@ -130,8 +143,11 @@ export default function PublicationHeadCard({
           if (isMountedRef.current && sessionRef.current === session) {
             activePub = detailRes.publication;
           }
-        } catch {
-          // ignore or keep null
+        } catch (err: unknown) {
+          if (!controller.signal.aborted) {
+            const parsed = parsePublicationError(err, t('Không thể tải chi tiết ấn bản RAG đang hoạt động.'));
+            actErr = parsed.message;
+          }
         }
       }
 
@@ -141,14 +157,19 @@ export default function PublicationHeadCard({
           if (isMountedRef.current && sessionRef.current === session) {
             pendingPub = detailRes.publication;
           }
-        } catch {
-          // ignore or keep null
+        } catch (err: unknown) {
+          if (!controller.signal.aborted) {
+            const parsed = parsePublicationError(err, t('Không thể tải chi tiết ấn bản RAG đang xử lý.'));
+            pendErr = parsed.message;
+          }
         }
       }
 
       if (isMountedRef.current && sessionRef.current === session) {
         setActivePublication(activePub);
         setPendingPublication(pendingPub);
+        setActiveDetailError(actErr);
+        setPendingDetailError(pendErr);
         setLoading(false);
       }
       return headRes;
@@ -216,14 +237,22 @@ export default function PublicationHeadCard({
   const isCurrentRevPending =
     pendingPublication && currentRevision && pendingPublication.revisionId === currentRevision.id;
 
+  const hasDetailError = Boolean(activeDetailError || pendingDetailError);
+  const hasActiveDetailError = Boolean(head?.activePublicationId && !activePublication && activeDetailError);
+  const hasPendingDetailError = Boolean(head?.pendingPublicationId && !pendingPublication && pendingDetailError);
+
   const canAdminPublishCurrent =
     !loading &&
     !error &&
+    !hasDetailError &&
+    !hasActiveDetailError &&
+    !hasPendingDetailError &&
     head !== null &&
     isAdmin &&
     isCurrentRevApproved &&
     !isCurrentRevActive &&
     !head?.pendingPublicationId &&
+    (!head?.activePublicationId || (activePublication && activePublication.revisionId !== currentRevision?.id)) &&
     Boolean(currentRevision) &&
     Boolean(currentRevision?.chunks?.length && currentRevision.chunks.length > 0) &&
     source.latestRevisionId === currentRevision?.id;
@@ -277,7 +306,7 @@ export default function PublicationHeadCard({
             <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <span>{t('Đang tải trạng thái RAG...')}</span>
           </span>
-        ) : error ? (
+        ) : error || hasActiveDetailError || hasPendingDetailError ? (
           <span data-testid="rag-status-badge" className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-coral/10 text-coral border border-coral/30">
             <span className="w-1.5 h-1.5 rounded-full bg-coral" />
             <span>{t('Chưa sẵn sàng')}</span>
@@ -302,20 +331,26 @@ export default function PublicationHeadCard({
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             <span>{t('RAG · Bản {0} đang xử lý', [pendingPublication.revisionNumber])}</span>
           </span>
-        ) : (
+        ) : !head?.activePublicationId && !head?.pendingPublicationId ? (
           <span data-testid="rag-status-badge" className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
             <span>{t('RAG · Chưa xuất bản')}</span>
+          </span>
+        ) : (
+          <span data-testid="rag-status-badge" className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>{t('Chưa sẵn sàng')}</span>
           </span>
         )}
       </div>
 
       {/* Error banner if present */}
-      {error && (
+      {(error || activeDetailError || pendingDetailError) && (
         <div className="p-3 rounded-xl border border-coral/30 bg-coral/10 text-coral text-xs flex items-center justify-between gap-2">
-          <span>{error}</span>
+          <span>{error || activeDetailError || pendingDetailError}</span>
           <button
             type="button"
+            data-testid="retry-publication-detail-button"
             onClick={() => { loadHeadAndDetails().catch(() => {}); }}
             className="font-semibold underline shrink-0 cursor-pointer"
           >
@@ -378,6 +413,53 @@ export default function PublicationHeadCard({
             </span>
             <span>{t('Xuất bản bản này')}</span>
           </button>
+        )}
+
+        {/* Desktop Outline Action: Tạo phiên bản mới (immediately below publish button, 8px gap) */}
+        {canCreateNextRevision && onCreateNextRevision && (
+          <button
+            type="button"
+            data-testid="create-subsequent-revision-button"
+            onClick={onCreateNextRevision}
+            className="hidden md:flex w-full h-11 min-h-[44px] px-4 rounded-xl border border-secondary text-secondary hover:bg-surface-hover text-sm font-semibold items-center justify-center gap-2 transition-colors cursor-pointer"
+          >
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+              add_circle
+            </span>
+            <span>{t('Tạo phiên bản mới')}</span>
+          </button>
+        )}
+
+        {/* Mobile Secondary Action Row: [Tạo phiên bản mới] [Nguồn gốc] (equal 44px tap targets) */}
+        {(canCreateNextRevision || onViewProvenance) && (
+          <div className="flex md:hidden items-center gap-2">
+            {canCreateNextRevision && onCreateNextRevision && (
+              <button
+                type="button"
+                data-testid="mobile-create-subsequent-revision-button"
+                onClick={onCreateNextRevision}
+                className="flex-1 h-11 min-h-[44px] border border-border rounded-xl font-medium text-text hover:bg-surface-hover transition-colors flex items-center justify-center gap-1.5 text-xs cursor-pointer"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
+                  add_circle
+                </span>
+                <span>{t('Tạo phiên bản mới')}</span>
+              </button>
+            )}
+            {onViewProvenance && (
+              <button
+                type="button"
+                data-testid="mobile-view-provenance-button"
+                onClick={onViewProvenance}
+                className="flex-1 h-11 min-h-[44px] border border-border rounded-xl font-medium text-text hover:bg-surface-hover transition-colors flex items-center justify-center gap-1.5 text-xs cursor-pointer"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-[16px] text-secondary">
+                  account_tree
+                </span>
+                <span>{t('Nguồn gốc')}</span>
+              </button>
+            )}
+          </div>
         )}
 
         {/* Active Publication Secondary Actions */}
