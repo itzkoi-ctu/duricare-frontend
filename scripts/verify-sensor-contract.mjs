@@ -191,12 +191,17 @@ const zoneDetailPageFile = fs.readFileSync(path.join(rootDir, 'src/pages/ZoneDet
 // F1 checks in SoilProfileCard
 assert(!soilProfileCardFile.includes('meta.fallbackUnit'), 'F1: SoilProfileCard does NOT use fallbackUnit');
 assert(
-  soilProfileCardFile.includes('formatMetricValue(metric.value, metric.unit, metric.status)'),
-  'F1: SoilProfileCard passes metric.unit directly to formatMetricValue'
+  soilProfileCardFile.includes('formatMetricValue') &&
+    soilProfileCardFile.includes('serverUnit') &&
+    !soilProfileCardFile.includes('fallbackUnit') &&
+    !soilProfileCardFile.includes('info.unit'),
+  'F1: SoilProfileCard formats metric value and renders serverUnit without fallbackUnit'
 );
 assert(
-  soilProfileCardFile.includes('meta.symbol') && soilProfileCardFile.includes('meta.label'),
-  'F1: Chemistry symbol and name kept separate from unit suffixes'
+  (soilProfileCardFile.includes('CHEMISTRY_TITLES') || soilProfileCardFile.includes('CHEMISTRY_KEYS')) &&
+    !soilProfileCardFile.includes("unit: 'µS/cm'") &&
+    !soilProfileCardFile.includes("unit: 'mg/kg'"),
+  'F1: Chemistry labels kept separate from hardcoded unit suffixes'
 );
 
 // F2 checks in ZoneCard

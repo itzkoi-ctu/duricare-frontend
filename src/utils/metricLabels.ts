@@ -141,9 +141,21 @@ export function formatTimeHHmm(dateInput?: string | Date | null): string {
   if (!dateInput) return '';
   const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
   if (isNaN(date.getTime())) return '';
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(date);
+    const hour = parts.find(p => p.type === 'hour')?.value ?? '00';
+    const minute = parts.find(p => p.type === 'minute')?.value ?? '00';
+    return `${hour}:${minute}`;
+  } catch {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
 }
 
 export function formatMetricValue(value: number | null, unit: string | null | undefined, status: MetricStatus): string {
@@ -227,7 +239,7 @@ export function formatProvenanceLabel(source?: string | null): string {
     return t('Chưa xác định nguồn');
   }
   const upper = source.trim().toUpperCase();
-  if (upper === 'IOTLAB') {
+  if (upper === 'IOTLAB' || upper === 'IOT_LAB') {
     return t('Quan sát ngoại vi IoTLab');
   }
   if (upper === 'MQTT') {
@@ -241,7 +253,7 @@ export function getProvenanceBadgeStyle(source?: string | null): { bg: string; t
     return { bg: 'bg-gray/10', text: 'text-gray', icon: 'help_outline' };
   }
   const upper = source.trim().toUpperCase();
-  if (upper === 'IOTLAB') {
+  if (upper === 'IOTLAB' || upper === 'IOT_LAB') {
     return { bg: 'bg-blue/10 dark:bg-blue/20', text: 'text-navy dark:text-blue', icon: 'cloud_sync' };
   }
   if (upper === 'MQTT') {
