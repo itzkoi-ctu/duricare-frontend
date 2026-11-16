@@ -1,24 +1,24 @@
 {
   "task": "UI-REFRESH-CTU-001",
-  "phase": "IMPLEMENTATION_KNOWLEDGE_SOURCES_P5",
+  "phase": "IMPLEMENTATION_KNOWLEDGE_SOURCE_DETAIL_P5",
   "owner": "ANTIGRAVITY_FE",
-  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-005",
-  "branch": "fe/UI-REFRESH-CTU-001-knowledge-sources",
-  "baseCommit": "7781a16c8685eb6d98a97954be36dc1a136feaa7",
-  "verificationTimestampUtc": "2026-11-16T07:25:00Z",
-  "verificationTimestampLocal": "2026-11-16T14:25:00+07:00",
+  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-007",
+  "branch": "fe/UI-REFRESH-CTU-001-source-detail",
+  "baseCommit": "0971d93b1f51e425ec5211ef6fdbac89d354dbc4",
+  "verificationTimestampUtc": "2026-11-16T09:55:00Z",
+  "verificationTimestampLocal": "2026-11-16T16:55:00+07:00",
   "transport": "Connected GitHub MCP get_commit(main)",
   "observedRemoteMain": {
     "backend": "76ce8bde2b39550d1f17886c3b69d70a3cbe7e87",
-    "frontend": "7781a16c8685eb6d98a97954be36dc1a136feaa7",
+    "frontend": "0971d93b1f51e425ec5211ef6fdbac89d354dbc4",
     "docs": "69a5db9bcf0e7e284387b12b1e3afd58a560222b"
   },
   "approvedDesignReferences": {
     "stitchProjectId": "12367919978060270881",
-    "desktopScreenId": "78b1423f96bb4ce4a635d0b56e2f3154",
-    "desktopHtmlSha256": "426a41a3d56dca74351f5426d2eabba50f55433bff99ad19deb1b44adba14139",
-    "mobileScreenId": "55707266d9354e91bf0e7cfd3c2857fb",
-    "mobileHtmlSha256": "4039e382c0f52a7f113c61a0b4be6622dd7e1d10218ca3a20f3f3d24736617dd"
+    "desktopScreenId": "1f487676e6794031977ecb7fa5edd466",
+    "desktopHtmlSha256": "b34d01b0703028357e7065fa8680d655ad3ce8c6e6c8ce751da47985e6828763",
+    "mobileScreenId": "c2810c70268e4c2093cd04db4adbc6f6",
+    "mobileHtmlSha256": "dd7f5219cb11f2444fe0f8336c50d5aec63ddc088e8d3ce94181f3c404f1e6bd"
   },
   "approvedSharedDocs": {
     "root": "E:/CTU/LuanVan/docs/ai",
@@ -27,14 +27,14 @@
   "scope": {
     "presentationOnly": true,
     "backendChanges": false,
-    "knowledgeSourcesListRefresh": true,
+    "knowledgeSourceDetailRefresh": true,
     "candidateFiles": [
-      "src/hooks/useKnowledgeSources.ts",
-      "src/pages/KnowledgeSourcesPage.tsx",
+      "src/pages/KnowledgeSourceDetailPage.tsx",
+      "src/components/knowledge/publication/PublicationHeadCard.tsx",
       "src/i18n/locales/vi/translation.json",
       "src/i18n/locales/en/translation.json",
       "task-baseline.json",
-      "scripts/verify-knowledge-sources-p5.mjs"
+      "scripts/verify-source-detail-p5.mjs"
     ]
   }
 }

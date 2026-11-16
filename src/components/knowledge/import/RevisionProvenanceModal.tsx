@@ -73,6 +73,8 @@ export default function RevisionProvenanceModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Đóng"
+            data-testid="close-provenance-modal-button"
             className="text-gray hover:text-text rounded-lg p-1 hover:bg-border/40 transition-colors"
           >
             <span className="material-symbols-outlined text-lg">close</span>
