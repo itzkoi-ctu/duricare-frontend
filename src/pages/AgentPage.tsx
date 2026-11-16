@@ -78,6 +78,7 @@ function AgentPageContent({ zoneCode, initialId }: { zoneCode?: string; initialI
       onSelect={select}
       onDelete={remove}
       onRetry={() => void history.refresh()}
+      onNew={chat.newConversation}
     />
   );
 
@@ -90,12 +91,12 @@ function AgentPageContent({ zoneCode, initialId }: { zoneCode?: string; initialI
       } lg:gap-4`}
     >
       {/* Column 1: Conversation History */}
-      <aside className="hidden min-h-0 overflow-hidden rounded-2xl border border-border bg-surface lg:block">
+      <aside className="hidden min-h-0 overflow-hidden rounded-2xl border border-[#e2e8f0] dark:border-border bg-white dark:bg-surface shadow-xs lg:block">
         {list}
       </aside>
 
       {/* Column 2: Central Chat Stream */}
-      <div className="min-h-0 min-w-0">
+      <div className="min-h-0 min-w-0 overflow-hidden rounded-2xl border border-[#e2e8f0] dark:border-border bg-white dark:bg-surface shadow-xs">
         <ChatPanelView
           key={chat.conversationId ?? 'new'}
           variant="full"
@@ -115,7 +116,10 @@ function AgentPageContent({ zoneCode, initialId }: { zoneCode?: string; initialI
 
       {/* Column 3: Realtime IoT Live Context Rail (Desktop xl+) */}
       {isContextOpen && (
-        <aside data-testid="desktop-agent-iot-context-aside" className="hidden min-h-0 overflow-hidden rounded-2xl border border-border bg-surface xl:flex xl:flex-col">
+        <aside
+          data-testid="desktop-agent-iot-context-aside"
+          className="hidden min-h-0 overflow-hidden rounded-2xl border border-[#e2e8f0] dark:border-border bg-[#f8f9ff] dark:bg-bg shadow-xs xl:flex xl:flex-col"
+        >
           <AgentIoTContextRail zoneCode={chat.zoneCode} onSelectZone={handleSelectZone} />
         </aside>
       )}
