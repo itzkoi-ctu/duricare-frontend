@@ -13,6 +13,11 @@ export function useKnowledgeSources(initialPage = 0, initialSize = 20, initialSt
 
   const activeRequestRef = useRef<AbortController | null>(null);
 
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  const statusFilterRef = useRef(statusFilter);
+  statusFilterRef.current = statusFilter;
+
   const reload = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -21,11 +26,17 @@ export function useKnowledgeSources(initialPage = 0, initialSize = 20, initialSt
   }, []);
 
   const handleSetPage = useCallback((nextPage: number) => {
+    if (pageRef.current === nextPage) {
+      return;
+    }
     setLoading(true);
     setPage(nextPage);
   }, []);
 
   const handleSetStatus = useCallback((nextStatus?: RevisionStatus) => {
+    if (statusFilterRef.current === nextStatus && pageRef.current === 0) {
+      return;
+    }
     setLoading(true);
     setStatusFilter(nextStatus);
     setPage(0);

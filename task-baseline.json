@@ -1,24 +1,24 @@
 {
   "task": "UI-REFRESH-CTU-001",
-  "phase": "IMPLEMENTATION_AGENT_P4",
+  "phase": "IMPLEMENTATION_KNOWLEDGE_SOURCES_P5",
   "owner": "ANTIGRAVITY_FE",
-  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-004",
-  "branch": "fe/UI-REFRESH-CTU-001-agent",
-  "baseCommit": "7c3a336ec3d4b52383c7739bd49b275340214cec",
-  "verificationTimestampUtc": "2026-11-16T04:35:00Z",
-  "verificationTimestampLocal": "2026-11-16T11:35:00+07:00",
-  "transport": "Connected GitHub MCP list_commits(main)",
+  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-005",
+  "branch": "fe/UI-REFRESH-CTU-001-knowledge-sources",
+  "baseCommit": "7781a16c8685eb6d98a97954be36dc1a136feaa7",
+  "verificationTimestampUtc": "2026-11-16T07:25:00Z",
+  "verificationTimestampLocal": "2026-11-16T14:25:00+07:00",
+  "transport": "Connected GitHub MCP get_commit(main)",
   "observedRemoteMain": {
     "backend": "76ce8bde2b39550d1f17886c3b69d70a3cbe7e87",
-    "frontend": "7c3a336ec3d4b52383c7739bd49b275340214cec",
+    "frontend": "7781a16c8685eb6d98a97954be36dc1a136feaa7",
     "docs": "69a5db9bcf0e7e284387b12b1e3afd58a560222b"
   },
   "approvedDesignReferences": {
     "stitchProjectId": "12367919978060270881",
-    "desktopScreenId": "2307ab8816db4c1897c9b5099fee270a",
-    "desktopHtmlSha256": "b8ae56456a4b6dbca89bf04902b4ed57739258ab0019a92326805aad616c4ba6",
-    "mobileScreenId": "f1bd947392ef4dfd89101ed5955be10b",
-    "mobileHtmlSha256": "6902fc0069ce9fc5ba589f7ce3e88f3a52630022ba29ce1dd4b0a591913af176"
+    "desktopScreenId": "78b1423f96bb4ce4a635d0b56e2f3154",
+    "desktopHtmlSha256": "426a41a3d56dca74351f5426d2eabba50f55433bff99ad19deb1b44adba14139",
+    "mobileScreenId": "55707266d9354e91bf0e7cfd3c2857fb",
+    "mobileHtmlSha256": "4039e382c0f52a7f113c61a0b4be6622dd7e1d10218ca3a20f3f3d24736617dd"
   },
   "approvedSharedDocs": {
     "root": "E:/CTU/LuanVan/docs/ai",
@@ -27,6 +27,14 @@
   "scope": {
     "presentationOnly": true,
     "backendChanges": false,
-    "agentUIRefresh": true
+    "knowledgeSourcesListRefresh": true,
+    "candidateFiles": [
+      "src/hooks/useKnowledgeSources.ts",
+      "src/pages/KnowledgeSourcesPage.tsx",
+      "src/i18n/locales/vi/translation.json",
+      "src/i18n/locales/en/translation.json",
+      "task-baseline.json",
+      "scripts/verify-knowledge-sources-p5.mjs"
+    ]
   }
 }
