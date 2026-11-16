@@ -33,7 +33,7 @@ export default function AgentIoTContextSheet({
       onClick={e => {
         if (e.target === dialog.current) onClose();
       }}
-      className="fixed inset-0 m-0 ml-auto h-dvh max-h-dvh w-[min(92vw,22rem)] max-w-none border-l border-border bg-surface p-0 text-text backdrop:bg-black/50"
+      className="fixed inset-0 m-0 ml-auto h-dvh max-h-dvh w-[min(92vw,22rem)] max-w-none border-l border-[#e2e8f0] dark:border-border bg-[#f8f9ff] dark:bg-bg p-0 text-text backdrop:bg-black/50 shadow-2xl"
     >
       <div className="flex h-full min-h-0 flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <div className="min-h-0 flex-1">{children}</div>

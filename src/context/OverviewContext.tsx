@@ -21,3 +21,7 @@ export function useOverviewContext(): UseOverviewReturn {
   }
   return context;
 }
+
+export function useOptionalOverviewContext(): UseOverviewReturn | null {
+  return useContext(OverviewContext);
+}
