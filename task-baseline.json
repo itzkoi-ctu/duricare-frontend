@@ -1,23 +1,24 @@
 {
   "task": "UI-REFRESH-CTU-001",
-  "phase": "IMPLEMENTATION_P3",
+  "phase": "IMPLEMENTATION_ALERTS",
   "owner": "ANTIGRAVITY_FE",
-  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-002",
-  "branch": "fe/UI-REFRESH-CTU-001-zone-detail",
-  "baseCommit": "159f8e55279ba98180f2ff618ac15a8769a7fd92",
-  "verificationTimestampUtc": "2026-11-15T14:48:00Z",
-  "verificationTimestampLocal": "2026-11-15T21:48:00+07:00",
-  "transport": "Connected GitHub MCP get_commit(main)",
+  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-003",
+  "branch": "fe/UI-REFRESH-CTU-001-alerts",
+  "baseCommit": "b1da044d4b68aa7c0cebecf4cc221581d4ad9398",
+  "verificationTimestampUtc": "2026-11-16T03:05:00Z",
+  "verificationTimestampLocal": "2026-11-16T10:05:00+07:00",
+  "transport": "Connected GitHub MCP list_commits(main)",
   "observedRemoteMain": {
     "backend": "76ce8bde2b39550d1f17886c3b69d70a3cbe7e87",
-    "frontend": "159f8e55279ba98180f2ff618ac15a8769a7fd92",
+    "frontend": "b1da044d4b68aa7c0cebecf4cc221581d4ad9398",
     "docs": "69a5db9bcf0e7e284387b12b1e3afd58a560222b"
   },
   "approvedDesignReferences": {
     "stitchProjectId": "12367919978060270881",
-    "desktopChartScreenId": "db4d9dd7644c40638279651a840107a0",
-    "mobileChartScreenId": "3ec2fb92db6945b59007724dcdf81f10",
-    "desktopCareScreenId": "ef9bcbf9c7154f399e74062ee3068678"
+    "desktopScreenId": "e2a4c59afce646078b422164e130b039",
+    "desktopHtmlSha256": "cab392abb3dc9cb75c246ae2f7a388931a22201a7585c20514052c0f58730cd2",
+    "mobileScreenId": "7478a571d28a4b5ba5466ea90091c171",
+    "mobileHtmlSha256": "47652e522244b0744e3a59a205e00bb07e1436f61899a3bc786de0465b1fc03e"
   },
   "approvedSharedDocs": {
     "root": "E:/CTU/LuanVan/docs/ai",
@@ -26,6 +27,6 @@
   "scope": {
     "presentationOnly": true,
     "backendChanges": false,
-    "zoneDetailPilot": true
+    "alertsUIRefresh": true
   }
 }

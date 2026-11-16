@@ -1236,5 +1236,18 @@
   "Lưu nhật ký": "Save Entry",
   "Hệ thống tự động ghi nhận thời gian và người thực hiện.": "System automatically records timestamp and performer.",
   "Nguồn hỗn hợp": "Mixed sources",
-  "Mục tiêu:": "Target:"
+  "Mục tiêu:": "Target:",
+  "Theo dõi và xử lý cảnh báo tại các khu vực.": "Monitor and resolve alerts across zones.",
+  "chưa xử lý": "unresolved",
+  "Tất cả khu vực": "All zones",
+  "Khu vực:": "Zone:",
+  "Nguồn cảnh báo:": "Alert source:",
+  "Cảnh báo cứng (HARD)": "Rule-based (HARD)",
+  "Cảnh báo AI (AGENTIC)": "AI alert (AGENTIC)",
+  "Hiển thị {0}/{1} cảnh báo · Mới nhất trước": "Showing {{0}}/{{1}} alerts · Newest first",
+  "{0} cảnh báo cứng": "{{0}} rule-based alerts",
+  "{0} cảnh báo AI": "{{0}} AI alerts",
+  "Đánh dấu đã xử lý chỉ cập nhật trạng thái cảnh báo trong hệ thống.": "Marking as resolved only updates the alert status in the system.",
+  "Đang xử lý…": "Resolving…",
+  "Nghiêm trọng": "Critical"
 }

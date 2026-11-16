@@ -43,3 +43,24 @@ export function formatRelativeTime(dateInput: string | Date, nowInput?: Date): s
   const diffYears = Math.floor(diffMonths / 12);
   return relative.format(direction * diffYears, 'year');
 }
+
+/**
+ * Formats an ISO-8601 date string to DD/MM/YYYY HH:mm in Asia/Ho_Chi_Minh timezone.
+ * Used for operational alert timestamps matching the approved Stitch reference.
+ */
+export function formatAlertDateTime(isoString: string): string {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return isoString;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+  const find = (type: string) => parts.find(p => p.type === type)?.value ?? '';
+  return `${find('day')}/${find('month')}/${find('year')} ${find('hour')}:${find('minute')}`;
+}
