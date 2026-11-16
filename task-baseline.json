@@ -1,32 +1,33 @@
 {
-  "task": "UI-REFRESH-CTU-001",
-  "phase": "IMPLEMENTATION_AGENT_P4",
+  "task": "UI-REFRESH-CTU-001-agent-mobile-height",
+  "recordedAt": "2026-11-16T14:32:00+07:00",
   "owner": "ANTIGRAVITY_FE",
-  "workspace": "E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-004",
-  "branch": "fe/UI-REFRESH-CTU-001-agent",
-  "baseCommit": "7c3a336ec3d4b52383c7739bd49b275340214cec",
-  "verificationTimestampUtc": "2026-11-16T04:35:00Z",
-  "verificationTimestampLocal": "2026-11-16T11:35:00+07:00",
-  "transport": "Connected GitHub MCP list_commits(main)",
-  "observedRemoteMain": {
-    "backend": "76ce8bde2b39550d1f17886c3b69d70a3cbe7e87",
-    "frontend": "7c3a336ec3d4b52383c7739bd49b275340214cec",
-    "docs": "69a5db9bcf0e7e284387b12b1e3afd58a560222b"
+  "remote": {
+    "frontend": {
+      "repository": "duricare-frontend",
+      "mainSha": "7781a16c8685eb6d98a97954be36dc1a136feaa7"
+    },
+    "backend": {
+      "repository": "duricare-backend",
+      "mainSha": "76ce8bde2b39550d1f17886c3b69d70a3cbe7e87"
+    }
   },
-  "approvedDesignReferences": {
-    "stitchProjectId": "12367919978060270881",
-    "desktopScreenId": "2307ab8816db4c1897c9b5099fee270a",
-    "desktopHtmlSha256": "b8ae56456a4b6dbca89bf04902b4ed57739258ab0019a92326805aad616c4ba6",
-    "mobileScreenId": "f1bd947392ef4dfd89101ed5955be10b",
-    "mobileHtmlSha256": "6902fc0069ce9fc5ba589f7ce3e88f3a52630022ba29ce1dd4b0a591913af176"
-  },
-  "approvedSharedDocs": {
+  "docs": {
     "root": "E:/CTU/LuanVan/docs/ai",
-    "revision": "69a5db9bcf0e7e284387b12b1e3afd58a560222b"
+    "revision": "69a5db9bcf0e7e284387b12b1e3afd58a560222b",
+    "status": "APPROVED_IMMUTABLE"
+  },
+  "worktree": {
+    "path": "E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-006",
+    "branch": "fe/UI-REFRESH-CTU-001-agent-mobile-height",
+    "baseSha": "7781a16c8685eb6d98a97954be36dc1a136feaa7"
   },
   "scope": {
-    "presentationOnly": true,
-    "backendChanges": false,
-    "agentUIRefresh": true
+    "issue": "Fix mobile chat frame premature termination & ~150px gap on iPhone 15 (/agent)",
+    "files": [
+      "src/components/layout/Shell.tsx",
+      "src/pages/AgentPage.tsx",
+      "scripts/verify-agent-geometry.mjs"
+    ]
   }
 }
