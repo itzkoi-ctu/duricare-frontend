@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { t } from '../../i18n';
 import { useLanguage } from '../../i18n/useLanguage';
 import { submitRevision, parseGovernanceError } from '../../api/governance';
@@ -202,52 +203,131 @@ export default function KnowledgeSubmitModal({
     }
   };
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="submit-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
+      data-testid="submit-revision-modal"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-[2px] animate-in fade-in overflow-y-auto"
     >
-      <div className="bg-surface border border-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
-          <div className="flex items-center gap-2 text-navy dark:text-blue">
-            <span aria-hidden="true" className="material-symbols-outlined text-2xl">
-              send
-            </span>
-            <h2 id="submit-modal-title" className="text-base font-bold text-text">
-              {t('Gửi hồ sơ thẩm định chuyên môn')}
-            </h2>
-          </div>
+      <div className="bg-surface border border-border rounded-xl max-w-[660px] w-full max-h-[min(90vh,calc(100vh-2rem))] shadow-xl flex flex-col overflow-hidden text-text my-auto">
+        {/* Modal Header */}
+        <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0 bg-surface">
+          <h2 id="submit-modal-title" className="text-base sm:text-lg font-semibold text-text">
+            {t('Gửi yêu cầu thẩm định')}
+          </h2>
           <button
             type="button"
             data-testid="close-submit-modal-button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray hover:text-text hover:bg-bg cursor-pointer transition-colors"
+            aria-label={t('Đóng')}
+            className="w-11 h-11 -mr-2 flex items-center justify-center rounded-lg text-gray hover:bg-surface-hover hover:text-text transition-colors"
           >
-            <span aria-hidden="true" className="material-symbols-outlined text-lg">
+            <span aria-hidden="true" className="material-symbols-outlined text-2xl">
               close
             </span>
           </button>
         </div>
 
-        <div className="overflow-y-auto space-y-4 pr-1 flex-1 text-xs">
-          {/* Version banner */}
-          <div className="p-3 rounded-xl bg-bg border border-border flex items-center justify-between">
-            <span className="text-gray">
-              {t('Phiên bản gửi')}: <strong className="text-text font-mono">Rev #{revision.revisionNumber} (v{capturedVersion})</strong>
-            </span>
-            <span className="px-2 py-0.5 rounded bg-gray/10 text-gray text-[11px] font-mono">
-              ID: {revision.id.slice(0, 8)}...
-            </span>
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto space-y-5 text-sm flex-1">
+          {/* Context Card */}
+          <div className="p-4 bg-surface dark:bg-bg rounded-lg border border-border space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-text text-base">
+                {meta.title || t('Tài liệu chưa đặt tên')}
+              </span>
+              <span className="h-6 px-2.5 rounded-[6px] text-xs font-semibold leading-none bg-blue-50 dark:bg-blue-950/40 text-primary dark:text-blue-300 border border-blue-200 dark:border-blue-800 inline-flex items-center">
+                {t('Bản {0}', [revision.revisionNumber])}
+              </span>
+              <span className="h-6 px-2.5 rounded-[6px] text-xs font-semibold leading-none bg-slate-100 dark:bg-surface text-slate-700 dark:text-text border border-slate-200 dark:border-border inline-flex items-center">
+                {t('Bản nháp')}
+              </span>
+            </div>
+            <p className="text-xs text-gray">
+              {t('Quy mô: {0} đoạn trích nội dung', [revision.chunks.length])}
+            </p>
           </div>
 
-          {/* Version mismatch alert */}
+          {/* Preflight Checklist */}
+          <div>
+            <div className="text-xs font-semibold text-text mb-2.5 flex items-center gap-1.5">
+              <span aria-hidden="true" className="material-symbols-outlined text-base text-primary">
+                fact_check
+              </span>
+              <span>{t('Kiểm tra tiền thẩm định (Preflight Checklist)')}</span>
+            </div>
+
+            {hasPreflightErrors ? (
+              <div
+                data-testid="preflight-error-banner"
+                className="p-4 rounded-xl border border-red-300 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 text-xs space-y-2"
+              >
+                <div className="flex items-center gap-2 font-bold text-sm text-red-700 dark:text-red-300">
+                  <span aria-hidden="true" className="material-symbols-outlined text-base">
+                    error
+                  </span>
+                  <span>{t('Hồ sơ chưa đủ điều kiện gửi thẩm định ({0} lỗi)', [preflightIssues.length])}</span>
+                </div>
+                <ul className="list-disc list-inside space-y-1 text-xs pl-1">
+                  {preflightIssues.map((issue, idx) => (
+                    <li key={idx} className="[overflow-wrap:anywhere]">{issue}</li>
+                  ))}
+                </ul>
+                <p className="pt-1 text-[11px] text-gray">
+                  {t('Vui lòng quay lại chỉnh sửa bản nháp để bổ sung đầy đủ thông tin trước khi gửi.')}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="p-3 bg-surface dark:bg-bg rounded-lg border border-border flex items-start gap-3">
+                  <span aria-hidden="true" className="material-symbols-outlined text-emerald-600 text-lg mt-0.5 shrink-0">
+                    check_circle
+                  </span>
+                  <div className="text-xs">
+                    <span className="font-semibold text-text">{t('Thuộc tính tài liệu nguồn:')}</span>
+                    <span className="text-gray"> {t('Đã điền đầy đủ tiêu đề, loại tài liệu và tầng đề xuất.')}</span>
+                  </div>
+                </div>
+                <div className="p-3 bg-surface dark:bg-bg rounded-lg border border-border flex items-start gap-3">
+                  <span aria-hidden="true" className="material-symbols-outlined text-emerald-600 text-lg mt-0.5 shrink-0">
+                    check_circle
+                  </span>
+                  <div className="text-xs">
+                    <span className="font-semibold text-text">{t('Nội dung {0} đoạn trích:', [revision.chunks.length])}</span>
+                    <span className="text-gray"> {t('Đã nhập đầy đủ tiêu đề, nội dung chuẩn hóa và trích đoạn nguyên văn.')}</span>
+                  </div>
+                </div>
+                <div className="p-3 bg-surface dark:bg-bg rounded-lg border border-border flex items-start gap-3">
+                  <span aria-hidden="true" className="material-symbols-outlined text-emerald-600 text-lg mt-0.5 shrink-0">
+                    check_circle
+                  </span>
+                  <div className="text-xs">
+                    <span className="font-semibold text-text">{t('Vị trí trích dẫn (Locator):')}</span>
+                    <span className="text-gray" data-testid="preflight-locator-status"> {t('Đã điền thông tin vị trí trích dẫn cho tất cả đoạn trích ({0}/{1}).', [revision.chunks.length, revision.chunks.length])}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Info Note */}
+          <div className="p-3.5 bg-blue-50/60 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900/60 flex items-start gap-3">
+            <span aria-hidden="true" className="material-symbols-outlined text-primary text-xl mt-0.5 shrink-0">
+              info
+            </span>
+            <p className="text-xs text-gray leading-relaxed">
+              {t('Sau khi gửi, bản ghi chuyển sang trạng thái')} <strong className="text-text font-semibold">{t('Đã gửi thẩm định (SUBMITTED)')}</strong> {t('và chờ phân công thẩm định viên. Bản nháp tạm khóa chỉnh sửa.')}
+            </p>
+          </div>
+
+          {/* Stale version conflict banner */}
           {versionMismatch && (
             <div
               data-testid="version-mismatch-warning"
-              className="p-3.5 rounded-xl border border-amber/30 bg-amber/10 text-amber space-y-2"
+              className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs space-y-2"
             >
               <div className="flex items-center gap-2 font-bold">
                 <span aria-hidden="true" className="material-symbols-outlined text-base">
@@ -261,61 +341,21 @@ export default function KnowledgeSubmitModal({
               <button
                 type="button"
                 onClick={handleSyncVersion}
-                className="px-3 py-1.5 rounded-lg bg-amber text-surface dark:text-bg font-semibold cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-amber-600 text-white font-semibold cursor-pointer text-xs"
               >
                 {t('Cập nhật lên v{0} và kiểm tra lại', [revision.version])}
               </button>
             </div>
           )}
 
-          {/* Preflight validation errors */}
-          {hasPreflightErrors ? (
-            <div
-              data-testid="preflight-error-banner"
-              className="p-4 rounded-xl border border-coral/30 bg-coral/10 text-coral space-y-2"
-            >
-              <div className="flex items-center gap-2 font-bold text-sm">
-                <span aria-hidden="true" className="material-symbols-outlined text-base">
-                  error
-                </span>
-                <span>{t('Hồ sơ chưa đủ điều kiện gửi thẩm định ({0} lỗi)', [preflightIssues.length])}</span>
-              </div>
-              <ul className="list-disc list-inside space-y-1 text-xs pl-1">
-                {preflightIssues.map((issue, idx) => (
-                  <li key={idx} className="[overflow-wrap:anywhere]">{issue}</li>
-                ))}
-              </ul>
-              <p className="pt-1 text-[11px] text-gray dark:text-gray/80">
-                {t('Vui lòng quay lại chỉnh sửa bản nháp để bổ sung đầy đủ thông tin trước khi gửi.')}
-              </p>
-            </div>
-          ) : (
-            <div className="p-4 rounded-xl border border-teal/30 bg-teal/5 text-text space-y-2">
-              <div className="flex items-center gap-2 font-bold text-teal">
-                <span aria-hidden="true" className="material-symbols-outlined text-base">
-                  check_circle
-                </span>
-                <span>{t('Hồ sơ đã thỏa mãn các điều kiện tiên quyết')}</span>
-              </div>
-              <p className="text-gray leading-relaxed">
-                {t('Hồ sơ có {0} đoạn trích kiến thức và đầy đủ thông tin xuất xứ. Khi gửi:', [revision.chunks.length])}
-              </p>
-              <ul className="list-disc list-inside space-y-1 text-gray text-[11px] pl-1">
-                <li>{t('Hồ sơ sẽ trở thành bản bất biến (read-only snapshot) không thể sửa đổi tiếp.')}</li>
-                <li>{t('Chuyển vào hàng đợi thẩm định của quản trị viên để phân công chuyên gia.')}</li>
-                <li>{t('Bạn có thể rút hồ sơ kèm lý do bắt buộc nếu cần điều chỉnh.')}</li>
-              </ul>
-            </div>
-          )}
-
-          {/* General API error or indeterminate lock banner */}
+          {/* General API error banner */}
           {(generalError || mustVerifyReload) && (
             <div
               data-testid="submit-error-banner"
-              className="p-3.5 rounded-xl border border-coral/30 bg-coral/10 text-coral space-y-2"
+              className="p-3.5 rounded-xl border border-red-300 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 text-xs space-y-2"
             >
               <div className="flex items-center gap-2 font-bold">
-                <span aria-hidden="true" className="material-symbols-outlined text-base">
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-red-600 dark:text-red-400">
                   error
                 </span>
                 <span>
@@ -341,7 +381,7 @@ export default function KnowledgeSubmitModal({
                     data-testid="submit-verify-reload-button"
                     onClick={handleReloadAndVerify}
                     disabled={isReloading}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-navy text-surface dark:text-bg text-xs font-semibold hover:opacity-95 disabled:opacity-50 cursor-pointer shadow-xs"
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1f5ca9] text-white text-xs font-semibold hover:bg-[#184988] disabled:opacity-50 cursor-pointer shadow-xs"
                   >
                     <span
                       aria-hidden="true"
@@ -359,32 +399,47 @@ export default function KnowledgeSubmitModal({
               )}
             </div>
           )}
+
+          {/* Technical disclosure */}
+          <details className="group border border-border rounded-lg text-xs">
+            <summary className="px-3 py-2 cursor-pointer bg-surface font-medium text-gray flex items-center justify-between select-none">
+              <span>{t('Chi tiết kỹ thuật & Request Token')}</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-sm transition-transform group-open:rotate-180">
+                expand_more
+              </span>
+            </summary>
+            <div className="p-3 border-t border-border font-mono bg-slate-50 dark:bg-bg text-gray space-y-1">
+              <div>DraftID: {revision.id}</div>
+              <div>HeadVersion: v{revision.version} · PreflightVerdict: {hasPreflightErrors ? 'FAILED' : 'PASSED'}</div>
+            </div>
+          </details>
         </div>
 
         {/* Modal actions */}
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border shrink-0">
+        <div className="px-6 py-4 bg-slate-50/50 dark:bg-surface-hover/30 border-t border-border flex items-center justify-end gap-3 shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting || isReloading}
-            className="px-4 py-2 rounded-xl border border-border bg-surface text-gray hover:text-text hover:bg-bg text-xs font-semibold cursor-pointer"
+            className="h-11 px-5 rounded-lg border border-border bg-surface text-text text-sm font-medium hover:bg-surface-hover transition-colors shadow-xs"
           >
-            {t('Hủy bỏ')}
+            {t('Hủy')}
           </button>
           <button
             type="button"
             data-testid="confirm-submit-button"
             onClick={handleSubmit}
             disabled={hasPreflightErrors || versionMismatch || isSubmitting || isReloading || mustVerifyReload}
-            className="px-4 py-2 rounded-xl bg-navy text-surface dark:text-bg text-xs font-semibold hover:opacity-95 disabled:opacity-40 cursor-pointer shadow-xs inline-flex items-center gap-1.5"
+            className="h-11 px-6 rounded-lg bg-[#1f5ca9] hover:bg-[#184988] text-white text-sm font-medium shadow-xs disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2 transition-colors"
           >
             {isSubmitting && (
-              <div className="w-3.5 h-3.5 border-2 border-surface/30 border-t-surface rounded-full animate-spin" />
+              <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             )}
-            <span>{isSubmitting ? t('Đang gửi...') : t('Xác nhận gửi thẩm định')}</span>
+            <span>{isSubmitting ? t('Đang gửi...') : t('Gửi thẩm định')}</span>
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

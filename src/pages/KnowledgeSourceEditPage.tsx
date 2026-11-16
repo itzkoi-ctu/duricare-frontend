@@ -9,7 +9,6 @@ import { getRevision, saveRevision, parseGovernanceError } from '../api/governan
 import type { KnowledgeMetadata, KnowledgeChunk, RevisionResponse } from '../types/governance';
 import KnowledgeMetadataForm from '../components/knowledge/KnowledgeMetadataForm';
 import KnowledgeChunkEditor from '../components/knowledge/KnowledgeChunkEditor';
-import KnowledgeStatusBadge from '../components/knowledge/KnowledgeStatusBadge';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 
@@ -202,7 +201,7 @@ export default function KnowledgeSourceEditPage() {
           chunkId: c.chunkId || null,
           title: c.title.trim(),
           topic: c.topic,
-          stage: c.stage, // explicitly nullable
+          stage: c.stage,
           content: c.content || '',
           originalExcerpt: c.originalExcerpt || '',
           locator: c.locator || '',
@@ -257,7 +256,7 @@ export default function KnowledgeSourceEditPage() {
         data-testid="revision-locked-banner"
         className="py-12 text-center rounded-2xl border border-border bg-surface p-6 shadow-2xs space-y-4"
       >
-        <span aria-hidden="true" className="material-symbols-outlined text-amber text-4xl">
+        <span aria-hidden="true" className="material-symbols-outlined text-amber-500 text-4xl">
           lock
         </span>
         <h2 className="text-lg font-bold text-text">
@@ -271,7 +270,7 @@ export default function KnowledgeSourceEditPage() {
         </p>
         <Link
           to={`/knowledge/sources/${sourceId}`}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-navy text-surface dark:text-bg text-xs font-semibold"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1f5ca9] text-white text-xs font-semibold"
         >
           <span aria-hidden="true" className="material-symbols-outlined text-base">
             arrow_back
@@ -283,37 +282,45 @@ export default function KnowledgeSourceEditPage() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
-        <div>
-          <Link
-            to={`/knowledge/sources/${sourceId}`}
-            onClick={e => {
-              if (isDirty && !window.confirm(t('Bạn có thay đổi chưa lưu. Bạn có chắc muốn rời đi?'))) {
-                e.preventDefault();
-              }
-            }}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray hover:text-text mb-2 transition-colors"
-          >
-            <span aria-hidden="true" className="material-symbols-outlined text-base">
-              arrow_back
+    <form onSubmit={handleSubmit} noValidate className="max-w-[1440px] w-full mx-auto pb-12">
+      {/* Back Link */}
+      <Link
+        to={`/knowledge/sources/${sourceId}`}
+        onClick={e => {
+          if (isDirty && !window.confirm(t('Bạn có thay đổi chưa lưu. Bạn có chắc muốn rời đi?'))) {
+            e.preventDefault();
+          }
+        }}
+        className="text-gray hover:text-primary text-sm font-medium mb-3 inline-flex items-center gap-1.5 transition-colors"
+      >
+        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+          arrow_back
+        </span>
+        <span>{t('Chi tiết nguồn tri thức')}</span>
+      </Link>
+
+      {/* Page Header Row */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-bold text-text tracking-tight">
+            {t('Chỉnh sửa bản nháp')}
+          </h1>
+          <span className="h-6 px-2.5 rounded-[6px] text-xs font-semibold leading-none bg-slate-100 dark:bg-surface text-slate-700 dark:text-text border border-slate-200 dark:border-border inline-flex items-center">
+            {t('Bản {0}', [initialRevision.revisionNumber])}
+          </span>
+          <span className="h-6 px-2.5 rounded-[6px] text-xs font-semibold leading-none bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 inline-flex items-center">
+            {t('Bản nháp')}
+          </span>
+          {isDirty && (
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-600 dark:text-amber-400">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>{t('Có thay đổi chưa lưu')}</span>
             </span>
-            <span>{t('Quay lại chi tiết nguồn')}</span>
-          </Link>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-xl md:text-2xl font-bold text-text">{t('Chỉnh sửa bản nháp')}</h1>
-            <KnowledgeStatusBadge status="DRAFT" size="sm" />
-            <span className="text-xs font-mono text-gray">
-              Rev #{initialRevision.revisionNumber} (v{capturedVersion})
-            </span>
-          </div>
-          <p className="mt-1 text-xs md:text-sm text-gray">
-            {t('Cập nhật thông tin tài liệu và danh sách đoạn trích. Sử dụng cơ chế khóa lạc quan (optimistic locking) để tránh ghi đè dữ liệu.')}
-          </p>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-center">
+        {/* Action Buttons Top */}
+        <div className="flex items-center gap-3 shrink-0">
           <Link
             to={`/knowledge/sources/${sourceId}`}
             onClick={e => {
@@ -321,153 +328,282 @@ export default function KnowledgeSourceEditPage() {
                 e.preventDefault();
               }
             }}
-            className="min-h-11 px-4 py-2.5 rounded-xl border border-border bg-surface text-xs font-semibold text-text hover:bg-bg transition-colors"
+            className="h-11 px-5 rounded-lg border border-border bg-surface hover:bg-surface-hover text-text font-medium text-sm transition-colors shadow-xs inline-flex items-center justify-center"
           >
             {t('Hủy')}
           </Link>
           <button
             type="submit"
             disabled={isSubmitting || Boolean(conflictError) || Boolean(isRestrictedExpert)}
-            className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-navy px-5 py-2.5 text-xs font-semibold text-surface dark:text-bg hover:opacity-95 disabled:opacity-50 cursor-pointer shadow-xs transition-opacity"
+            className="h-11 px-6 rounded-lg bg-[#1f5ca9] hover:bg-[#184988] text-white font-medium text-sm transition-colors shadow-xs flex items-center gap-2 disabled:opacity-50 cursor-pointer"
           >
-            {isSubmitting && (
-              <span className="w-4 h-4 border-2 border-surface/40 border-t-surface rounded-full animate-spin" />
+            {isSubmitting ? (
+              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : (
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                save
+              </span>
             )}
-            <span>{t(isSubmitting ? 'Đang lưu bản nháp...' : 'Lưu thay đổi')}</span>
+            <span>{t(isSubmitting ? 'Đang lưu bản nháp...' : 'Lưu bản nháp')}</span>
           </button>
         </div>
       </div>
 
-      {/* Admin Ownership Policy Notice */}
-      {user?.role === 'ADMIN' && (
-        <div
-          role="note"
-          data-testid="admin-edit-notice"
-          className="flex items-start gap-2.5 rounded-2xl border border-blue/20 bg-blue/5 p-4 text-xs text-text shadow-2xs"
-        >
-          <span aria-hidden="true" className="material-symbols-outlined text-blue text-lg shrink-0 mt-0.5">
-            info
-          </span>
-          <div className="space-y-1">
-            <p className="font-semibold text-text">
-              {t('Quyền chỉnh sửa của Quản trị viên')}
-            </p>
-            <p className="text-gray leading-relaxed">
-              {t(
-                'Máy chủ áp dụng cơ chế kiểm soát sở hữu nghiêm ngặt: chỉ tài khoản đã tạo bản nháp này mới có thể lưu thay đổi. Nếu hồ sơ do người dùng khác tạo, thao tác lưu sẽ bị từ chối (403 Forbidden).'
-              )}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Restricted Expert Notice */}
-      {isRestrictedExpert && (
-        <div
-          role="alert"
-          data-testid="restricted-expert-edit-banner"
-          className="flex items-start gap-2.5 rounded-2xl border border-amber/30 bg-amber/10 p-4 text-xs text-text shadow-2xs"
-        >
-          <span aria-hidden="true" className="material-symbols-outlined text-amber text-lg shrink-0 mt-0.5">
-            lock
-          </span>
-          <div className="space-y-1">
-            <p className="font-semibold text-text">
-              {profile?.verificationStatus === 'PENDING'
-                ? t('Tài khoản của bạn đang chờ quản trị viên xác minh.')
-                : t('Quyền chuyên môn của tài khoản đang tạm đình chỉ.')}
-            </p>
-            <p className="text-gray leading-relaxed">
-              {t('Bạn không thể lưu bản nháp khi hồ sơ chuyên gia chưa được xác minh.')}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* 409 Conflict Banner with Reload Action */}
-      {conflictError && (
-        <div
-          role="alert"
-          className="rounded-2xl border border-amber/40 bg-amber/10 p-4 md:p-5 text-xs text-text space-y-3 shadow-2xs"
-        >
-          <div className="flex items-start gap-2.5">
-            <span aria-hidden="true" className="material-symbols-outlined text-amber shrink-0 text-xl">
-              warning
-            </span>
-            <div className="space-y-1">
-              <p className="font-bold text-amber">{t('Xung đột phiên bản (409 Conflict)')}</p>
-              <p className="text-gray leading-relaxed">{conflictError}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              type="button"
-              disabled={isReloading}
-              onClick={handleReloadAndReview}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-surface border border-border px-3.5 font-semibold text-text hover:bg-bg disabled:opacity-50 cursor-pointer shadow-2xs"
+      {/* Two-Column Responsive Workspace */}
+      <div className="grid grid-cols-12 gap-6 items-start">
+        {/* Main Column (8 cols on lg, 12 on mobile) */}
+        <div className="col-span-12 lg:col-span-8 space-y-6">
+          {/* Admin Ownership Policy Notice */}
+          {user?.role === 'ADMIN' && (
+            <div
+              role="note"
+              data-testid="admin-edit-notice"
+              className="flex items-start gap-2.5 rounded-lg border border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/20 p-4 text-xs text-text shadow-2xs"
             >
-              <span className={`material-symbols-outlined text-sm ${isReloading ? 'animate-spin' : ''}`}>
-                refresh
+              <span aria-hidden="true" className="material-symbols-outlined text-primary text-lg shrink-0 mt-0.5">
+                info
               </span>
-              <span>{t(isReloading ? 'Đang tải lại...' : 'Tải lại và cập nhật phiên bản')}</span>
+              <div className="space-y-1">
+                <p className="font-semibold text-text">
+                  {t('Quyền chỉnh sửa của Quản trị viên')}
+                </p>
+                <p className="text-gray leading-relaxed">
+                  {t(
+                    'Máy chủ áp dụng cơ chế kiểm soát sở hữu nghiêm ngặt: chỉ tài khoản đã tạo bản nháp này mới có thể lưu thay đổi. Nếu hồ sơ do người dùng khác tạo, thao tác lưu sẽ bị từ chối (403 Forbidden).'
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Restricted Expert Notice */}
+          {isRestrictedExpert && (
+            <div
+              role="alert"
+              data-testid="restricted-expert-edit-banner"
+              className="flex items-start gap-2.5 rounded-lg border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/20 p-4 text-xs text-text shadow-2xs"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-amber-600 text-lg shrink-0 mt-0.5">
+                lock
+              </span>
+              <div className="space-y-1">
+                <p className="font-semibold text-text">
+                  {profile?.verificationStatus === 'PENDING'
+                    ? t('Tài khoản của bạn đang chờ quản trị viên xác minh.')
+                    : t('Quyền chuyên môn của tài khoản đang tạm đình chỉ.')}
+                </p>
+                <p className="text-gray leading-relaxed">
+                  {t('Bạn không thể lưu bản nháp khi hồ sơ chuyên gia chưa được xác minh.')}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 409 Conflict Banner with Reload Action */}
+          {conflictError && (
+            <div
+              role="alert"
+              className="rounded-lg border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/20 p-4 md:p-5 text-xs text-text space-y-3 shadow-2xs"
+            >
+              <div className="flex items-start gap-2.5">
+                <span aria-hidden="true" className="material-symbols-outlined text-amber-600 shrink-0 text-xl">
+                  warning
+                </span>
+                <div className="space-y-1">
+                  <p className="font-bold text-amber-800 dark:text-amber-300">{t('Xung đột phiên bản (409 Conflict)')}</p>
+                  <p className="text-gray leading-relaxed">{conflictError}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={isReloading}
+                  onClick={handleReloadAndReview}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-surface border border-border px-3.5 font-semibold text-text hover:bg-surface-hover disabled:opacity-50 cursor-pointer shadow-2xs text-xs"
+                >
+                  <span className={`material-symbols-outlined text-sm ${isReloading ? 'animate-spin' : ''}`}>
+                    refresh
+                  </span>
+                  <span>{t(isReloading ? 'Đang tải lại...' : 'Tải lại và cập nhật phiên bản')}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* General Error Banner */}
+          {generalError && (
+            <div
+              role="alert"
+              data-testid="governance-error-banner"
+              className="flex items-start gap-2.5 rounded-lg border border-red-300 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 p-4 text-xs text-red-800 dark:text-red-200"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-base shrink-0 mt-0.5 text-red-600">
+                error
+              </span>
+              <p className="font-medium leading-relaxed">{t(generalError)}</p>
+            </div>
+          )}
+
+          {/* Section 1: Metadata Form */}
+          <KnowledgeMetadataForm
+            metadata={metadata}
+            onChange={handleMetadataChange}
+            fieldErrors={fieldErrors}
+            disabled={isSubmitting}
+          />
+
+          {/* Section 2: Chunks Editor */}
+          <KnowledgeChunkEditor
+            chunks={chunks}
+            onChange={handleChunksChange}
+            fieldErrors={fieldErrors}
+            disabled={isSubmitting}
+          />
+
+          {/* Bottom Action Buttons (Desktop) */}
+          <div className="hidden lg:flex justify-end items-center gap-3 pt-4 border-t border-border">
+            <Link
+              to={`/knowledge/sources/${sourceId}`}
+              onClick={e => {
+                if (isDirty && !window.confirm(t('Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy?'))) {
+                  e.preventDefault();
+                }
+              }}
+              className="h-11 px-5 rounded-lg border border-border bg-surface hover:bg-surface-hover text-text font-medium text-sm transition-colors shadow-xs inline-flex items-center justify-center"
+            >
+              {t('Hủy')}
+            </Link>
+            <button
+              type="submit"
+              disabled={isSubmitting || Boolean(conflictError) || Boolean(isRestrictedExpert)}
+              className="h-11 px-6 rounded-lg bg-[#1f5ca9] hover:bg-[#184988] text-white font-medium text-sm transition-colors shadow-xs flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+            >
+              {isSubmitting ? (
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                  save
+                </span>
+              )}
+              <span>{t(isSubmitting ? 'Đang lưu bản nháp...' : 'Lưu bản nháp')}</span>
             </button>
           </div>
+
+          {/* Sticky Mobile Action Bar (Above Mobile Nav, 44px Buttons, Safe Area Aware) */}
+          <div className="lg:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-30 bg-surface/95 backdrop-blur-sm border-t border-border px-4 py-2.5 shadow-lg">
+            <div className="max-w-[420px] mx-auto flex items-center justify-between gap-3">
+              <Link
+                to={`/knowledge/sources/${sourceId}`}
+                onClick={e => {
+                  if (isDirty && !window.confirm(t('Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy?'))) {
+                    e.preventDefault();
+                  }
+                }}
+                className="h-11 flex-1 rounded-lg border border-border text-sm font-medium text-text bg-surface hover:bg-surface-hover flex items-center justify-center transition-colors shadow-xs"
+              >
+                {t('Hủy thay đổi')}
+              </Link>
+              <button
+                type="submit"
+                disabled={isSubmitting || Boolean(conflictError) || Boolean(isRestrictedExpert)}
+                className="h-11 flex-1 rounded-lg bg-[#1f5ca9] text-sm font-medium text-white hover:bg-[#184988] flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer transition-colors"
+              >
+                {isSubmitting ? (
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                    save
+                  </span>
+                )}
+                <span>{t(isSubmitting ? 'Đang lưu...' : 'Lưu bản nháp')}</span>
+              </button>
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* General Error Banner */}
-      {generalError && (
-        <div
-          role="alert"
-          data-testid="governance-error-banner"
-          className="flex items-start gap-2.5 rounded-2xl border border-coral/30 bg-coral/10 p-4 text-xs text-coral"
-        >
-          <span aria-hidden="true" className="material-symbols-outlined text-base shrink-0 mt-0.5">
-            error
-          </span>
-          <p className="font-medium leading-relaxed">{t(generalError)}</p>
+        {/* Right Rail Column (4 cols on lg, sticky) */}
+        <div className="col-span-12 lg:col-span-4 space-y-6 sticky top-24">
+          {/* Card 1: Overview */}
+          <div className="bg-surface border border-border rounded-lg p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-sm font-semibold text-text">
+                {t('Tổng quan bản nháp')}
+              </h3>
+              <span aria-hidden="true" className="material-symbols-outlined text-gray text-[18px]">
+                info
+              </span>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-gray">{t('Số đoạn trích:')}</span>
+                <span className="font-semibold text-text tabular-nums">
+                  {chunks.length} {t('đoạn')}{' '}
+                  <span className="font-normal text-gray">{t('(tối đa 20)')}</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray">{t('Trạng thái biên tập:')}</span>
+                <span className="h-6 px-2.5 rounded-[6px] text-xs font-semibold leading-none bg-slate-100 dark:bg-surface text-slate-700 dark:text-text border border-slate-200 dark:border-border inline-flex items-center">
+                  {t('Bản nháp nội bộ')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray">{t('Phiên bản kế thừa:')}</span>
+                {initialRevision.revisionNumber <= 1 ? (
+                  <span className="font-medium text-gray text-xs" data-testid="draft-inheritance-status">
+                    {t('Bản nháp ban đầu')}
+                  </span>
+                ) : (
+                  <span className="font-medium text-text text-xs" data-testid="draft-inheritance-status">
+                    {t('Từ Bản {0}', [initialRevision.revisionNumber - 1])}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Table of Contents */}
+          <div className="bg-surface border border-border rounded-lg p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-sm font-semibold text-text">
+                {t('Mục lục đoạn trích')}
+              </h3>
+              <span className="text-xs text-gray tabular-nums">
+                {t('{0} mục', [chunks.length])}
+              </span>
+            </div>
+            {chunks.length === 0 ? (
+              <p className="text-xs text-gray italic py-2">
+                {t('Chưa có đoạn trích nào.')}
+              </p>
+            ) : (
+              <div className="space-y-1.5 text-sm max-h-[360px] overflow-y-auto pr-1">
+                {chunks.map((chk, idx) => (
+                  <a
+                    key={chk.chunkId || `toc-${idx}`}
+                    href={`#chunk-${idx + 1}`}
+                    className="flex items-center justify-between p-2 rounded-lg hover:bg-surface-hover text-text transition group"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="font-semibold text-xs text-gray group-hover:text-primary w-4">
+                        {idx + 1}.
+                      </span>
+                      <span className="truncate text-xs">
+                        {chk.title || `${t('Đoạn')} ${idx + 1}`}
+                      </span>
+                    </div>
+                    <span
+                      aria-hidden="true"
+                      className="material-symbols-outlined text-[16px] text-gray group-hover:text-primary shrink-0"
+                    >
+                      unfold_more
+                    </span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      )}
-
-      {/* Metadata Form Section */}
-      <KnowledgeMetadataForm
-        metadata={metadata}
-        onChange={handleMetadataChange}
-        fieldErrors={fieldErrors}
-        disabled={isSubmitting}
-      />
-
-      {/* Chunks Editor Section */}
-      <KnowledgeChunkEditor
-        chunks={chunks}
-        onChange={handleChunksChange}
-        fieldErrors={fieldErrors}
-        disabled={isSubmitting}
-      />
-
-      {/* Bottom Save Action */}
-      <div className="flex justify-end gap-2.5 pt-2">
-        <Link
-          to={`/knowledge/sources/${sourceId}`}
-          onClick={e => {
-            if (isDirty && !window.confirm(t('Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy?'))) {
-              e.preventDefault();
-            }
-          }}
-          className="min-h-11 px-4 py-2.5 rounded-xl border border-border bg-surface text-xs font-semibold text-text hover:bg-bg transition-colors"
-        >
-          {t('Hủy')}
-        </Link>
-        <button
-          type="submit"
-          disabled={isSubmitting || Boolean(conflictError) || Boolean(isRestrictedExpert)}
-          className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-navy px-6 py-2.5 text-xs font-semibold text-surface dark:text-bg hover:opacity-95 disabled:opacity-50 cursor-pointer shadow-xs transition-opacity"
-        >
-          {isSubmitting && (
-            <span className="w-4 h-4 border-2 border-surface/40 border-t-surface rounded-full animate-spin" />
-          )}
-          <span>{t(isSubmitting ? 'Đang lưu bản nháp...' : 'Lưu thay đổi')}</span>
-        </button>
       </div>
     </form>
   );
