@@ -741,6 +741,7 @@
   "Tiêu đề tài liệu nguồn": "Source Document Title",
   "Người tạo": "Contributor",
   "Chưa có tiêu đề": "Untitled Document",
+  "Chưa có bản sửa đổi": "No revision",
   "Chi tiết": "Details",
   "Tổng số": "Total",
   "nguồn tri thức": "knowledge sources",
@@ -1261,5 +1262,10 @@
   "{0} cảnh báo AI": "{{0}} AI alerts",
   "Đánh dấu đã xử lý chỉ cập nhật trạng thái cảnh báo trong hệ thống.": "Marking as resolved only updates the alert status in the system.",
   "Đang xử lý…": "Resolving…",
-  "Nghiêm trọng": "Critical"
+  "Nghiêm trọng": "Critical",
+  "Tài liệu và trích đoạn đã lưu trong hệ thống.": "Documents and technical excerpts stored in the system.",
+  "Bản {0}": "Revision {0}",
+  "Tổng số: {0} nguồn tri thức": "Total: {0} knowledge sources",
+  "Trạng thái:": "Status:",
+  "Danh sách tài liệu tri thức": "Knowledge document list"
 }

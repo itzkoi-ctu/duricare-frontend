@@ -729,6 +729,7 @@
   "Tiêu đề tài liệu nguồn": "Tiêu đề tài liệu nguồn",
   "Người tạo": "Người tạo",
   "Chưa có tiêu đề": "Chưa có tiêu đề",
+  "Chưa có bản sửa đổi": "Chưa có bản sửa đổi",
   "Chi tiết": "Chi tiết",
   "Tổng số": "Tổng số",
   "nguồn tri thức": "nguồn tri thức",
@@ -1249,5 +1250,10 @@
   "{0} cảnh báo AI": "{{0}} cảnh báo AI",
   "Đánh dấu đã xử lý chỉ cập nhật trạng thái cảnh báo trong hệ thống.": "Đánh dấu đã xử lý chỉ cập nhật trạng thái cảnh báo trong hệ thống.",
   "Đang xử lý…": "Đang xử lý…",
-  "Nghiêm trọng": "Nghiêm trọng"
+  "Nghiêm trọng": "Nghiêm trọng",
+  "Tài liệu và trích đoạn đã lưu trong hệ thống.": "Tài liệu và trích đoạn đã lưu trong hệ thống.",
+  "Bản {0}": "Bản {0}",
+  "Tổng số: {0} nguồn tri thức": "Tổng số: {0} nguồn tri thức",
+  "Trạng thái:": "Trạng thái:",
+  "Danh sách tài liệu tri thức": "Danh sách tài liệu tri thức"
 }
