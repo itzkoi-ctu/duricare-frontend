@@ -4,7 +4,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import puppeteer from 'puppeteer';
 
-const ROOT_DIR = path.resolve('E:/CTU/LuanVan/duricare-worktrees/fe-ui-refresh-ctu-007');
+const ROOT_DIR = process.cwd();
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
 const EVIDENCE_DIR = path.resolve('E:/CTU/LuanVan/verification/ui-refresh-ctu-source-forms-design-20261116/evidence');
 const ARTIFACT_EVIDENCE_DIR = path.resolve('C:/Users/default.LAPTOP-9T9UMS3I/.gemini/antigravity/brain/2cc3cdd9-0f13-4c1a-bbe7-141069b357d2/evidence');

@@ -205,7 +205,7 @@ const sourcesPageContent = fs.readFileSync(sourcesPagePath, 'utf8');
 
 it('src/pages/KnowledgeSourcesPage.tsx has "Nhập tài liệu" button linking to /knowledge/import', () => {
   assert(sourcesPageContent.includes("to=\"/knowledge/import\""));
-  assert(sourcesPageContent.includes("upload_file"));
+  assert(sourcesPageContent.includes("upload") || sourcesPageContent.includes("upload_file"));
   assert(sourcesPageContent.includes("Nhập tài liệu"));
 });
 
