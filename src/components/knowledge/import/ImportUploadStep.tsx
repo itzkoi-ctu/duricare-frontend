@@ -1,6 +1,6 @@
 /**
  * FE-KNOWLEDGE-IMPORT-001 ImportUploadStep component
- * Drag-and-drop file upload, client-side pre-validation, truthful upload/extraction progress
+ * Drag-and-drop file upload, client-side pre-validation, truthful upload/extraction progress per Stitch design
  */
 
 import { useState, useRef, useEffect, type ChangeEvent, type DragEvent } from 'react';
@@ -45,6 +45,12 @@ export default function ImportUploadStep({
   const isImportDisabled = Boolean(capabilities && capabilities.enabled === false);
   const isWriteBlocked = !canWrite || isImportDisabled;
 
+  // Capabilities limits
+  const maxBytes = capabilities?.limits?.fileBytes || 5 * 1024 * 1024;
+  const maxPages = capabilities?.limits?.pages || 100;
+  const maxChars = capabilities?.limits?.extractedUtf16Units || 120000;
+  const maxChunks = capabilities?.limits?.chunks || 20;
+
   // Cleanup in-flight upload on unmount
   useEffect(() => {
     return () => {
@@ -78,7 +84,6 @@ export default function ImportUploadStep({
         ALLOWED_EXTENSIONS.join(', '),
       ]);
     }
-    const maxBytes = capabilities?.limits?.fileBytes || 5 * 1024 * 1024;
     if (file.size > maxBytes) {
       return t('Kích thước tệp ({0}) vượt quá giới hạn tối đa cho phép ({1}).', [
         formatBytes(file.size),
@@ -207,198 +212,333 @@ export default function ImportUploadStep({
     setClientError(t('Đã hủy quá trình tải lên theo yêu cầu của bạn.'));
   };
 
+  const isPdf = selectedFile?.name.toLowerCase().endsWith('.pdf');
+  const fileExtLabel = isPdf ? t('Tài liệu PDF (có lớp chữ)') : selectedFile?.name.split('.').pop()?.toUpperCase() || '';
+
   return (
-    <div className="space-y-6">
-      {/* Top Banner / Limits Disclosure */}
-      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-text flex items-center gap-2">
-              <span className="material-symbols-outlined text-navy dark:text-blue">upload_file</span>
-              {t('Nhập tài liệu tri thức tự động')}
-            </h2>
-            <p className="mt-1 text-sm text-gray">
-              {t('Tải lên tài liệu kỹ thuật nông nghiệp để tự động trích xuất nội dung, phân tích vị trí và tạo hồ sơ bản nháp (DRAFT).')}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenSessions}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-bg px-3.5 py-2 text-xs font-semibold text-text shadow-sm hover:bg-border/30 transition-colors shrink-0"
-          >
-            <span className="material-symbols-outlined text-base text-gray">history</span>
-            {t('Phiên nhập chờ xác nhận')}
-          </button>
-        </div>
+    <div className="space-y-5" data-testid="import-upload-step">
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        id="file-import-input"
+        data-testid="file-import-input"
+        accept=".txt,.md,.markdown,.pdf,.docx,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        onChange={handleFileChange}
+        disabled={uploading || isWriteBlocked}
+        className="hidden"
+      />
 
-        {/* Capabilities details pills */}
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
-          <div className="rounded-xl border border-border/80 bg-bg/50 p-2.5">
-            <span className="text-gray block font-medium">{t('Định dạng hỗ trợ')}</span>
-            <span className="font-semibold text-text mt-0.5 block">.TXT, .MD, .PDF, .DOCX</span>
-          </div>
-          <div className="rounded-xl border border-border/80 bg-bg/50 p-2.5">
-            <span className="text-gray block font-medium">{t('Dung lượng tối đa')}</span>
-            <span className="font-semibold text-text mt-0.5 block">{t('5 MiB (1 tệp)')}</span>
-          </div>
-          <div className="rounded-xl border border-border/80 bg-bg/50 p-2.5">
-            <span className="text-gray block font-medium">{t('Giới hạn PDF & Ký tự')}</span>
-            <span className="font-semibold text-text mt-0.5 block">{t('Tối đa 100 trang / 120.000 ký tự')}</span>
-          </div>
-          <div className="rounded-xl border border-border/80 bg-bg/50 p-2.5">
-            <span className="text-gray block font-medium">{t('Lớp văn bản (OCR)')}</span>
-            <span className="font-semibold text-coral mt-0.5 block">{t('Chỉ nhận Text Layer (Không OCR)')}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Permission / Capability Disabled Warning Banner */}
+      {/* Permission / Capability Disabled Warning Banner (Specimen Board C) */}
       {isWriteBlocked && (
-        <div className="rounded-2xl border border-amber/40 bg-amber/10 p-4 text-amber dark:bg-amber/20">
+        <div
+          data-testid="permission-blocked-banner"
+          className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200"
+        >
           <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-xl shrink-0 mt-0.5">warning</span>
+            <span className="material-symbols-outlined text-xl text-amber-600 shrink-0 mt-0.5">warning</span>
             <div className="text-sm">
-              <p className="font-semibold">
+              <p className="font-semibold text-amber-950 dark:text-amber-100">
                 {disabledReason || (isImportDisabled
                   ? t('Tính năng nhập tài liệu hiện đang tạm tắt trên hệ thống')
                   : t('Quyền nhập tài liệu bị giới hạn'))}
               </p>
               <p className="mt-1 text-xs opacity-90">
-                {t('Bạn vẫn có thể soạn thảo bản nháp thủ công qua chức năng tạo nguồn tri thức thông thường.')}
+                {t('Chỉ Quản trị viên hoặc Chuyên gia đã xác thực mới có quyền tải lên tài liệu mới.')}
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Drag & Drop Upload Box */}
-      <div
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-        className={`relative rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
-          dragActive
-            ? 'border-navy bg-navy/5 dark:border-blue dark:bg-blue/10 scale-[1.005]'
-            : 'border-border/80 bg-card hover:border-gray/50'
-        } ${isWriteBlocked ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          id="file-import-input"
-          accept=".txt,.md,.markdown,.pdf,.docx,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          onChange={handleFileChange}
-          disabled={uploading || isWriteBlocked}
-          className="hidden"
-        />
-
-        {/* File Selection Content (disabled/hidden when uploading) */}
-        <div className={uploading ? 'pointer-events-none select-none opacity-40' : ''}>
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-navy/10 text-navy dark:bg-blue/20 dark:text-blue">
-            <span className="material-symbols-outlined text-3xl">cloud_upload</span>
+      {/* PRIMARY CARD: UPLOAD DROPZONE / ACTIVE SELECTION */}
+      <section className="bg-surface border border-border rounded-xl p-5 md:p-6 shadow-xs space-y-4">
+        {/* Format & Capability Header Bar */}
+        <div className="flex flex-wrap items-center justify-between pb-4 border-b border-border gap-2">
+          <div className="flex items-center gap-2 text-xs font-medium text-text">
+            <span className="text-gray">{t('Định dạng hỗ trợ:')}</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span data-testid="format-badge-txt" className="inline-flex items-center h-6 px-2 rounded-[6px] text-xs font-medium bg-surface-hover text-text border border-border/60 whitespace-nowrap">
+                TXT
+              </span>
+              <span data-testid="format-badge-markdown" className="inline-flex items-center h-6 px-2 rounded-[6px] text-xs font-medium bg-surface-hover text-text border border-border/60 whitespace-nowrap">
+                Markdown
+              </span>
+              <span data-testid="format-badge-pdf" className="inline-flex items-center h-6 px-2 rounded-[6px] text-xs font-medium bg-surface-hover text-text border border-border/60 whitespace-nowrap">
+                PDF
+              </span>
+              <span data-testid="format-badge-docx" className="inline-flex items-center h-6 px-2 rounded-[6px] text-xs font-medium bg-surface-hover text-text border border-border/60 whitespace-nowrap">
+                DOCX
+              </span>
+            </div>
           </div>
-
-          <h3 className="mt-4 text-base font-semibold text-text">
-            {t('Kéo thả tệp tài liệu vào đây hoặc')}{' '}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || isWriteBlocked}
-              className="text-navy dark:text-blue hover:underline font-bold focus:outline-none disabled:opacity-40"
-            >
-              {t('chọn từ máy tính')}
-            </button>
-          </h3>
-          <p className="mt-1 text-xs text-gray">
-            {t('Hỗ trợ TXT, Markdown, PDF (có lớp text số) và DOCX chuẩn (tối đa 5 MiB)')}
-          </p>
+          <div className="text-xs text-gray">
+            {t('Giới hạn:')} <strong className="font-semibold text-text">1 {t('tệp')}</strong> · {t('Tối đa')}{' '}
+            <strong className="font-semibold text-text">{formatBytes(maxBytes)}</strong>
+          </div>
         </div>
 
-        {/* Selected File Details */}
+        {/* DROPZONE: When not currently uploading and no file selected */}
+        {!selectedFile && !uploading && (
+          <div
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            data-testid="file-dropzone"
+            className={`mt-1 border-2 border-dashed rounded-xl transition-all p-8 md:p-10 flex flex-col items-center justify-center text-center ${
+              dragActive
+                ? 'border-[#1f5ca9] bg-blue-50/50 dark:bg-blue-950/20 scale-[1.005]'
+                : 'border-border bg-surface-hover/30 hover:bg-blue-50/20 hover:border-blue-300'
+            } ${isWriteBlocked ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
+          >
+            {/* Upload Icon */}
+            <div className="w-12 h-12 rounded-full bg-blue-100/70 text-[#1f5ca9] dark:bg-blue-900/40 dark:text-blue-300 flex items-center justify-center mb-3">
+              <span className="material-symbols-outlined text-2xl">cloud_upload</span>
+            </div>
+
+            <h3 className="text-base font-semibold text-text mb-1">
+              {t('Kéo thả tài liệu vào đây')}
+            </h3>
+            <p className="text-xs text-gray mb-4 max-w-md">
+              {t('Kéo tệp từ máy tính của bạn vào vùng này, hoặc chọn tệp trực tiếp từ bộ nhớ.')}
+            </p>
+
+            {/* Blue Primary Action Button: 44px */}
+            <button
+              type="button"
+              data-testid="file-select-button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isWriteBlocked}
+              className="h-11 min-h-[44px] px-6 rounded-lg bg-[#1f5ca9] hover:bg-[#184988] text-white font-medium text-sm inline-flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              <span>{t('Chọn tệp')}</span>
+            </button>
+          </div>
+        )}
+
+        {/* SELECTED FILE STATE: When file selected and not currently uploading */}
         {selectedFile && !uploading && (
-          <div className="mt-6 mx-auto max-w-md rounded-xl border border-border bg-bg p-3.5 text-left flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="material-symbols-outlined text-2xl text-navy dark:text-blue shrink-0">
-                description
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-text truncate">{selectedFile.name}</p>
-                <p className="text-xs text-gray">{formatBytes(selectedFile.size)}</p>
+          <div
+            data-testid="selected-file-card"
+            className="rounded-xl border border-border bg-surface p-4 md:p-5 shadow-xs"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* File Info */}
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div
+                  className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 border ${
+                    isPdf
+                      ? 'bg-red-50 border-red-200 text-red-600 dark:bg-red-950/40 dark:border-red-900 dark:text-red-400'
+                      : 'bg-blue-50 border-blue-200 text-[#1f5ca9] dark:bg-blue-950/40 dark:border-blue-900 dark:text-blue-400'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-2xl">
+                    {isPdf ? 'picture_as_pdf' : 'description'}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      data-testid="selected-file-name"
+                      className="text-sm font-semibold text-text truncate block max-w-xs md:max-w-md"
+                      title={selectedFile.name}
+                    >
+                      {selectedFile.name}
+                    </span>
+                    <span className="inline-flex items-center h-5 px-2 rounded-[6px] text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 shrink-0">
+                      {t('Sẵn sàng tải lên')}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray mt-0.5">
+                    <span>{formatBytes(selectedFile.size)}</span>
+                    <span>·</span>
+                    <span>{fileExtLabel}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons (Height 44px) */}
+              <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+                {/* Neutral 44px: Chọn tệp khác */}
+                <button
+                  type="button"
+                  data-testid="change-file-button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-11 min-h-[44px] px-4 rounded-lg border border-border bg-surface text-text hover:bg-surface-hover font-medium text-xs transition-colors cursor-pointer"
+                >
+                  {t('Chọn tệp khác')}
+                </button>
+
+                {/* Primary 44px: Tải lên và trích xuất */}
+                <button
+                  type="button"
+                  data-testid="start-upload-button"
+                  onClick={handleStartUpload}
+                  disabled={retryCountdown !== null || isWriteBlocked}
+                  className="h-11 min-h-[44px] px-5 rounded-lg bg-[#1f5ca9] hover:bg-[#184988] text-white font-medium text-xs inline-flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <span className="material-symbols-outlined text-[18px]">upload</span>
+                  <span>
+                    {retryCountdown !== null
+                      ? t('Thử lại sau {0}s', [retryCountdown])
+                      : t('Tải lên và trích xuất')}
+                  </span>
+                </button>
+
+                {/* 44x44px Icon Remove Target */}
+                <button
+                  type="button"
+                  data-testid="remove-file-button"
+                  onClick={() => {
+                    uploadGenerationRef.current++;
+                    setSelectedFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }}
+                  className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg border border-border bg-surface text-gray hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center justify-center transition-colors cursor-pointer"
+                  title={t('Gỡ bỏ tệp')}
+                >
+                  <span className="material-symbols-outlined text-lg">delete</span>
+                </button>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                uploadGenerationRef.current++;
-                setSelectedFile(null);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-              }}
-              className="text-gray hover:text-coral p-1 rounded-lg hover:bg-border/40 transition-colors"
-              title={t('Bỏ chọn tệp')}
-            >
-              <span className="material-symbols-outlined text-lg">close</span>
-            </button>
           </div>
         )}
 
-        {/* Upload & Extraction Progress */}
+        {/* UPLOADING & EXTRACTION PROGRESS (Specimen Board A) */}
         {uploading && (
-          <div className="mt-6 mx-auto max-w-md space-y-3">
-            <div className="flex items-center justify-between text-xs text-gray">
-              <span>
+          <div
+            data-testid="upload-progress-panel"
+            className="rounded-xl border border-border bg-surface p-5 space-y-3.5"
+          >
+            <div className="flex items-center justify-between text-xs text-text">
+              <span className="font-semibold flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-base">
+                  {serverExtracting ? 'sync' : 'cloud_upload'}
+                </span>
                 {serverExtracting
-                  ? t('Đang trích xuất và phân tích cấu trúc trên máy chủ...')
-                  : `${t('Đang tải lên')} (${uploadPercent}%)...`}
+                  ? t('Đang trích xuất cấu trúc văn bản... Vui lòng không đóng trình duyệt.')
+                  : t('Đang tải tệp lên máy chủ... ({0}%)', [uploadPercent])}
               </span>
-              <span>{serverExtracting ? t('Vui lòng chờ...') : `${uploadPercent}%`}</span>
+              <span className="font-mono text-gray">
+                {serverExtracting ? t('Vô định') : `${uploadPercent}%`}
+              </span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-border">
-              <div
-                className={`h-full transition-all duration-300 ${
-                  serverExtracting ? 'bg-amber animate-pulse w-full' : 'bg-navy dark:bg-blue'
-                }`}
-                style={{ width: serverExtracting ? '100%' : `${uploadPercent}%` }}
-              />
+
+            {/* Progress Bar Container */}
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-border">
+              {serverExtracting ? (
+                <div
+                  data-testid="server-extracting-bar"
+                  className="h-full w-full bg-[#1f5ca9] animate-stripes rounded-full"
+                />
+              ) : (
+                <div
+                  data-testid="upload-transfer-bar"
+                  className="h-full bg-[#1f5ca9] transition-all duration-300 rounded-full"
+                  style={{ width: `${uploadPercent}%` }}
+                />
+              )}
             </div>
-            <p className="text-xs text-gray/80 italic">
-              {serverExtracting
-                ? t('Tiến trình máy chủ đang kiểm tra an toàn, định chuẩn UTF-8 và tạo phân đoạn.')
-                : t('Tiến trình tải lên là tốc độ truyền dẫn của trình duyệt.')}
-            </p>
-            <button
-              type="button"
-              onClick={handleCancelUpload}
-              data-testid="cancel-upload-btn"
-              className="mt-2 text-xs text-coral hover:underline font-semibold cursor-pointer"
-            >
-              {t('Hủy tải lên')}
-            </button>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray pt-1">
+              <p className="italic">
+                {serverExtracting
+                  ? t('Thời gian xử lý phụ thuộc vào độ dài và định dạng tệp (PDF thường mất 5–15 giây).')
+                  : t('Tiến trình tải lên là tốc độ truyền dẫn thực tế của trình duyệt.')}
+              </p>
+              <button
+                type="button"
+                data-testid="cancel-upload-btn"
+                onClick={handleCancelUpload}
+                className="h-9 min-h-[36px] px-3 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 font-semibold text-xs inline-flex items-center justify-center gap-1 transition-colors cursor-pointer self-start sm:self-auto shrink-0"
+              >
+                <span className="material-symbols-outlined text-[15px]">close</span>
+                <span>{t('Hủy tải lên')}</span>
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Action Button */}
-        {selectedFile && !uploading && (
-          <div className="mt-6 flex justify-center">
-            <button
-              type="button"
-              onClick={handleStartUpload}
-              disabled={retryCountdown !== null || isWriteBlocked}
-              className="inline-flex items-center gap-2 rounded-xl bg-navy px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-navy/90 transition-all focus:outline-none focus:ring-2 focus:ring-navy/40 dark:bg-blue dark:text-bg dark:hover:bg-blue/90 disabled:opacity-50"
-            >
-              <span className="material-symbols-outlined text-lg">play_arrow</span>
-              {retryCountdown !== null
-                ? t('Thử lại sau {0}s', [retryCountdown])
-                : `${t('Bắt đầu trích xuất')} ${t('và xem trước')}`}
-            </button>
+        {/* Operational Notes below Dropzone */}
+        <div className="pt-3 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs text-gray">
+          <div className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-amber-500 text-base shrink-0">info</span>
+            <span>{t('PDF cần có lớp văn bản (text-layer); hiện chưa hỗ trợ PDF scan/OCR.')}</span>
           </div>
-        )}
-      </div>
+          <div className="text-[12px] opacity-80">
+            {t('Tài liệu chưa được gửi thẩm định hay đưa vào RAG.')}
+          </div>
+        </div>
+      </section>
 
-      {/* Client validation error */}
+      {/* COMPACT EXPANDABLE LIMITS & SYSTEM CAPABILITIES */}
+      <details
+        data-testid="technical-limits-disclosure"
+        className="bg-surface border border-border rounded-xl shadow-xs text-xs group transition-all"
+      >
+        <summary className="min-h-[44px] h-11 px-5 flex items-center justify-between cursor-pointer list-none select-none hover:bg-surface-hover rounded-xl transition-colors">
+          <div className="flex items-center gap-2 font-semibold text-text">
+            <span className="material-symbols-outlined text-primary text-base">tune</span>
+            <span>{t('Giới hạn kỹ thuật và lưu ý xử lý tệp')}</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray">
+            <span className="text-[11px] group-open:hidden">{t('Nhấn để xem chi tiết')}</span>
+            <span className="material-symbols-outlined text-base transform group-open:rotate-180 transition-transform">
+              expand_more
+            </span>
+          </div>
+        </summary>
+
+        <div className="px-5 pb-5 pt-2 border-t border-border space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-3 bg-surface-hover/50 rounded-lg border border-border/70">
+              <div className="text-[11px] font-medium text-gray uppercase tracking-wider mb-1">
+                {t('Dung lượng & Quy mô')}
+              </div>
+              <div className="text-sm font-semibold text-text">
+                {t('Tối đa {0} · {1} trang PDF', [formatBytes(maxBytes), maxPages])}
+              </div>
+              <p className="text-[11px] text-gray mt-1 leading-4">
+                {t('Chỉ nhận 1 tệp mỗi phiên. Tài liệu dài hơn {0} trang cần được cắt trước khi nạp.', [maxPages])}
+              </p>
+            </div>
+
+            <div className="p-3 bg-surface-hover/50 rounded-lg border border-border/70">
+              <div className="text-[11px] font-medium text-gray uppercase tracking-wider mb-1">
+                {t('Giới hạn nội dung')}
+              </div>
+              <div className="text-sm font-semibold text-text">
+                {t('{0} ký tự UTF-16 · Tối đa {1} đoạn', [maxChars.toLocaleString(), maxChunks])}
+              </div>
+              <p className="text-[11px] text-gray mt-1 leading-4">
+                {t('Bóc tách nội dung thành tối đa {0} đoạn tri thức độc lập phục vụ rà soát.', [maxChunks])}
+              </p>
+            </div>
+
+            <div className="p-3 bg-surface-hover/50 rounded-lg border border-border/70">
+              <div className="text-[11px] font-medium text-gray uppercase tracking-wider mb-1">
+                {t('Quy tắc xử lý tệp')}
+              </div>
+              <div className="text-sm font-semibold text-text">
+                {t('Text Layer · Không OCR')}
+              </div>
+              <p className="text-[11px] text-gray mt-1 leading-4">
+                {t('Phiên xem trước được lưu tạm trên máy chủ. Chưa xác nhận sẽ không tạo hồ sơ DRAFT.')}
+              </p>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      {/* CLIENT VALIDATION ERROR */}
       {clientError && (
-        <div className="rounded-xl border border-coral/40 bg-coral/10 p-4 text-coral dark:bg-coral/20 text-sm flex items-start gap-3">
-          <span className="material-symbols-outlined text-xl shrink-0 mt-0.5">error</span>
+        <div
+          data-testid="client-validation-error"
+          className="rounded-xl border border-red-200 bg-red-50/80 p-4 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300 text-sm flex items-start gap-3"
+        >
+          <span className="material-symbols-outlined text-xl text-red-600 shrink-0 mt-0.5">error</span>
           <div>
             <p className="font-semibold">{t('Lỗi tệp tài liệu')}</p>
             <p className="mt-0.5 text-xs opacity-95">{clientError}</p>
@@ -406,16 +546,19 @@ export default function ImportUploadStep({
         </div>
       )}
 
-      {/* Server error banner */}
+      {/* SERVER ERROR BANNER (Specimen Board B) */}
       {serverError && (
-        <div className="rounded-2xl border border-coral/40 bg-coral/10 p-4 text-coral dark:bg-coral/20 text-sm space-y-2">
+        <div
+          data-testid="server-error-banner"
+          className="rounded-xl border border-red-200 bg-red-50/80 p-4 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300 text-sm space-y-2.5"
+        >
           <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-xl shrink-0 mt-0.5">error</span>
+            <span className="material-symbols-outlined text-xl text-red-600 shrink-0 mt-0.5">error</span>
             <div className="space-y-1">
               <p className="font-bold flex items-center gap-2">
                 <span>{serverError.error} ({serverError.status})</span>
                 {serverError.code && (
-                  <span className="rounded bg-coral/20 px-1.5 py-0.5 text-[10px] font-mono font-normal">
+                  <span className="rounded bg-red-200/60 dark:bg-red-900/60 px-1.5 py-0.5 text-[10px] font-mono font-normal">
                     {serverError.code}
                   </span>
                 )}
@@ -424,31 +567,31 @@ export default function ImportUploadStep({
             </div>
           </div>
 
-          {/* Specific Timeout Recovery */}
+          {/* Specific Timeout Recovery (Board G) */}
           {serverError.code === 'request_timeout' && (
-            <div className="mt-3 pt-3 border-t border-coral/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="mt-3 pt-3 border-t border-red-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <span className="text-xs text-text">
                 {t('Máy chủ có thể vẫn đang xử lý hoặc đã tạo phiên làm việc.')}
               </span>
               <button
                 type="button"
                 onClick={onOpenSessions}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-coral/50 bg-bg px-3.5 py-1.5 text-xs font-semibold text-text shadow-sm hover:bg-coral/20 transition-colors shrink-0"
+                className="h-9 min-h-[36px] px-3.5 rounded-lg border border-red-300 bg-surface text-text font-semibold text-xs inline-flex items-center gap-1.5 shadow-xs hover:bg-surface-hover transition-colors cursor-pointer shrink-0"
               >
                 <span className="material-symbols-outlined text-sm">history</span>
-                {t('Kiểm tra Phiên chờ xác nhận')}
+                <span>{t('Kiểm tra Phiên chờ xác nhận')}</span>
               </button>
             </div>
           )}
 
-          {/* Specific OCR Required Notice */}
+          {/* Specific PDF No Text / OCR Required Notice */}
           {serverError.code === 'pdf_no_text' && (
-            <div className="mt-2 rounded-xl border border-coral/30 bg-bg p-3 text-xs text-text">
-              <p className="font-semibold text-coral flex items-center gap-1.5">
+            <div className="mt-2 rounded-lg border border-red-300/60 bg-surface p-3 text-xs text-text space-y-1">
+              <p className="font-semibold text-red-700 flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-base">info</span>
-                {t('Lưu ý quan trọng về tài liệu PDF dạng quét (Scanned/Image PDF)')}
+                <span>{t('Lưu ý quan trọng về tài liệu PDF dạng quét (Scanned/Image PDF)')}</span>
               </p>
-              <p className="mt-1 text-gray leading-relaxed">
+              <p className="text-gray leading-relaxed">
                 {t('Hệ thống tuân thủ chính sách bảo mật nội bộ và không tự động gửi tài liệu tới dịch vụ OCR đám mây bên thứ ba. Vui lòng sử dụng phần mềm nhận dạng ký tự quang học (OCR) trên máy để chuyển tệp sang văn bản số trước khi tải lên.')}
               </p>
             </div>

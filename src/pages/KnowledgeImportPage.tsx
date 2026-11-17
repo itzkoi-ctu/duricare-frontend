@@ -344,41 +344,174 @@ export default function KnowledgeImportPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Header & Breadcrumb */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+    <div className="space-y-6 max-w-[1216px] w-full mx-auto">
+      {/* Top Header & Breadcrumb & Right Action */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b border-border pb-4">
         <div>
-          <div className="flex items-center gap-2 text-xs text-gray mb-1">
-            <Link to="/knowledge/sources" className="hover:text-text transition-colors">
+          <nav className="flex items-center gap-2 text-xs text-gray mb-1 select-none">
+            <Link to="/knowledge/sources" className="hover:text-navy dark:hover:text-blue transition-colors">
               {t('Nguồn tri thức')}
             </Link>
-            <span>/</span>
-            <span className="text-text font-semibold">{t('Nhập tài liệu tự động')}</span>
+            <span className="material-symbols-outlined text-[14px] text-gray/60">chevron_right</span>
+            <span className="text-text font-medium">{t('Nhập tài liệu')}</span>
+            {activeSession && (
+              <>
+                <span className="material-symbols-outlined text-[14px] text-gray/60">chevron_right</span>
+                <span className="text-text font-semibold">{t('Rà soát')}</span>
+              </>
+            )}
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-text tracking-tight flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-navy dark:text-blue text-2xl">
+                {activeSession ? 'rate_review' : 'upload_file'}
+              </span>
+              {activeSession ? t('Rà soát tài liệu') : t('Nhập tài liệu')}
+            </h1>
+            {activeSession ? (
+              <span
+                className="h-[24px] rounded-[6px] text-[12px] px-2.5 py-0.5 bg-blue/10 text-navy dark:bg-blue/20 dark:text-blue border border-blue/30 font-semibold inline-flex items-center whitespace-nowrap shrink-0"
+                style={{ height: '24px', minHeight: '24px', borderRadius: '6px', fontSize: '12px', lineHeight: '16px' }}
+              >
+                {t('Giai đoạn chuẩn bị dữ liệu')}
+              </span>
+            ) : (
+              <p className="text-xs text-gray hidden sm:block">
+                {t('Chuyển tài liệu thành bản nháp để rà soát và thẩm định.')}
+              </p>
+            )}
           </div>
-          <h1 className="text-xl md:text-2xl font-bold text-text flex items-center gap-2">
-            <span className="material-symbols-outlined text-navy dark:text-blue text-2xl">
-              upload_file
-            </span>
-            {t('Nhập tài liệu tri thức (Document Import)')}
-          </h1>
         </div>
 
-        {/* Header Right Action */}
-        <div className="flex items-center gap-2">
+        {/* Top Right Action (44px target) */}
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setIsSessionsModalOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-text shadow-sm hover:bg-border/30 transition-colors"
+            className="h-11 min-h-[44px] px-4 rounded-lg border border-border bg-surface text-text hover:bg-border/30 text-sm font-semibold transition-colors flex items-center gap-2 shadow-xs focus:outline-none focus:ring-2 focus:ring-navy/20 dark:focus:ring-blue/30"
           >
-            <span className="material-symbols-outlined text-base text-gray">history</span>
-            {t('Phiên chờ xác nhận')}
+            <span className="material-symbols-outlined text-[18px] text-gray">history</span>
+            <span>{t('Phiên nhập của tôi')}</span>
           </button>
         </div>
       </div>
 
+      {/* 3-Stage Progress Stepper */}
+      {!activeSession ? (
+        <>
+          {/* Desktop Stepper */}
+          <div className="hidden lg:block bg-surface border border-border rounded-xl px-5 py-3 shadow-xs select-none">
+            <div className="flex items-center justify-between text-xs">
+              {/* Stage 1 (Active) */}
+              <div className="flex items-center gap-2.5 font-semibold text-navy dark:text-blue">
+                <span className="w-6 h-6 rounded-full bg-navy dark:bg-blue text-white flex items-center justify-center text-xs font-bold">
+                  1
+                </span>
+                <span>{t('Tải tài liệu')}</span>
+              </div>
+              <div className="flex-1 mx-4 h-px bg-border/60" />
+              {/* Stage 2 (Pending) */}
+              <div className="flex items-center gap-2.5 font-medium text-gray">
+                <span className="w-6 h-6 rounded-full bg-border/40 text-gray border border-border flex items-center justify-center text-xs">
+                  2
+                </span>
+                <span>{t('Rà soát nội dung')}</span>
+              </div>
+              <div className="flex-1 mx-4 h-px bg-border/60" />
+              {/* Stage 3 (Pending) */}
+              <div className="flex items-center gap-2.5 font-medium text-gray">
+                <span className="w-6 h-6 rounded-full bg-border/40 text-gray border border-border flex items-center justify-center text-xs">
+                  3
+                </span>
+                <span>{t('Tạo bản nháp')}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Stepper Indicator (matching upload-mobile.html) */}
+          <div className="lg:hidden space-y-2 select-none">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue/10 border border-blue/20 text-navy dark:text-blue text-xs font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-navy dark:bg-blue"></span>
+                <span>{t('Bước 1/3 · Tải tài liệu')}</span>
+              </span>
+              <span className="text-xs text-gray">{t('Bước 1 / 3')}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="h-1 rounded-full bg-navy dark:bg-blue"></div>
+              <div className="h-1 rounded-full bg-border"></div>
+              <div className="h-1 rounded-full bg-border"></div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Desktop Stepper */}
+          <div className="hidden lg:block bg-surface rounded-xl border border-border p-4 shadow-xs select-none">
+            <div className="grid grid-cols-3 gap-4">
+              {/* Step 1: Completed */}
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-forest text-white flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-[18px]">check</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-semibold text-forest uppercase tracking-wide">
+                    {t('Bước 1 · Đã hoàn thành')}
+                  </span>
+                  <span className="text-sm font-semibold text-text">{t('Tải tài liệu')}</span>
+                </div>
+              </div>
+
+              {/* Step 2: Active Highlighted */}
+              <div className="flex items-center gap-3 bg-blue/10 dark:bg-blue/20 rounded-lg p-2 px-3 border border-blue/30">
+                <div className="w-8 h-8 rounded-full bg-navy dark:bg-blue text-white flex items-center justify-center shrink-0 font-bold text-sm">
+                  2
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-bold text-navy dark:text-blue uppercase tracking-wide">
+                    {t('Bước 2 · Đang thực hiện')}
+                  </span>
+                  <span className="text-sm font-bold text-text">{t('Rà soát nội dung')}</span>
+                </div>
+              </div>
+
+              {/* Step 3: Pending */}
+              <div className="flex items-center gap-3 opacity-60">
+                <div className="w-8 h-8 rounded-full bg-border/50 text-gray flex items-center justify-center shrink-0 font-bold text-sm">
+                  3
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-medium text-gray uppercase tracking-wide">
+                    {t('Bước 3 · Chờ xử lý')}
+                  </span>
+                  <span className="text-sm font-medium text-gray">{t('Tạo bản nháp')}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Stepper Indicator (matching workspace-mobile.html) */}
+          <div className="lg:hidden space-y-2 select-none">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue/10 border border-blue/20 text-navy dark:text-blue text-xs font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-navy dark:bg-blue"></span>
+                <span>{t('Bước 2/3 · Rà soát tài liệu')}</span>
+              </span>
+              <span className="text-xs text-gray">{t('Bước 2 / 3')}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="h-1 rounded-full bg-navy dark:bg-blue"></div>
+              <div className="h-1 rounded-full bg-navy dark:bg-blue"></div>
+              <div className="h-1 rounded-full bg-border"></div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Capabilities Loading / Error Banner */}
       {loadingCapabilities && (
-        <div className="rounded-xl border border-border bg-card p-4 text-center text-xs text-gray">
+        <div className="rounded-xl border border-border bg-surface p-4 text-center text-xs text-gray">
           <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-navy border-t-transparent dark:border-blue dark:border-t-transparent mr-2 align-middle" />
           {t('Đang kiểm tra khả năng hỗ trợ nhập tài liệu...')}
         </div>
@@ -411,79 +544,134 @@ export default function KnowledgeImportPage() {
         />
       ) : (
         <div className="space-y-6">
-          {/* Active Session Status Bar */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between shadow-sm">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="material-symbols-outlined text-2xl text-navy dark:text-blue shrink-0">
-                description
-              </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-text truncate max-w-md">
-                    {activeSession.file.displayName}
-                  </p>
-                  <span className="rounded-full bg-navy/15 text-navy dark:bg-blue/20 dark:text-blue px-2 py-0.5 text-[10px] font-bold">
-                    v{activeSession.version}
+          {/* Active Session Status Bar & Disclosure */}
+          <div className="rounded-xl border border-border bg-surface p-3.5 shadow-xs space-y-2.5">
+            <div className="flex items-start md:items-center justify-between gap-3 flex-wrap">
+              {/* File Details & Metadata */}
+              <div className="flex items-center gap-3 flex-wrap min-w-0 flex-1">
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
+                    activeSession.file.displayName.toLowerCase().endsWith('.pdf')
+                      ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:border-red-800'
+                      : 'bg-sky-50 text-sky-600 border-sky-200 dark:bg-sky-950/30 dark:border-sky-800'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    {activeSession.file.displayName.toLowerCase().endsWith('.pdf')
+                      ? 'picture_as_pdf'
+                      : 'description'}
                   </span>
                 </div>
-                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray">
-                  <span>{formatBytes(activeSession.file.bytes)}</span>
-                  <span>•</span>
-                  <span>
+                <div className="flex items-center gap-2 text-sm flex-wrap min-w-0">
+                  <span className="font-bold text-text tracking-tight truncate max-w-[200px] sm:max-w-xs md:max-w-md" title={activeSession.file.displayName}>
+                    {activeSession.file.displayName}
+                  </span>
+                  <span className="text-gray/40">·</span>
+                  <span className="text-gray font-mono text-xs tabular-nums">
+                    {formatBytes(activeSession.file.bytes)}
+                  </span>
+                  <span className="text-gray/40">·</span>
+                  <span className="text-gray text-xs tabular-nums">
                     {activeSession.extraction?.counters.utf16Units.toLocaleString()} {t('ký tự')}
                   </span>
-                  <span>•</span>
-                  <span className="font-semibold text-amber">
-                    {t('Hết hạn sau:')} {formatTimeRemaining(activeSession.expiresAt).text}
+                  {activeSession.extraction?.counters.pages && activeSession.extraction.counters.pages > 0 && (
+                    <>
+                      <span className="text-gray/40">·</span>
+                      <span className="text-gray text-xs tabular-nums">
+                        {activeSession.extraction.counters.pages} {t('trang')}
+                      </span>
+                    </>
+                  )}
+                  <span className="text-gray/40">·</span>
+                  {/* Amber countdown badge (24px height, 6px radius) */}
+                  <span className="h-6 px-2.5 rounded-[6px] text-xs font-medium bg-amber/15 text-amber border border-amber/30 inline-flex items-center gap-1 tabular-nums whitespace-nowrap shrink-0">
+                    <span className="material-symbols-outlined text-[13px]">timer</span>
+                    {t('Còn')} {formatTimeRemaining(activeSession.expiresAt).text}
                   </span>
                 </div>
               </div>
-            </div>
 
-            {/* View Mode Toggle (Mobile / Tablet) & Cancel */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center rounded-xl bg-bg p-1 border border-border lg:hidden">
+              {/* Actions */}
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Cancel Button (44px touch target) */}
                 <button
                   type="button"
-                  onClick={() => setViewTab('editor')}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
-                    viewTab === 'editor'
-                      ? 'bg-card text-text shadow-sm'
-                      : 'text-gray hover:text-text'
-                  }`}
+                  data-testid="cancel-active-session-button"
+                  onClick={handleCancelSession}
+                  disabled={cancellingSession}
+                  className="h-11 min-h-[44px] px-3.5 rounded-lg border border-coral/30 bg-coral/10 hover:bg-coral/20 text-coral font-medium text-xs flex items-center gap-1.5 transition-colors disabled:opacity-40 shrink-0"
                 >
-                  {t('Biên tập mảnh')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewTab('extraction')}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
-                    viewTab === 'extraction'
-                      ? 'bg-card text-text shadow-sm'
-                      : 'text-gray hover:text-text'
-                  }`}
-                >
-                  {t('Xem văn bản gốc')}
+                  <span className="material-symbols-outlined text-base">close</span>
+                  <span>{t('Hủy phiên')}</span>
                 </button>
               </div>
-
-              <button
-                type="button"
-                onClick={handleCancelSession}
-                disabled={cancellingSession}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-bg px-3 py-1.5 text-xs font-semibold text-coral hover:bg-coral/10 hover:border-coral/40 transition-colors disabled:opacity-40"
-              >
-                <span className="material-symbols-outlined text-sm">close</span>
-                {t('Hủy phiên')}
-              </button>
             </div>
+
+            {/* Collapsible Session Technical Details */}
+            <details className="group border-t border-border/80 pt-2">
+              <summary className="text-xs text-gray hover:text-text cursor-pointer flex items-center gap-1 py-1 select-none">
+                <span className="material-symbols-outlined text-sm">info</span>
+                <span>{t('Chi tiết phiên kỹ thuật')}</span>
+                <span className="material-symbols-outlined text-sm group-open:rotate-180 transition-transform">
+                  keyboard_arrow_down
+                </span>
+              </summary>
+              <div className="mt-2 p-3 rounded-lg bg-bg border border-border text-[11px] font-mono text-gray space-y-1">
+                <div className="flex justify-between">
+                  <span>{t('Mã phiên (Import ID):')}</span>
+                  <span className="font-semibold text-text">{activeSession.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>{t('Phiên bản (Version):')}</span>
+                  <span className="font-semibold text-text">v{activeSession.version}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>{t('Trình bóc tách (Parser):')}</span>
+                  <span className="font-semibold text-text">{activeSession.extraction?.parser || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>{t('Loại MIME:')}</span>
+                  <span className="font-semibold text-text">{activeSession.file.mediaType}</span>
+                </div>
+              </div>
+            </details>
           </div>
 
-          {/* Main Workspace Grid */}
-          <div className="grid gap-6 lg:grid-cols-12">
+          {/* MOBILE SEGMENTED TABS (Biên tập / Văn bản gốc) 44px (matching workspace-mobile.html) */}
+          <div className="grid grid-cols-2 gap-1 bg-surface-hover/80 p-1 rounded-lg border border-border lg:hidden select-none">
+            <button
+              type="button"
+              data-testid="mobile-tab-view-editor"
+              onClick={() => setViewTab('editor')}
+              className={`h-11 min-h-[44px] rounded-md text-[13px] font-semibold flex items-center justify-center gap-1.5 transition ${
+                viewTab === 'editor'
+                  ? 'bg-surface text-navy dark:text-blue shadow-xs font-bold'
+                  : 'text-gray hover:text-text'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">edit_note</span>
+              <span>{t('Biên tập')}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="mobile-tab-view-extraction"
+              onClick={() => setViewTab('extraction')}
+              className={`h-11 min-h-[44px] rounded-md text-[13px] font-semibold flex items-center justify-center gap-1.5 transition ${
+                viewTab === 'extraction'
+                  ? 'bg-surface text-navy dark:text-blue shadow-xs font-bold'
+                  : 'text-gray hover:text-text'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">article</span>
+              <span>{t('Văn bản gốc')}</span>
+            </button>
+          </div>
+
+          {/* Main Workspace Grid: 5/12 Left (Raw text) vs 7/12 Right (Editor) */}
+          <div className="grid gap-6 lg:grid-cols-12 min-w-0">
             {/* Left / Secondary: Raw Extracted Text Panel */}
             <div
-              className={`lg:col-span-5 ${
+              className={`lg:col-span-5 min-w-0 ${
                 viewTab === 'extraction' ? 'block' : 'hidden lg:block'
               }`}
             >
@@ -497,7 +685,7 @@ export default function KnowledgeImportPage() {
 
             {/* Right / Primary: Metadata & Chunk Editor */}
             <div
-              className={`lg:col-span-7 ${
+              className={`lg:col-span-7 min-w-0 ${
                 viewTab === 'editor' ? 'block' : 'hidden lg:block'
               }`}
             >
