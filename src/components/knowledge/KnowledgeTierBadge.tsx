@@ -15,7 +15,7 @@ export default function KnowledgeTierBadge({ tier, showDesc = false }: Knowledge
   return (
     <div className="inline-flex items-center gap-1.5">
       <span
-        className={`inline-flex items-center px-2 py-0.5 rounded-md border text-xs ${config.badgeClass}`}
+        className={`inline-flex items-center h-6 min-h-[24px] px-2.5 rounded-[6px] border text-xs font-medium leading-none ${config.badgeClass}`}
       >
         {t(config.label)}
       </span>

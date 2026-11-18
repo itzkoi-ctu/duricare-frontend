@@ -41,6 +41,10 @@
 }
 
 /* Base styles */
+.text-\[16px\] {
+  font-size: 16px;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);

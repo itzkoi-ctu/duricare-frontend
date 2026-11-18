@@ -7,9 +7,14 @@ import type { NavigationItem } from '../../types/navigation';
 import { navigationForRole } from '../../utils/navigation';
 
 const DESKTOP_ACTIVE = {
-  navy: 'bg-[#1F5CA9]/10 text-[#1F5CA9] dark:bg-[#60A5FA]/15 dark:text-[#60A5FA] shadow-2xs font-semibold',
-  coral: 'bg-[#B91C1C]/10 text-[#B91C1C] dark:bg-[#F87171]/15 dark:text-[#F87171] shadow-2xs font-semibold',
-  teal: 'bg-[#1F5CA9]/10 text-[#1F5CA9] dark:bg-[#60A5FA]/15 dark:text-[#60A5FA] shadow-2xs font-semibold',
+  navy: 'bg-[#eff4ff] text-[#1f5ca9] border-l-[#1f5ca9] dark:bg-[#172c49] dark:text-[#60a5fa] dark:border-l-[#60a5fa] hover:bg-[#dce9ff] dark:hover:bg-[#1d385b] font-semibold',
+  coral: 'bg-[#fef2f2] text-[#b91c1c] border-l-[#b91c1c] dark:bg-[#451a1a] dark:text-[#f87171] dark:border-l-[#f87171] hover:bg-[#fee2e2] dark:hover:bg-[#5c2222] font-semibold',
+  teal: 'bg-[#eff4ff] text-[#1f5ca9] border-l-[#1f5ca9] dark:bg-[#172c49] dark:text-[#60a5fa] dark:border-l-[#60a5fa] hover:bg-[#dce9ff] dark:hover:bg-[#1d385b] font-semibold',
+};
+const DESKTOP_COLLAPSED_ACTIVE = {
+  navy: 'bg-[#eff4ff] text-[#1f5ca9] border-l-[#1f5ca9] dark:bg-[#172c49] dark:text-[#60a5fa] dark:border-l-[#60a5fa] hover:bg-[#dce9ff] dark:hover:bg-[#1d385b] font-semibold',
+  coral: 'bg-[#fef2f2] text-[#b91c1c] border-l-[#b91c1c] dark:bg-[#451a1a] dark:text-[#f87171] dark:border-l-[#f87171] hover:bg-[#fee2e2] dark:hover:bg-[#5c2222] font-semibold',
+  teal: 'bg-[#eff4ff] text-[#1f5ca9] border-l-[#1f5ca9] dark:bg-[#172c49] dark:text-[#60a5fa] dark:border-l-[#60a5fa] hover:bg-[#dce9ff] dark:hover:bg-[#1d385b] font-semibold',
 };
 const MOBILE_ACTIVE = {
   navy: 'text-[#1F5CA9] dark:text-[#60A5FA] font-bold',
@@ -81,11 +86,15 @@ export default function ShellNavigation({
           onClick={onNavigate}
           title={t(item.label)}
           aria-label={t(item.label)}
-          className={`relative flex items-center justify-center p-2.5 mx-auto rounded-xl text-sm font-semibold transition-all ${
-            active ? DESKTOP_ACTIVE[item.tone] : 'text-gray hover:bg-border/40 hover:text-text'
+          aria-current={active ? 'page' : undefined}
+          data-selected={active ? 'true' : undefined}
+          className={`relative flex items-center justify-center w-11 h-11 min-h-[44px] min-w-[44px] mx-auto border-l-4 rounded-lg text-sm transition-colors duration-120 motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0072a8] focus-visible:outline-offset-[3px] ${
+            active
+              ? DESKTOP_COLLAPSED_ACTIVE[item.tone]
+              : 'border-transparent text-[#64748b] dark:text-[#cbd5e1] hover:bg-[#e5eeff] hover:text-[#1e293b] dark:hover:bg-[#1e293b] dark:hover:text-[#f1f5f9]'
           }`}
         >
-          <span aria-hidden="true" className="material-symbols-outlined text-[22px]">
+          <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
             {item.icon}
           </span>
           {item.path === '/alerts' && totalAlerts > 0 && (
@@ -102,15 +111,19 @@ export default function ShellNavigation({
         key={item.path}
         to={target}
         onClick={onNavigate}
-        className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-          active ? DESKTOP_ACTIVE[item.tone] : 'text-gray hover:bg-border/30 hover:text-text'
+        aria-current={active ? 'page' : undefined}
+        data-selected={active ? 'true' : undefined}
+        className={`flex items-center justify-between min-h-[44px] h-11 px-3 py-2 border-l-4 rounded-lg text-sm transition-colors duration-120 motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0072a8] focus-visible:outline-offset-[3px] ${
+          active
+            ? DESKTOP_ACTIVE[item.tone]
+            : 'border-transparent text-[#64748b] dark:text-[#cbd5e1] hover:bg-[#e5eeff] hover:text-[#1e293b] dark:hover:bg-[#1e293b] dark:hover:text-[#f1f5f9] font-medium'
         }`}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
           <span aria-hidden="true" className="material-symbols-outlined text-[20px] shrink-0">
             {item.icon}
           </span>
-          <span className="truncate">{t(item.label)}</span>
+          <span className="truncate text-sm leading-[22px]">{t(item.label)}</span>
         </div>
         {item.path === '/alerts' && totalAlerts > 0 && (
           <span className="px-1.5 py-0.5 rounded-full bg-coral text-white text-[10px] font-bold leading-none shrink-0">
