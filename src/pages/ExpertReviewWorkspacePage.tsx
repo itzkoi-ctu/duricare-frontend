@@ -17,7 +17,7 @@ import KnowledgeTierBadge from '../components/knowledge/KnowledgeTierBadge';
 import ExpertDecisionConfirmModal from '../components/knowledge/ExpertDecisionConfirmModal';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
-import { SOURCE_TYPE_CONFIG, TOPIC_CONFIG, GROWTH_STAGE_CONFIG, TIER_CONFIG } from '../utils/governanceStatus';
+import { SOURCE_TYPE_CONFIG, TOPIC_CONFIG, GROWTH_STAGE_CONFIG } from '../utils/governanceStatus';
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
@@ -58,9 +58,41 @@ export default function ExpertReviewWorkspacePage() {
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [mustVerifyReload, setMustVerifyReload] = useState(false);
+  const [isVerifyingReload, setIsVerifyingReload] = useState(false);
+  const [verifyReloadError, setVerifyReloadError] = useState<string | null>(null);
+  const [openChunkIds, setOpenChunkIds] = useState<Set<string>>(() => new Set());
 
+  const toggleChunk = (chunkId: string) => {
+    setOpenChunkIds(prev => {
+      const next = new Set(prev);
+      if (next.has(chunkId)) {
+        next.delete(chunkId);
+      } else {
+        next.add(chunkId);
+      }
+      return next;
+    });
+  };
+
+  const isMountedRef = useRef<boolean>(true);
   const activeRequestRef = useRef<AbortController | null>(null);
+  const activeReadbackRequestRef = useRef<AbortController | null>(null);
   const loadedAssignmentIdRef = useRef<string | null>(null);
+  const currentRouteAssignmentIdRef = useRef<string | undefined>(assignmentId);
+  const readbackSeqRef = useRef<number>(0);
+
+  useEffect(() => {
+    currentRouteAssignmentIdRef.current = assignmentId;
+  }, [assignmentId]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      activeRequestRef.current?.abort();
+      activeReadbackRequestRef.current?.abort();
+    };
+  }, []);
 
   const resetDecisionForm = useCallback((proposedTier?: Tier | null) => {
     setChunkComments({});
@@ -74,18 +106,88 @@ export default function ExpertReviewWorkspacePage() {
     setReason('');
     setIsConfirmModalOpen(false);
     setMustVerifyReload(false);
+    setVerifyReloadError(null);
   }, []);
 
-  // When assignmentId route parameter changes, immediately clear form state to avoid cross-task leakage
+  // When assignmentId route parameter changes, abort lingering readbacks and clear form state to avoid cross-task leakage
   useEffect(() => {
+    activeReadbackRequestRef.current?.abort();
     resetDecisionForm();
   }, [assignmentId, resetDecisionForm]);
+
+  // Dedicated verification readback fenced against route/task identity changes (R1)
+  const handleVerificationReadback = useCallback(async (): Promise<AssignmentDetail> => {
+    if (!assignmentId) {
+      throw new Error('No assignmentId available');
+    }
+
+    const targetAssignmentId = assignmentId;
+    readbackSeqRef.current += 1;
+    const currentSeq = readbackSeqRef.current;
+
+    if (activeReadbackRequestRef.current) {
+      activeReadbackRequestRef.current.abort();
+    }
+    const controller = new AbortController();
+    activeReadbackRequestRef.current = controller;
+
+    const isStale = () => {
+      return (
+        !isMountedRef.current ||
+        controller.signal.aborted ||
+        currentSeq !== readbackSeqRef.current ||
+        currentRouteAssignmentIdRef.current !== targetAssignmentId ||
+        loadedAssignmentIdRef.current !== targetAssignmentId
+      );
+    };
+
+    setIsVerifyingReload(true);
+    setVerifyReloadError(null);
+
+    try {
+      const data = await getReviewDetail(targetAssignmentId, controller.signal);
+
+      // If route or assignment identity changed while in flight, completely discard result
+      if (isStale()) {
+        return data;
+      }
+
+      // Reject/ignore unexpected foreign assignment without resetting current form or retargeting workspace
+      if (data.id !== targetAssignmentId) {
+        throw new Error('Received mismatched assignment data from server');
+      }
+
+      setAssignment(data);
+      if (data.status === 'ACTIVE') {
+        setMustVerifyReload(false);
+      } else if (data.status === 'COMPLETED' || data.status === 'CANCELLED') {
+        setMustVerifyReload(false);
+        setIsConfirmModalOpen(false);
+      }
+
+      return data;
+    } catch (err: unknown) {
+      if (isStale()) {
+        return undefined as unknown as AssignmentDetail;
+      }
+      const parsed = parseGovernanceError(err, t('Không thể tải lại dữ liệu từ máy chủ.'));
+      setVerifyReloadError(parsed.message);
+      throw err;
+    } finally {
+      if (!isStale()) {
+        setIsVerifyingReload(false);
+      }
+    }
+  }, [assignmentId]);
 
   const loadData = useCallback(async (preserveDraftState = false) => {
     if (!assignmentId) return;
 
     if (activeRequestRef.current) {
       activeRequestRef.current.abort();
+    }
+    if (activeReadbackRequestRef.current) {
+      activeReadbackRequestRef.current.abort();
     }
     const controller = new AbortController();
     activeRequestRef.current = controller;
@@ -100,6 +202,15 @@ export default function ExpertReviewWorkspacePage() {
         setAssignment(data);
         const isDifferentAssignment = loadedAssignmentIdRef.current !== data.id;
         loadedAssignmentIdRef.current = data.id;
+
+        if (data.revision?.chunks?.length > 0) {
+          setOpenChunkIds(prev => {
+            if (prev.size === 0 || isDifferentAssignment) {
+              return new Set([data.revision.chunks[0].chunkId]);
+            }
+            return prev;
+          });
+        }
 
         if (isDifferentAssignment || !preserveDraftState) {
           resetDecisionForm(data.revision?.metadata?.proposedTier);
@@ -250,45 +361,52 @@ export default function ExpertReviewWorkspacePage() {
   return (
     <div className="space-y-6">
       {/* Top Header & Navigation */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b border-border pb-4">
+      <div className="flex flex-col gap-3">
         <div>
           <Link
             to={user?.role === 'ADMIN' ? '/settings/knowledge' : '/knowledge/reviews'}
             data-testid="back-to-queue-link"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray hover:text-text mb-2 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0072a8] dark:text-[#38bdf8] hover:underline transition-all"
           >
-            <span aria-hidden="true" className="material-symbols-outlined text-base">
+            <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
               arrow_back
             </span>
             <span>
-              {user?.role === 'ADMIN' ? t('Quay lại hàng đợi điều phối') : t('Quay lại danh sách thẩm định')}
+              {user?.role === 'ADMIN' ? t('Quay lại hàng đợi điều phối') : t('Quay lại Nhiệm vụ thẩm định')}
             </span>
           </Link>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-xl md:text-2xl font-bold text-text [overflow-wrap:anywhere]">
-              {meta.title}
-            </h1>
-            <AssignmentStatusBadge status={assignment.status} size="sm" />
-          </div>
-          <div className="flex items-center gap-3 mt-2 text-xs text-gray font-mono flex-wrap">
-            <span>Assignment: {assignment.id.slice(0, 8)}... (v{assignment.version})</span>
-            <span>•</span>
-            <span>Rev #{revision.revisionNumber} (v{revision.version})</span>
-            <span>•</span>
-            <span>{t('Giao ngày')}: {formatDate(assignment.assignedAt)}</span>
-          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => loadData(false)}
-          title={t('Tải lại dữ liệu')}
-          className="w-10 h-10 flex items-center justify-center rounded-xl border border-border bg-surface text-gray hover:text-text hover:bg-bg cursor-pointer transition-colors shadow-2xs self-start sm:self-auto shrink-0"
-        >
-          <span aria-hidden="true" className="material-symbols-outlined text-lg">
-            refresh
-          </span>
-        </button>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mt-1">
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-[24px] leading-8 font-bold text-text tracking-tight [overflow-wrap:anywhere]">
+                {meta.title}
+              </h1>
+              <AssignmentStatusBadge status={assignment.status} size="sm" />
+              {assignment.status === 'COMPLETED' && decision?.assessedTier && (
+                <KnowledgeTierBadge tier={decision.assessedTier} />
+              )}
+            </div>
+            <p className="text-sm text-gray mt-1 [overflow-wrap:anywhere]">
+              {meta.provenanceNotes || t('Quy trình canh tác chuẩn hóa theo Tiêu chuẩn Nông nghiệp Tốt (VietGAP) áp dụng cho sầu riêng ĐBSCL')}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => loadData(false)}
+              title={t('Tải lại dữ liệu')}
+              className="h-11 px-4 border border-border bg-surface hover:bg-bg rounded-lg text-text text-sm font-medium flex items-center gap-2 shrink-0 transition-colors shadow-sm cursor-pointer"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-gray">
+                refresh
+              </span>
+              <span>{t('Làm mới')}</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Role / Status Banners */}
@@ -325,562 +443,657 @@ export default function ExpertReviewWorkspacePage() {
         </div>
       )}
 
-      {/* Assignment Context Banner */}
-      <div className="p-4 rounded-2xl border border-border bg-surface shadow-2xs space-y-2 text-xs">
-        <div className="flex items-center justify-between border-b border-border/70 pb-2">
-          <span className="font-semibold text-text flex items-center gap-1.5">
-            <span aria-hidden="true" className="material-symbols-outlined text-teal text-base">
-              assignment_ind
-            </span>
-            <span>{t('Thông tin phân công thẩm định')}</span>
+      {/* Compact Assignment Strip with Technical IDs & Source Metadata Disclosures (Default CLOSED) */}
+      <div className="bg-surface border border-border rounded-xl p-4 mt-3 shadow-sm space-y-3">
+        <div className="flex items-start gap-3">
+          <span aria-hidden="true" className="material-symbols-outlined text-[#1f5ca9] dark:text-[#60a5fa] text-[20px] mt-0.5 shrink-0">
+            assignment_ind
           </span>
-          <span className="text-gray">{t('Người thẩm định')}: <strong className="text-text">{assignment.reviewerDisplayName}</strong></span>
+          <div className="flex-1 text-sm text-text leading-relaxed">
+            <span className="font-semibold text-text">{t('Phân công thẩm định')}: </span>
+            <span>
+              {t('Được giao ngày')} <strong className="font-medium text-text">{formatDate(assignment.assignedAt)}</strong>
+              {assignment.assignedBy ? (
+                <> {t('bởi')} <strong className="font-medium text-text">{t('Quản trị viên #{0}', [assignment.assignedBy])}</strong></>
+              ) : null}.{' '}
+              <span className="text-gray">{t('Chuyên gia phụ trách')}: </span>
+              <strong className="font-medium text-[#1f5ca9] dark:text-[#60a5fa]">{assignment.reviewerDisplayName}</strong>.
+            </span>
+            <div className="text-gray mt-0.5">
+              <span className="font-medium text-text">{t('Yêu cầu')}: </span>
+              {assignment.assignmentReason}
+            </div>
+          </div>
         </div>
-        <div className="text-gray">
-          <span className="font-semibold text-text">{t('Chỉ đạo / Lý do phân công')}:</span> {assignment.assignmentReason}
+
+        {/* Collapsible 1: Technical IDs (CLOSED by default) */}
+        <div className="pt-2 border-t border-border/70">
+          <details className="group cursor-pointer">
+            <summary className="flex items-center justify-between text-[12px] font-medium text-gray hover:text-text select-none list-none py-1">
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="material-symbols-outlined text-[16px] text-gray/80">
+                  fingerprint
+                </span>
+                <span>{t('Thông số kỹ thuật & ID')}</span>
+              </span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-gray/80 transition-transform duration-200 group-open:rotate-180">
+                expand_more
+              </span>
+            </summary>
+            <div className="mt-2 pt-2 border-t border-border/70 grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12px] bg-bg/50 p-3 rounded-lg border border-border font-mono">
+              <div>
+                <span className="text-gray block font-sans">{t('Mã nhiệm vụ (ID)')}:</span>
+                <span className="text-text font-medium">{assignment.id}</span>
+              </div>
+              <div>
+                <span className="text-gray block font-sans">{t('Bản nộp nguồn')}:</span>
+                <span className="text-text font-medium">{revision.id} (v{revision.version})</span>
+              </div>
+              <div>
+                <span className="text-gray block font-sans">{t('Phiên bản phân công')}:</span>
+                <span className="text-text font-medium">v{assignment.version}</span>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        {/* Collapsible 2: Source Metadata Accordion (CLOSED by default) */}
+        <div className="pt-2 border-t border-border/70">
+          <details className="group cursor-pointer">
+            <summary className="flex items-center justify-between text-[12px] font-medium text-gray hover:text-text select-none list-none py-1">
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="material-symbols-outlined text-[16px] text-gray/80">
+                  auto_stories
+                </span>
+                <span>{t('Thông tin tài liệu nguồn & Xuất xứ (Tác giả, Nhà xuất bản, Năm phát hành)')}</span>
+              </span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-gray/80 transition-transform duration-200 group-open:rotate-180">
+                expand_more
+              </span>
+            </summary>
+            <div className="mt-2 pt-2 border-t border-border/70 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-[12px] bg-bg/50 p-3 rounded-lg border border-border">
+              <div>
+                <span className="text-gray block font-medium">{t('Tác giả biên soạn')}:</span>
+                <span className="text-text font-semibold [overflow-wrap:anywhere]">{meta.authors || '—'}</span>
+              </div>
+              <div>
+                <span className="text-gray block font-medium">{t('Đơn vị xuất bản')}:</span>
+                <span className="text-text font-semibold [overflow-wrap:anywhere]">{meta.publisher || '—'}</span>
+              </div>
+              <div>
+                <span className="text-gray block font-medium">{t('Loại nguồn')}:</span>
+                <span className="text-text font-semibold">{t(SOURCE_TYPE_CONFIG[meta.sourceType])}</span>
+              </div>
+              <div>
+                <span className="text-gray block font-medium">{t('Năm công bố')}:</span>
+                <span className="text-text font-semibold">{meta.year || '—'} {meta.edition ? `(${meta.edition})` : ''}</span>
+              </div>
+              {meta.sourceUrl && (
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <span className="text-gray block font-medium">{t('Đường dẫn trực tuyến')}:</span>
+                  <a href={meta.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[#0072a8] dark:text-[#38bdf8] font-medium hover:underline truncate block">
+                    {meta.sourceUrl}
+                  </a>
+                </div>
+              )}
+              {meta.evidenceReference && (
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <span className="text-gray block font-medium">{t('Căn cứ trích dẫn')}:</span>
+                  <span className="text-text leading-relaxed [overflow-wrap:anywhere]">{meta.evidenceReference}</span>
+                </div>
+              )}
+              {meta.provenanceNotes && (
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <span className="text-gray block font-medium">{t('Ghi chú xuất xứ')}:</span>
+                  <span className="text-text leading-relaxed [overflow-wrap:anywhere]">{meta.provenanceNotes}</span>
+                </div>
+              )}
+              {meta.proposedTier && (
+                <div className="sm:col-span-2 lg:col-span-4 border-t border-border pt-2 flex items-center gap-2">
+                  <span className="text-gray font-medium">{t('Tác giả đề xuất tầng')}:</span>
+                  <KnowledgeTierBadge tier={meta.proposedTier} showDesc />
+                </div>
+              )}
+            </div>
+          </details>
         </div>
       </div>
 
-      {/* Immutable Revision Metadata */}
-      <section
-        aria-label={t('Thông tin xuất bản')}
-        className="rounded-2xl border border-border bg-surface p-5 md:p-6 shadow-2xs space-y-4"
-      >
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <h2 className="text-sm font-bold text-text flex items-center gap-2">
-            <span aria-hidden="true" className="material-symbols-outlined text-teal text-lg">
-              menu_book
-            </span>
-            <span>{t('Hồ sơ xuất bản nguồn (Bản snapshot bất biến)')}</span>
-          </h2>
-          <span className="px-2 py-0.5 rounded bg-gray/10 text-gray text-xs font-mono">
-            DURI-1B-v1
-          </span>
-        </div>
-
-        <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-          <div>
-            <dt className="text-gray mb-1">{t('Tác giả')}</dt>
-            <dd className="font-semibold text-text [overflow-wrap:anywhere]">{meta.authors || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-gray mb-1">{t('Đơn vị xuất bản')}</dt>
-            <dd className="font-semibold text-text [overflow-wrap:anywhere]">{meta.publisher || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-gray mb-1">{t('Loại nguồn')}</dt>
-            <dd className="font-semibold text-text">
-              {t(SOURCE_TYPE_CONFIG[meta.sourceType])}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-gray mb-1">{t('Năm xuất bản')}</dt>
-            <dd className="font-semibold text-text">{meta.year || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-gray mb-1">{t('Phiên bản ấn phẩm')}</dt>
-            <dd className="font-semibold text-text">{meta.edition || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-gray mb-1">{t('Thời gian nộp')}</dt>
-            <dd className="font-semibold text-text font-mono">{formatDate(revision.submittedAt)}</dd>
-          </div>
-
-          {meta.sourceUrl && (
-            <div className="md:col-span-2 lg:col-span-3">
-              <dt className="text-gray mb-1">{t('Đường dẫn trực tuyến')}</dt>
-              <dd className="font-semibold text-navy dark:text-blue truncate">
-                <a
-                  href={meta.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:underline inline-flex items-center gap-1"
-                >
-                  <span className="truncate">{meta.sourceUrl}</span>
-                  <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
-                    open_in_new
-                  </span>
-                </a>
-              </dd>
-            </div>
-          )}
-
-          {meta.evidenceReference && (
-            <div className="md:col-span-2 lg:col-span-3">
-              <dt className="text-gray mb-1">{t('Căn cứ trích dẫn / Lưu trữ hiện vật')}</dt>
-              <dd className="text-text font-medium leading-relaxed [overflow-wrap:anywhere]">
-                {meta.evidenceReference}
-              </dd>
-            </div>
-          )}
-
-          {meta.provenanceNotes && (
-            <div className="md:col-span-2 lg:col-span-3">
-              <dt className="text-gray mb-1">{t('Ghi chú xuất xứ & phương pháp thu thập')}</dt>
-              <dd className="text-text font-medium leading-relaxed [overflow-wrap:anywhere] bg-bg/50 p-3 rounded-xl border border-border/80">
-                {meta.provenanceNotes}
-              </dd>
-            </div>
-          )}
-
-          {meta.proposedTier && (
-            <div className="md:col-span-2 lg:col-span-3 border-t border-border pt-3">
-              <div className="flex items-center gap-2 mb-1.5">
-                <dt className="text-gray">{t('Tác giả đề xuất tầng chất lượng')}:</dt>
-                <dd>
-                  <KnowledgeTierBadge tier={meta.proposedTier} showDesc />
-                </dd>
-              </div>
-              {meta.proposedTierRationale && (
-                <div className="text-xs text-text bg-bg/50 p-3 rounded-xl border border-border/80 mt-2">
-                  <p className="font-semibold mb-1 text-gray">{t('Căn cứ đề xuất của tác giả')}:</p>
-                  <p className="leading-relaxed [overflow-wrap:anywhere]">{meta.proposedTierRationale}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </dl>
-      </section>
-
-      {/* Chunks List (Immutable content + per-chunk comment box) */}
-      <section aria-label={t('Các đoạn trích kiến thức')} className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-text flex items-center gap-2">
-            <span aria-hidden="true" className="material-symbols-outlined text-teal text-lg">
-              segment
-            </span>
-            <span>{t('Các đoạn trích kiến thức cần thẩm định ({0})', [revision.chunks.length])}</span>
-          </h2>
-        </div>
-
-        {revision.chunks.map((c, idx) => (
-          <div
-            key={c.chunkId || `chunk-${idx}`}
-            className="rounded-2xl border border-border bg-surface p-5 md:p-6 shadow-2xs space-y-3.5"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/80 pb-3">
-              <div className="flex items-center gap-2.5">
-                <span className="w-6 h-6 rounded-full bg-navy text-surface dark:text-bg text-xs font-bold flex items-center justify-center shrink-0">
-                  {c.position + 1}
-                </span>
-                <h3 className="font-bold text-sm text-text [overflow-wrap:anywhere]">{c.title}</h3>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-md border border-teal/30 bg-teal/10 text-teal text-[11px] font-semibold">
-                  {t(TOPIC_CONFIG[c.topic])}
-                </span>
-                <span className="px-2.5 py-0.5 rounded-md border border-border bg-bg text-gray text-[11px] font-medium">
-                  {c.stage ? t(GROWTH_STAGE_CONFIG[c.stage]) : t('Áp dụng chung')}
-                </span>
-                {c.locator && (
-                  <span className="text-[11px] font-mono text-gray">
-                    📍 {c.locator}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Original Excerpt */}
-            {c.originalExcerpt && (
-              <div className="rounded-xl border border-border/70 bg-bg/50 p-3.5 text-xs text-text space-y-1">
-                <span className="font-semibold text-gray text-[11px] block">
-                  {t('Trích đoạn nguyên văn')}:
-                </span>
-                <p className="italic leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
-                  "{c.originalExcerpt}"
-                </p>
-              </div>
-            )}
-
-            {/* Content / Normalized Guidance */}
-            {c.content && (
-              <div className="text-xs text-text space-y-1">
-                <span className="font-semibold text-gray text-[11px] block">
-                  {t('Nội dung chuẩn hóa / Hướng dẫn')}:
-                </span>
-                <p className="leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
-                  {c.content}
-                </p>
-              </div>
-            )}
-
-            {/* Applicability & Measurement Notes */}
-            {(c.applicabilityNotes || c.measurementNotes) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-[11px] text-gray border-t border-border/60">
-                {c.applicabilityNotes && (
-                  <div>
-                    <strong className="text-text block mb-0.5">{t('Phạm vi áp dụng')}:</strong>
-                    <p className="[overflow-wrap:anywhere]">{c.applicabilityNotes}</p>
-                  </div>
-                )}
-                {c.measurementNotes && (
-                  <div>
-                    <strong className="text-text block mb-0.5">{t('Ghi chú đo lường')}:</strong>
-                    <p className="[overflow-wrap:anywhere]">{c.measurementNotes}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Chunk Comment Area (Only interactive for active reviewer) */}
-            {isActive && isAssignedExpert ? (
-              <div className="pt-2 border-t border-border/60 space-y-1 text-xs">
-                <label
-                  htmlFor={`chunk-comment-input-${c.chunkId}`}
-                  className="font-semibold text-gray block flex items-center gap-1.5"
-                >
-                  <span aria-hidden="true" className="material-symbols-outlined text-sm text-teal">
-                    comment
-                  </span>
-                  <span>{t('Góp ý chuyên môn cho đoạn trích này (không bắt buộc)')}:</span>
-                </label>
-                <textarea
-                  id={`chunk-comment-input-${c.chunkId}`}
-                  data-testid={`chunk-comment-input-${c.chunkId}`}
-                  rows={2}
-                  value={chunkComments[c.chunkId] || ''}
-                  onChange={e => handleChunkCommentChange(c.chunkId, e.target.value)}
-                  placeholder={t('Nhập nhận xét cụ thể nếu cần tác giả chỉnh sửa lại đoạn trích này...')}
-                  className="w-full rounded-xl border border-border bg-bg p-2.5 text-xs text-text placeholder:text-gray/60 focus:outline-none focus:border-teal"
-                />
-              </div>
-            ) : null}
-          </div>
-        ))}
-      </section>
-
-      {/* Completed Decision View */}
-      {isCompleted && decision && (
-        <section
-          data-testid="completed-decision-card"
-          aria-label={t('Quyết định thẩm định đã ban hành')}
-          className="rounded-2xl border border-teal/40 bg-surface p-5 md:p-6 shadow-2xs space-y-4"
-        >
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <div className="flex items-center gap-2">
-              <span aria-hidden="true" className="material-symbols-outlined text-teal text-2xl">
-                verified
-              </span>
-              <h2 className="text-base font-bold text-text">
-                {t('Quyết định thẩm định đã hoàn thành')}
-              </h2>
-            </div>
-            <DecisionOutcomeBadge outcome={decision.outcome} />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+      {/* TWO COLUMN OPERATIONAL LAYOUT (65% / 35%) */}
+      <div className="workspace-layout grid grid-cols-1 lg:grid-cols-[minmax(0,13fr)_minmax(0,7fr)] gap-6 mt-6 items-start">
+        {/* LEFT COLUMN: Reading & Chunk Review (65%) */}
+        <section className="w-full reading-column flex flex-col gap-4">
+          <div className="flex items-center justify-between pb-1 border-b border-border">
             <div>
-              <span className="text-gray block mb-1">{t('Ngày thẩm định')}:</span>
-              <span className="font-semibold text-text font-mono">{formatDate(decision.decidedAt)}</span>
+              <h2 className="text-base font-semibold text-text">
+                {t('Các đoạn tri thức cần thẩm định ({0} đoạn)', [revision.chunks.length])}
+              </h2>
+              <p className="text-xs text-gray">
+                {t('Đối chiếu nội dung chuẩn hóa với trích đoạn tài liệu gốc')}
+              </p>
             </div>
-
-            {decision.assessedTier && (
-              <div>
-                <span className="text-gray block mb-1">{t('Tầng tri thức được xác nhận')}:</span>
-                <KnowledgeTierBadge tier={decision.assessedTier} showDesc />
-              </div>
-            )}
-
-            <div className="md:col-span-2">
-              <span className="text-gray block mb-1 font-semibold">{t('Nhận xét chuyên môn')}:</span>
-              <div className="p-3.5 rounded-xl bg-bg border border-border text-text leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
-                {decision.reason}
-              </div>
-            </div>
-
-            {decision.tierRationale && (
-              <div className="md:col-span-2">
-                <span className="text-gray block mb-1 font-semibold">{t('Căn cứ xếp tầng tri thức')}:</span>
-                <div className="p-3 rounded-xl bg-bg border border-border text-text text-[11px] leading-relaxed [overflow-wrap:anywhere]">
-                  {decision.tierRationale}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Professional Decision Workspace Form (ACTIVE EXPERT only) */}
-      {isActive && isAssignedExpert && (
-        <section
-          data-testid="decision-form-section"
-          aria-label={t('Biểu mẫu quyết định thẩm định')}
-          className="rounded-2xl border border-teal/30 bg-surface p-5 md:p-6 shadow-2xs space-y-5"
-        >
-          <div className="border-b border-border pb-3">
-            <h2 className="text-base font-bold text-text flex items-center gap-2">
-              <span aria-hidden="true" className="material-symbols-outlined text-teal text-xl">
-                gavel
-              </span>
-              <span>{t('Biểu mẫu quyết định thẩm định chuyên môn')}</span>
-            </h2>
-            <p className="text-xs text-gray mt-1">
-              {t('Tuân thủ chính sách phân tầng DURI-1B-v1. Quyết định có tính bất biến và truy nguyên sau khi ban hành.')}
-            </p>
+            <span className="text-xs text-gray bg-surface border border-border px-2.5 py-1 rounded-md">
+              {t('Đối chiếu từng đoạn')}
+            </span>
           </div>
 
-          <div className="space-y-4 text-xs">
-            {/* Conflict of Interest Declaration */}
-            <div className="p-3.5 rounded-xl bg-bg border border-border space-y-2">
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  data-testid="conflict-of-interest-checkbox"
-                  checked={noConflictConfirmed}
-                  onChange={e => setNoConflictConfirmed(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-gray text-teal focus:ring-teal"
-                />
-                <span className="font-semibold text-text leading-snug">
-                  {t('Tôi cam đoan KHÔNG có xung đột lợi ích đối với hồ sơ này và không phải là tác giả hoặc đồng tác giả của tài liệu nguồn.')}
-                </span>
-              </label>
-              {!noConflictConfirmed && (
-                <p className="text-[11px] text-coral pl-6">
-                  {t('* Bắt buộc phải cam kết không có xung đột lợi ích để tiến hành ban hành quyết định.')}
-                </p>
-              )}
-            </div>
-
-            {/* Checklist */}
-            <div className="space-y-2 border-t border-border pt-3">
-              <span className="font-semibold text-gray block">{t('Danh mục kiểm tra chuyên môn (Bắt buộc với Phê duyệt)')}:</span>
-              <div className="space-y-2 pl-1">
-                <label className="flex items-center gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    data-testid="checklist-source"
-                    checked={checkedSource}
-                    onChange={e => setCheckedSource(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray text-teal focus:ring-teal"
-                  />
-                  <span className="text-text">{t('Đã đối chiếu tài liệu nguồn / chứng cứ xuất xứ rõ ràng.')}</span>
-                </label>
-
-                <label className="flex items-center gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    data-testid="checklist-faithfulness"
-                    checked={checkedFaithfulness}
-                    onChange={e => setCheckedFaithfulness(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray text-teal focus:ring-teal"
-                  />
-                  <span className="text-text">{t('Đã kiểm tra tính trung thực, không suy diễn hoặc cắt xén sai lệch.')}</span>
-                </label>
-
-                <label className="flex items-center gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    data-testid="checklist-applicability"
-                    checked={checkedApplicability}
-                    onChange={e => setCheckedApplicability(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray text-teal focus:ring-teal"
-                  />
-                  <span className="text-text">{t('Đã thẩm định phạm vi và điều kiện áp dụng thực tế trên sầu riêng.')}</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Decision Outcome Radio Group */}
-            <div className="space-y-2 border-t border-border pt-3">
-              <label className="font-semibold text-gray block">
-                {t('Kết luận thẩm định')} <span className="text-coral">*</span>
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {(['APPROVED', 'CHANGES_REQUESTED', 'REJECTED'] as const).map(opt => {
-                  const isSelected = outcome === opt;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      data-testid={`outcome-radio-${opt}`}
-                      onClick={() => {
-                        setOutcome(opt);
-                        if (opt === 'APPROVED' && assessedTier === 'UNKNOWN') {
-                          setAssessedTier('B');
-                        }
-                      }}
-                      className={`p-3 rounded-xl border transition-all text-left cursor-pointer flex items-center justify-between ${
-                        isSelected
-                          ? opt === 'APPROVED'
-                            ? 'border-teal bg-teal/10 shadow-xs'
-                            : opt === 'CHANGES_REQUESTED'
-                            ? 'border-amber bg-amber/10 shadow-xs'
-                            : 'border-coral bg-coral/10 shadow-xs'
-                          : 'border-border bg-surface hover:bg-bg'
-                      }`}
-                    >
-                      <div className="font-semibold">
-                        <DecisionOutcomeBadge outcome={opt} />
-                      </div>
-                      <span
-                        aria-hidden="true"
-                        className={`material-symbols-outlined text-lg ${
-                          isSelected ? 'text-teal' : 'text-gray/40'
-                        }`}
-                      >
-                        {isSelected ? 'radio_button_checked' : 'radio_button_unchecked'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Assessed Tier Selector */}
-            <div className="space-y-2 border-t border-border pt-3">
-              <label className="font-semibold text-gray block">
-                {t('Tầng tri thức được xác nhận (Chính sách DURI-1B-v1)')} <span className="text-coral">*</span>
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                {(['A', 'B', 'C', 'D', 'E', 'UNKNOWN'] as const).map(tKey => {
-                  const tConf = TIER_CONFIG[tKey];
-                  const isSelected = assessedTier === tKey;
-                  const isDisallowedForApproved = outcome === 'APPROVED' && tKey === 'UNKNOWN';
-
-                  return (
-                    <button
-                      key={tKey}
-                      type="button"
-                      data-testid={`tier-option-${tKey}`}
-                      disabled={isDisallowedForApproved}
-                      onClick={() => setAssessedTier(tKey)}
-                      className={`p-2.5 rounded-xl border text-left transition-all ${
-                        isDisallowedForApproved
-                          ? 'opacity-30 cursor-not-allowed bg-bg border-border'
-                          : isSelected
-                          ? 'border-teal bg-teal/10 shadow-xs cursor-pointer'
-                          : 'border-border bg-surface hover:bg-bg cursor-pointer'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-text">{t(tConf.label)}</span>
-                        {isSelected && (
-                          <span aria-hidden="true" className="material-symbols-outlined text-teal text-sm">
-                            check
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-gray leading-tight">{t(tConf.desc)}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Tier Rationale */}
-            {assessedTier !== 'UNKNOWN' && (
-              <div className="space-y-1">
-                <label htmlFor="tier-rationale-input" className="font-semibold text-gray block">
-                  {t('Căn cứ xếp tầng tri thức')} <span className="text-coral">*</span>
-                </label>
-                <textarea
-                  id="tier-rationale-input"
-                  data-testid="tier-rationale-input"
-                  rows={2}
-                  value={tierRationale}
-                  onChange={e => setTierRationale(e.target.value)}
-                  placeholder={t('Nêu rõ căn cứ xác nhận tầng (ví dụ: Quyết định ban hành số... của Cục Bảo vệ thực vật...)')}
-                  className="w-full rounded-xl border border-border bg-bg p-3 text-xs text-text placeholder:text-gray/60 focus:outline-none focus:border-teal"
-                />
-                <div className="flex items-center justify-between text-[11px] text-gray">
-                  <span>{t('Tối thiểu 3 ký tự, tối đa 4000 ký tự.')}</span>
-                  <span className={trimmedTierRationale.length > 4000 ? 'text-coral font-bold' : ''}>
-                    {trimmedTierRationale.length}/4000
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Decision Reason */}
-            <div className="space-y-1">
-              <label htmlFor="decision-reason-input" className="font-semibold text-gray block">
-                {t('Nhận xét chuyên môn / Lý do quyết định')} <span className="text-coral">*</span>
-              </label>
-              <textarea
-                id="decision-reason-input"
-                data-testid="decision-reason-input"
-                rows={4}
-                value={reason}
-                onChange={e => setReason(e.target.value)}
-                placeholder={t('Nhận xét tổng quan về tính khoa học, độ tin cậy và khả năng áp dụng của tài liệu nguồn...')}
-                className="w-full rounded-xl border border-border bg-bg p-3 text-xs text-text placeholder:text-gray/60 focus:outline-none focus:border-teal"
-              />
-              <div className="flex items-center justify-between text-[11px] text-gray">
-                <span>{t('Tối thiểu 3 ký tự, tối đa 4000 ký tự.')}</span>
-                <span className={trimmedReason.length > 4000 ? 'text-coral font-bold' : ''}>
-                  {trimmedReason.length}/4000
-                </span>
-              </div>
-            </div>
-
-            {/* Indeterminate Outcome Warning Banner */}
-            {mustVerifyReload && (
-              <div
-                data-testid="decision-indeterminate-warning"
-                className="p-4 rounded-xl border border-amber/40 bg-amber/10 text-amber text-xs space-y-2"
-              >
-                <div className="font-bold flex items-center gap-1.5">
-                  <span aria-hidden="true" className="material-symbols-outlined text-base">
-                    warning
-                  </span>
-                  <span>{t('Kết quả thao tác trước đó chưa xác định')}</span>
-                </div>
-                <p className="text-[11px] text-text/80 leading-relaxed">
-                  {t(
-                    'Đã xảy ra xung đột phiên bản hoặc gián đoạn mạng khi gửi quyết định. Bạn cần tải lại dữ liệu để xác minh trạng thái nhiệm vụ trước khi ban hành.'
-                  )}
-                </p>
-                <button
-                  type="button"
-                  data-testid="workspace-verify-reload-button"
-                  onClick={() => loadData(true)}
-                  disabled={loading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber text-surface dark:text-bg font-semibold hover:opacity-90 cursor-pointer text-xs"
+          {revision.chunks.map((c, idx) => {
+            const isOpen = openChunkIds.has(c.chunkId);
+            if (!isOpen) {
+              return (
+                <article
+                  key={c.chunkId || `chunk-${idx}`}
+                  onClick={() => toggleChunk(c.chunkId)}
+                  className="h-14 px-6 flex items-center justify-between bg-surface border border-border rounded-xl cursor-pointer hover:bg-bg transition-colors shadow-sm select-none"
                 >
-                  <span aria-hidden="true" className="material-symbols-outlined text-sm">
-                    refresh
-                  </span>
-                  <span>{t('Tải lại dữ liệu và đồng bộ phiên bản')}</span>
-                </button>
-              </div>
-            )}
+                  <div className="flex items-center gap-3 truncate">
+                    <span className="w-6 h-6 rounded bg-bg text-gray text-xs font-bold flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </span>
+                    <span className="text-sm font-semibold text-text truncate">
+                      {c.title}
+                    </span>
+                    {c.locator && (
+                      <>
+                        <span className="text-gray/60 text-xs shrink-0">·</span>
+                        <span className="text-xs text-gray shrink-0">{c.locator}</span>
+                      </>
+                    )}
+                    <span className="text-gray/60 text-xs shrink-0">·</span>
+                    <span className="text-xs text-gray shrink-0">{t(TOPIC_CONFIG[c.topic])}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[#0072a8] dark:text-[#38bdf8] text-xs font-medium shrink-0 ml-4">
+                    <span>{t('Mở xem')}</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                      expand_more
+                    </span>
+                  </div>
+                </article>
+              );
+            }
 
-            {/* Form Validation Errors Box */}
-            {formValidationErrors.length > 0 && (
-              <div className="p-3.5 rounded-xl border border-coral/30 bg-coral/10 text-coral space-y-1 text-xs">
-                <span className="font-bold flex items-center gap-1">
-                  <span aria-hidden="true" className="material-symbols-outlined text-sm">
-                    info
-                  </span>
-                  <span>{t('Vui lòng hoàn thiện các yêu cầu sau trước khi ban hành')}:</span>
-                </span>
-                <ul className="list-disc list-inside text-[11px] pl-1 space-y-0.5">
-                  {formValidationErrors.map((msg, i) => (
-                    <li key={i}>{msg}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Submit Action */}
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-              <button
-                type="button"
-                data-testid="open-decision-confirm-button"
-                disabled={!isDecisionFormValid || mustVerifyReload}
-                onClick={() => setIsConfirmModalOpen(true)}
-                className="px-5 py-2.5 rounded-xl bg-teal text-surface dark:text-bg text-xs font-semibold hover:opacity-95 disabled:opacity-40 cursor-pointer shadow-xs inline-flex items-center gap-2"
+            return (
+              <article
+                key={c.chunkId || `chunk-${idx}`}
+                className="bg-surface border border-border rounded-xl p-6 shadow-sm space-y-4"
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-base">
-                  verified
-                </span>
-                <span>{t('Ban hành quyết định thẩm định')}</span>
-              </button>
-            </div>
-          </div>
+                <div className="flex items-start justify-between pb-4 border-b border-border">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded bg-[#1f5ca9] text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <h3 className="text-base font-semibold text-text [overflow-wrap:anywhere]">
+                        {c.title}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="inline-flex items-center h-6 px-2 rounded-md bg-[#eff4ff] border border-[#d6e3ff] text-[#1f5ca9] dark:bg-[#172c49] dark:text-[#60a5fa] dark:border-[#1e40af] text-[11px] font-medium">
+                        {t('Chủ đề')}: {t(TOPIC_CONFIG[c.topic])}
+                      </span>
+                      <span className="inline-flex items-center h-6 px-2 rounded-md bg-[#eff4ff] border border-[#d6e3ff] text-[#1f5ca9] dark:bg-[#172c49] dark:text-[#60a5fa] dark:border-[#1e40af] text-[11px] font-medium">
+                        {t('Giai đoạn')}: {c.stage ? t(GROWTH_STAGE_CONFIG[c.stage]) : t('Áp dụng chung')}
+                      </span>
+                      {c.locator && (
+                        <span className="inline-flex items-center h-6 px-2 rounded-md bg-bg border border-border text-gray text-[11px] font-medium font-mono">
+                          {c.locator}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleChunk(c.chunkId)}
+                    className="text-xs text-gray hover:text-text font-medium bg-bg border border-border px-2.5 py-1 rounded-md transition-colors cursor-pointer shrink-0"
+                  >
+                    {t('Thu gọn')}
+                  </button>
+                </div>
+
+                {/* Block A: Standardized Technical Content */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[13px] font-semibold text-text flex items-center gap-1.5">
+                      <span aria-hidden="true" className="material-symbols-outlined text-[16px] text-[#1f5ca9] dark:text-[#60a5fa]">
+                        psychology
+                      </span>
+                      <span>{t('Nội dung chuẩn hóa kỹ thuật')}</span>
+                    </label>
+                    <span className="text-[11px] text-gray">{t('Cấu trúc lưu vào Cơ sở Tri thức')}</span>
+                  </div>
+                  <div className="bg-bg/60 p-4 rounded-lg border border-border text-sm text-text leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
+                    {c.content || '—'}
+                  </div>
+                </div>
+
+                {/* Block B: Exact Excerpt from Original Source */}
+                {c.originalExcerpt && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[13px] font-semibold text-gray flex items-center gap-1.5">
+                        <span aria-hidden="true" className="material-symbols-outlined text-[16px] text-gray">
+                          article
+                        </span>
+                        <span>{t('Trích đoạn tài liệu gốc (Exact Excerpt)')}</span>
+                      </label>
+                      <span className="text-[11px] text-gray">{t('Đoạn gốc')}</span>
+                    </div>
+                    <div className="bg-surface p-4 rounded-lg border border-border text-xs text-gray font-mono leading-relaxed bg-bg/30 whitespace-pre-wrap [overflow-wrap:anywhere]">
+                      "{c.originalExcerpt}"
+                    </div>
+                  </div>
+                )}
+
+                {/* Field Notes (Applicability & Measurement) */}
+                {(c.applicabilityNotes || c.measurementNotes) && (
+                  <div className="bg-[#f0f7fa] dark:bg-[#112438] border border-[#bae6fd] dark:border-[#1e40af] p-3.5 rounded-lg flex items-start gap-2.5 text-xs text-[#004a68] dark:text-[#93c5fd]">
+                    <span aria-hidden="true" className="material-symbols-outlined text-[#0072a8] dark:text-[#38bdf8] text-[18px] mt-0.5 shrink-0">
+                      info
+                    </span>
+                    <div className="leading-relaxed space-y-1">
+                      {c.applicabilityNotes && (
+                        <div>
+                          <strong className="font-semibold">{t('Phạm vi áp dụng')}: </strong>
+                          <span>{c.applicabilityNotes}</span>
+                        </div>
+                      )}
+                      {c.measurementNotes && (
+                        <div>
+                          <strong className="font-semibold">{t('Ghi chú đo lường')}: </strong>
+                          <span>{c.measurementNotes}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Per-chunk comment textarea */}
+                {isActive && isAssignedExpert && (
+                  <div className="pt-2">
+                    <label
+                      htmlFor={`chunk-comment-input-${c.chunkId}`}
+                      className="block text-[13px] font-medium text-text mb-1.5"
+                    >
+                      {t('Nhận xét đoạn này (Tùy chọn)')}
+                    </label>
+                    <textarea
+                      id={`chunk-comment-input-${c.chunkId}`}
+                      data-testid={`chunk-comment-input-${c.chunkId}`}
+                      rows={3}
+                      value={chunkComments[c.chunkId] || ''}
+                      onChange={e => handleChunkCommentChange(c.chunkId, e.target.value)}
+                      placeholder={t('Nhập ghi chú hoặc góp ý chi tiết cho đoạn trích này...')}
+                      className="w-full min-h-[72px] border border-border rounded-lg p-3 text-[16px] sm:text-sm text-text placeholder:text-gray/60 focus:border-[#0072a8] focus:ring-2 focus:ring-[#00afef]/25 transition-all outline-none bg-surface"
+                    />
+                  </div>
+                )}
+              </article>
+            );
+          })}
         </section>
-      )}
+
+        {/* RIGHT COLUMN: Decision Form / Completed Card (35%) */}
+        <aside className="w-full">
+          <div className="bg-surface border border-border rounded-xl p-6 shadow-sm lg:sticky lg:top-24 space-y-5">
+            {/* Card Title */}
+            <div className="border-b border-border pb-4">
+              <h2 className="text-[18px] leading-6 font-bold text-text">
+                {t('Quyết định thẩm định')}
+              </h2>
+              <p className="text-xs text-gray mt-0.5">
+                {isCompleted ? t('Kết quả đã được ghi nhận vào nhật ký kiểm toán') : t('Dành cho Chuyên gia phụ trách hồ sơ')}
+              </p>
+            </div>
+
+            {/* Completed Decision View */}
+            {isCompleted && decision && (
+              <div data-testid="completed-decision-card" className="space-y-4 text-xs">
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <span className="text-gray">{t('Kết luận thẩm định')}:</span>
+                  <DecisionOutcomeBadge outcome={decision.outcome} />
+                </div>
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <span className="text-gray">{t('Tầng tri thức được xác nhận')}:</span>
+                  {decision.assessedTier ? (
+                    <KnowledgeTierBadge tier={decision.assessedTier} showDesc />
+                  ) : (
+                    <span className="text-gray">—</span>
+                  )}
+                </div>
+                <div className="border-b border-border pb-3 space-y-1">
+                  <span className="text-gray font-semibold block">{t('Ngày ban hành')}:</span>
+                  <span className="font-mono text-text">{formatDate(decision.decidedAt)}</span>
+                </div>
+                <div className="border-b border-border pb-3 space-y-1">
+                  <span className="text-gray font-semibold block">{t('Lý do & Ý kiến thẩm định')}:</span>
+                  <p className="text-text leading-relaxed [overflow-wrap:anywhere]">{decision.reason}</p>
+                </div>
+                {decision.tierRationale && (
+                  <div className="border-b border-border pb-3 space-y-1">
+                    <span className="text-gray font-semibold block">{t('Căn cứ xếp tầng')}:</span>
+                    <p className="text-text leading-relaxed [overflow-wrap:anywhere] italic">"{decision.tierRationale}"</p>
+                  </div>
+                )}
+                {decision.chunkComments && decision.chunkComments.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-gray font-semibold block">
+                      {t('Góp ý chi tiết ({0} đoạn)', [decision.chunkComments.length])}:
+                    </span>
+                    <ul className="space-y-1 text-gray">
+                      {decision.chunkComments.map((cm, i) => (
+                        <li key={i} className="bg-bg/50 p-2 rounded border border-border [overflow-wrap:anywhere]">
+                          <strong className="text-text block mb-0.5">#{cm.chunkId}:</strong>
+                          {cm.comment}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Active Expert Form */}
+            {isActive && isAssignedExpert && (
+              <section data-testid="decision-form-section" aria-label={t('Biểu mẫu quyết định thẩm định')} className="space-y-4">
+                {/* 1. Cam kết & Tiêu chuẩn đánh giá */}
+                <div className="space-y-3">
+                  <div className="text-[12px] font-semibold text-gray uppercase tracking-wide">
+                    {t('1. Cam kết & Tiêu chuẩn đánh giá')}
+                  </div>
+                  <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-border bg-bg/50 cursor-pointer hover:bg-bg transition-colors">
+                    <input
+                      type="checkbox"
+                      data-testid="conflict-of-interest-checkbox"
+                      checked={noConflictConfirmed}
+                      onChange={e => setNoConflictConfirmed(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded text-[#1f5ca9] border-gray focus:ring-[#00afef]/30 focus:ring-offset-0"
+                    />
+                    <span className="text-[13px] font-medium text-text leading-tight">
+                      {t('Tôi cam đoan không có xung đột lợi ích và thực hiện thẩm định độc lập, khách quan.')}
+                    </span>
+                  </label>
+
+                  <div className="space-y-2 pl-1">
+                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        data-testid="checklist-source"
+                        checked={checkedSource}
+                        onChange={e => setCheckedSource(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded text-[#1f5ca9] border-gray focus:ring-[#00afef]/30 focus:ring-offset-0"
+                      />
+                      <span className="text-xs text-text leading-tight">
+                        <strong className="font-semibold text-text">{t('Đối chiếu tài liệu nguồn')}: </strong>
+                        {t('Đã kiểm tra tính xác thực từ bản gốc.')}
+                      </span>
+                    </label>
+
+                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        data-testid="checklist-faithfulness"
+                        checked={checkedFaithfulness}
+                        onChange={e => setCheckedFaithfulness(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded text-[#1f5ca9] border-gray focus:ring-[#00afef]/30 focus:ring-offset-0"
+                      />
+                      <span className="text-xs text-text leading-tight">
+                        <strong className="font-semibold text-text">{t('Trung thực trích đoạn')}: </strong>
+                        {t('Nội dung phản ánh đúng dữ liệu khoa học.')}
+                      </span>
+                    </label>
+
+                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        data-testid="checklist-applicability"
+                        checked={checkedApplicability}
+                        onChange={e => setCheckedApplicability(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded text-[#1f5ca9] border-gray focus:ring-[#00afef]/30 focus:ring-offset-0"
+                      />
+                      <span className="text-xs text-text leading-tight">
+                        <strong className="font-semibold text-text">{t('Phạm vi áp dụng')}: </strong>
+                        {t('Phù hợp với điều kiện sinh thái canh tác sầu riêng.')}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 2. Kết luận thẩm định */}
+                <div className="space-y-2.5 pt-2 border-t border-border/70">
+                  <div className="text-[12px] font-semibold text-gray uppercase tracking-wide">
+                    {t('2. Kết luận thẩm định')} *
+                  </div>
+
+                  <label
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      outcome === 'APPROVED'
+                        ? 'border-[#bae6fd] bg-[#eff6ff] dark:bg-[#172c49] dark:border-[#1e40af]'
+                        : 'border-border bg-surface hover:bg-bg'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="evaluation_conclusion"
+                      data-testid="outcome-radio-APPROVED"
+                      checked={outcome === 'APPROVED'}
+                      onChange={() => {
+                        setOutcome('APPROVED');
+                        if (assessedTier === 'UNKNOWN') setAssessedTier('B');
+                      }}
+                      className="mt-1 h-4 w-4 text-[#1f5ca9] border-gray focus:ring-[#00afef]/30"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-[13px] font-semibold text-text leading-tight">
+                        {t('Phê duyệt hồ sơ')}
+                      </span>
+                      <span className="text-[11px] text-gray mt-0.5">
+                        {t('Quyết định chuyên môn; xuất bản RAG là bước riêng')}
+                      </span>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      outcome === 'CHANGES_REQUESTED'
+                        ? 'border-[#fde68a] bg-[#fefce8] dark:bg-[#382b0e] dark:border-[#854d0e]'
+                        : 'border-border bg-surface hover:bg-bg'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="evaluation_conclusion"
+                      data-testid="outcome-radio-CHANGES_REQUESTED"
+                      checked={outcome === 'CHANGES_REQUESTED'}
+                      onChange={() => setOutcome('CHANGES_REQUESTED')}
+                      className="mt-1 h-4 w-4 text-[#1f5ca9] border-gray focus:ring-[#00afef]/30"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-[13px] font-semibold text-text leading-tight">
+                        {t('Yêu cầu chỉnh sửa')}
+                      </span>
+                      <span className="text-[11px] text-gray mt-0.5">
+                        {t('Yêu cầu biên tập viên bổ sung/sửa đổi')}
+                      </span>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      outcome === 'REJECTED'
+                        ? 'border-[#fecaca] bg-[#fef2f2] dark:bg-[#451a1a] dark:border-[#991b1b]'
+                        : 'border-border bg-surface hover:bg-bg'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="evaluation_conclusion"
+                      data-testid="outcome-radio-REJECTED"
+                      checked={outcome === 'REJECTED'}
+                      onChange={() => setOutcome('REJECTED')}
+                      className="mt-1 h-4 w-4 text-[#1f5ca9] border-gray focus:ring-[#00afef]/30"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-[13px] font-semibold text-coral leading-tight">
+                        {t('Từ chối hồ sơ')}
+                      </span>
+                      <span className="text-[11px] text-gray mt-0.5">
+                        {t('Không đạt tiêu chuẩn kỹ thuật hoặc sai lệch')}
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                {/* 3. Tầng tri thức đánh giá */}
+                <div className="pt-2 border-t border-border/70 space-y-1.5">
+                  <label className="block text-[13px] font-medium text-text" htmlFor="knowledge-tier-select">
+                    {t('3. Tầng tri thức đánh giá *')}
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="knowledge-tier-select"
+                      data-testid="knowledge-tier-select"
+                      value={assessedTier}
+                      onChange={e => setAssessedTier(e.target.value as Tier)}
+                      className="w-full h-11 border border-border rounded-lg px-3 pr-10 bg-surface text-sm text-text focus:border-[#0072a8] focus:ring-2 focus:ring-[#00afef]/25 transition-all outline-none appearance-none cursor-pointer"
+                    >
+                      <option value="A">{t('Tầng A — Văn bản cơ quan chuyên ngành / Nghiên cứu khoa học thẩm định')}</option>
+                      <option value="B">{t('Tầng B — Hướng dẫn kỹ thuật viện nghiên cứu / khuyến nông')}</option>
+                      <option value="C">{t('Tầng C — Quy trình hợp tác xã / tổ chức sản xuất có hồ sơ')}</option>
+                      <option value="D">{t('Tầng D — Tài liệu thương mại / nhà cung cấp có xuất xứ')}</option>
+                      <option value="E">{t('Tầng E — Kinh nghiệm / phỏng vấn thực địa có biên bản')}</option>
+                      <option value="UNKNOWN" disabled={outcome === 'APPROVED'}>
+                        {t('Chưa phân tầng — Chưa đủ bằng chứng xếp hạng')}
+                      </option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray">
+                      <span className="material-symbols-outlined text-[20px]">expand_more</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Căn cứ xếp tầng */}
+                {assessedTier !== 'UNKNOWN' && (
+                  <div className="pt-2 border-t border-border/70 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[13px] font-medium text-text" htmlFor="tier-rationale-input">
+                        {t('4. Căn cứ xếp tầng *')}
+                      </label>
+                      <span className={`text-[11px] font-mono ${trimmedTierRationale.length > 4000 ? 'text-coral font-bold' : 'text-gray'}`}>
+                        {trimmedTierRationale.length} / 4.000 ký tự
+                      </span>
+                    </div>
+                    <textarea
+                      id="tier-rationale-input"
+                      data-testid="tier-rationale-input"
+                      rows={2}
+                      value={tierRationale}
+                      onChange={e => setTierRationale(e.target.value)}
+                      placeholder={t('Nêu rõ cơ sở khoa học để xếp hồ sơ vào tầng tri thức đã chọn...')}
+                      className="w-full min-h-[64px] border border-border rounded-lg p-2.5 text-[16px] sm:text-sm text-text placeholder:text-gray/60 focus:border-[#0072a8] focus:ring-2 focus:ring-[#00afef]/25 transition-all outline-none bg-surface"
+                    />
+                  </div>
+                )}
+
+                {/* 5. Lý do & Ý kiến thẩm định */}
+                <div className="pt-2 border-t border-border/70 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[13px] font-medium text-text" htmlFor="decision-reason-input">
+                      {t('5. Lý do & Ý kiến thẩm định *')}
+                    </label>
+                    <span className={`text-[11px] font-mono ${trimmedReason.length > 4000 ? 'text-coral font-bold' : 'text-gray'}`}>
+                      {trimmedReason.length} / 4.000 ký tự
+                    </span>
+                  </div>
+                  <textarea
+                    id="decision-reason-input"
+                    data-testid="decision-reason-input"
+                    rows={3}
+                    value={reason}
+                    onChange={e => setReason(e.target.value)}
+                    placeholder={t('Nhập đánh giá tổng thể, căn cứ chuyên môn kỹ thuật hoặc nội dung cần chỉnh sửa...')}
+                    className="w-full min-h-[80px] border border-border rounded-lg p-2.5 text-[16px] sm:text-sm text-text placeholder:text-gray/60 focus:border-[#0072a8] focus:ring-2 focus:ring-[#00afef]/25 transition-all outline-none bg-surface"
+                  />
+                </div>
+
+                {/* Indeterminate Warning */}
+                {mustVerifyReload && (
+                  <div
+                    data-testid="decision-indeterminate-warning"
+                    className="p-3.5 rounded-lg border border-amber/40 bg-amber/10 text-amber text-xs space-y-2"
+                  >
+                    <div className="font-bold flex items-center gap-1.5">
+                      <span aria-hidden="true" className="material-symbols-outlined text-base">
+                        warning
+                      </span>
+                      <span>{t('Kết quả thao tác trước đó chưa xác định')}</span>
+                    </div>
+                    <p className="text-[11px] text-text/80 leading-relaxed">
+                      {t('Đã xảy ra xung đột phiên bản hoặc gián đoạn mạng. Cần tải lại dữ liệu để xác minh trạng thái.')}
+                    </p>
+                    {verifyReloadError && (
+                      <p className="text-[11px] text-coral font-medium">
+                        {verifyReloadError}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      data-testid="workspace-verify-reload-button"
+                      onClick={() => handleVerificationReadback()}
+                      disabled={isVerifyingReload}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-surface dark:text-bg font-semibold hover:opacity-90 cursor-pointer text-xs"
+                    >
+                      <span aria-hidden="true" className={`material-symbols-outlined text-sm ${isVerifyingReload ? 'animate-spin' : ''}`}>
+                        refresh
+                      </span>
+                      <span>{isVerifyingReload ? t('Đang tải lại dữ liệu...') : t('Tải lại dữ liệu và đồng bộ phiên bản')}</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Validation Errors Box */}
+                {formValidationErrors.length > 0 && (
+                  <div className="p-3 rounded-lg border border-coral/30 bg-coral/10 text-coral space-y-1 text-xs">
+                    <span className="font-semibold block">{t('Vui lòng hoàn thiện yêu cầu')}:</span>
+                    <ul className="list-disc list-inside text-[11px] space-y-0.5">
+                      {formValidationErrors.map((msg, i) => (
+                        <li key={i}>{msg}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Section 6: Action & Status */}
+                <div className="pt-3 border-t border-border space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray">{t('Trạng thái thao tác')}:</span>
+                    <span className="flex items-center gap-1.5 text-gray font-medium">
+                      <span className="w-2 h-2 rounded-full bg-gray/60"></span>
+                      <span>{t('Chưa gửi quyết định')}</span>
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    data-testid="open-decision-confirm-button"
+                    data-preview-cta="true"
+                    disabled={!isDecisionFormValid || mustVerifyReload}
+                    onClick={() => setIsConfirmModalOpen(true)}
+                    className="h-11 w-full bg-[#1f5ca9] hover:bg-[#184988] text-white font-medium rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed"
+                  >
+                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                      task_alt
+                    </span>
+                    <span>{t('Kiểm tra và xác nhận')}</span>
+                  </button>
+                  <p className="text-[11px] text-gray text-center leading-relaxed">
+                    {t('Nhấn nút để mở bước xác nhận cuối cùng trước khi chuyển trạng thái hồ sơ.')}
+                  </p>
+                </div>
+              </section>
+            )}
+          </div>
+        </aside>
+      </div>
 
       {/* Confirmation Modal */}
       {isConfirmModalOpen && assignment && assignment.id === assignmentId && (
@@ -890,7 +1103,7 @@ export default function ExpertReviewWorkspacePage() {
           isOpen={isConfirmModalOpen}
           onClose={() => setIsConfirmModalOpen(false)}
           onSuccess={handleDecisionSuccess}
-          onReload={() => loadData(true)}
+          onReload={handleVerificationReadback}
           mustVerifyReload={mustVerifyReload}
           onIndeterminateError={() => setMustVerifyReload(true)}
         />
