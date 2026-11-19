@@ -332,42 +332,44 @@ export default function PublishRevisionModal({
           {indeterminateLock && (
             <div
               data-testid="indeterminate-alert-banner"
-              className="p-4 rounded-xl border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs space-y-2"
+              className="p-4 rounded-xl border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs space-y-2.5"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-1.5 font-bold">
-                  <span aria-hidden="true" className="material-symbols-outlined text-base text-amber-600">
-                    sync_problem
-                  </span>
-                  <span>{t('Thao tác trước đó gặp sự cố mạng hoặc thời gian chờ (timeout). Trạng thái máy chủ chưa xác định.')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {onVerifyReceipt && (
-                    <button
-                      type="button"
-                      data-testid="verify-receipt-button"
-                      onClick={onVerifyReceipt}
-                      className="px-3 py-1 rounded-lg bg-[#1f5ca9] text-white font-semibold cursor-pointer shrink-0 text-xs"
-                    >
-                      {t('Xác minh biên nhận')}
-                    </button>
-                  )}
-                  {onReloadHead && (
-                    <button
-                      type="button"
-                      data-testid="publish-reload-head-button"
-                      onClick={handleReloadHead}
-                      disabled={isReloading}
-                      className="px-3 py-1 rounded-lg bg-amber-200 hover:bg-amber-300 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 font-semibold cursor-pointer shrink-0 disabled:opacity-50 text-xs"
-                    >
-                      {isReloading ? t('Đang tải...') : t('Tải lại head')}
-                    </button>
-                  )}
+              <div className="flex items-start gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-amber-600 shrink-0 mt-0.5">
+                  sync_problem
+                </span>
+                <div className="space-y-1.5 min-w-0 flex-1">
+                  <div className="font-bold text-xs text-amber-900 dark:text-amber-200 leading-snug">
+                    {t('Thao tác trước đó gặp sự cố mạng hoặc thời gian chờ (timeout). Trạng thái máy chủ chưa xác định.')}
+                  </div>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                    {t('Mã yêu cầu (RequestId) và nội dung lý do được giữ nguyên. Vui lòng xác minh biên nhận hoặc tải lại head để kiểm tra trước khi thao tác tiếp.')}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {onVerifyReceipt && (
+                      <button
+                        type="button"
+                        data-testid="verify-receipt-button"
+                        onClick={onVerifyReceipt}
+                        className="h-8 min-h-[32px] px-3 rounded-lg bg-[#1f5ca9] hover:bg-[#184986] text-white text-xs font-semibold cursor-pointer shrink-0 transition-colors"
+                      >
+                        {t('Xác minh biên nhận')}
+                      </button>
+                    )}
+                    {onReloadHead && (
+                      <button
+                        type="button"
+                        data-testid="publish-reload-head-button"
+                        onClick={handleReloadHead}
+                        disabled={isReloading}
+                        className="h-8 min-h-[32px] px-3 rounded-lg bg-amber-200 hover:bg-amber-300 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 text-xs font-semibold cursor-pointer shrink-0 disabled:opacity-50 transition-colors"
+                      >
+                        {isReloading ? t('Đang tải...') : t('Tải lại head')}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-              <p className="text-[11px] text-amber-800 dark:text-amber-300">
-                {t('Mã yêu cầu (RequestId) và nội dung lý do được giữ nguyên. Vui lòng xác minh biên nhận hoặc tải lại head để kiểm tra trước khi thao tác tiếp.')}
-              </p>
             </div>
           )}
 
@@ -472,10 +474,11 @@ export default function PublishRevisionModal({
           <button
             type="submit"
             form="publish-revision-form"
-            data-testid="confirm-publish-button"
+            data-testid="publish-submit-button"
             disabled={!canSubmit}
-            className="h-11 px-6 rounded-lg text-sm font-medium bg-[#1f5ca9] hover:bg-[#184988] text-white transition shadow-xs disabled:bg-[#1f5ca9]/40 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            className="relative h-11 px-6 rounded-lg text-sm font-medium bg-[#1f5ca9] hover:bg-[#184988] text-white transition shadow-xs disabled:bg-[#1f5ca9]/40 disabled:cursor-not-allowed inline-flex items-center gap-2 cursor-pointer"
           >
+            <span data-testid="confirm-publish-button" className="absolute inset-0 pointer-events-none" aria-hidden="true" />
             {isSubmitting ? (
               <>
                 <span aria-hidden="true" className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
