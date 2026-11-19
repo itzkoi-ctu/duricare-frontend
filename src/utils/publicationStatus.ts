@@ -9,15 +9,15 @@ export interface StatusConfig {
 
 export const PUBLICATION_STATUS_CONFIG: Record<PublicationStatus, StatusConfig> = {
   PENDING: {
-    labelVi: 'Chờ xuất bản',
+    labelVi: 'Chờ hoàn tất',
     labelEn: 'Pending',
-    classes: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60',
+    classes: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60',
     icon: 'hourglass_top',
   },
   ACTIVE: {
-    labelVi: 'Đang hoạt động trong RAG',
+    labelVi: 'Đang phục vụ RAG',
     labelEn: 'Active in RAG',
-    classes: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60',
+    classes: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60',
     icon: 'check_circle',
   },
   SUPERSEDED: {

@@ -643,7 +643,7 @@ export default function KnowledgeSourceDetailPage() {
             </span>
           </div>
           <span className="text-[11px] text-gray hidden sm:inline">
-            {t('Hồ sơ nguồn đã được thẩm định đạt tiêu chuẩn chuyên môn.')}
+            {t('Hồ sơ nguồn đã được phê duyệt thẩm định chuyên môn đạt tiêu chuẩn.')}
           </span>
         </div>
       )}

@@ -1,6 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import assert from 'assert';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT = path.resolve(__dirname, '..');
 
 console.log('================================================================');
 console.log('FE-RAG-PUB-001: RAG Publication UI Logic & Contract Verification');
@@ -22,7 +27,7 @@ function it(desc, fn) {
 }
 
 // 1. Verify src/types/publication.ts
-const pubTypesPath = path.join('src', 'types', 'publication.ts');
+const pubTypesPath = path.join(ROOT, 'src', 'types', 'publication.ts');
 const pubTypesContent = fs.readFileSync(pubTypesPath, 'utf8');
 
 it('types/publication.ts defines PublicationStatus with exact contract values', () => {
@@ -105,7 +110,7 @@ it('types/publication.ts defines PublicationError and FieldError envelope', () =
 });
 
 // 2. Verify src/api/publication.ts
-const apiPath = path.join('src', 'api', 'publication.ts');
+const apiPath = path.join(ROOT, 'src', 'api', 'publication.ts');
 const apiContent = fs.readFileSync(apiPath, 'utf8');
 
 it('api/publication.ts implements all 11 frozen contract routes', () => {
@@ -134,7 +139,7 @@ it('api/publication.ts parses 400, 403, 404, 409, 413, 503, 500 error codes', ()
 });
 
 // 3. Verify Components
-const pubBadgePath = path.join('src', 'components', 'knowledge', 'publication', 'PublicationStatusBadge.tsx');
+const pubBadgePath = path.join(ROOT, 'src', 'components', 'knowledge', 'publication', 'PublicationStatusBadge.tsx');
 const pubBadgeContent = fs.readFileSync(pubBadgePath, 'utf8');
 
 it('PublicationStatusBadge supports all publication statuses with distinct styling', () => {
@@ -142,7 +147,7 @@ it('PublicationStatusBadge supports all publication statuses with distinct styli
   assert(pubBadgeContent.includes('publication-status-badge-'));
 });
 
-const publishModalPath = path.join('src', 'components', 'knowledge', 'publication', 'PublishRevisionModal.tsx');
+const publishModalPath = path.join(ROOT, 'src', 'components', 'knowledge', 'publication', 'PublishRevisionModal.tsx');
 const publishModalContent = fs.readFileSync(publishModalPath, 'utf8');
 
 it('PublishRevisionModal implements disclosureConfirmed, requestId preservation, chunk preflight, and 409 conflict guard', () => {
@@ -161,7 +166,7 @@ it('PublishRevisionModal implements disclosureConfirmed, requestId preservation,
   assert(publishModalContent.includes('revision.chunks.length === 0'));
 });
 
-const revokeModalPath = path.join('src', 'components', 'knowledge', 'publication', 'RevokePublicationModal.tsx');
+const revokeModalPath = path.join(ROOT, 'src', 'components', 'knowledge', 'publication', 'RevokePublicationModal.tsx');
 const revokeModalContent = fs.readFileSync(revokeModalPath, 'utf8');
 
 it('RevokePublicationModal implements reason validation, head reload recovery, 409 conflict guard, and indeterminate lock', () => {
@@ -175,7 +180,7 @@ it('RevokePublicationModal implements reason validation, head reload recovery, 4
   assert(revokeModalContent.includes('indeterminateLock'));
 });
 
-const retryModalPath = path.join('src', 'components', 'knowledge', 'publication', 'RetryPublicationModal.tsx');
+const retryModalPath = path.join(ROOT, 'src', 'components', 'knowledge', 'publication', 'RetryPublicationModal.tsx');
 const retryModalContent = fs.readFileSync(retryModalPath, 'utf8');
 
 it('RetryPublicationModal supports INDEX and CLEANUP jobs with reload recovery and 409 conflict guard', () => {
@@ -188,7 +193,7 @@ it('RetryPublicationModal supports INDEX and CLEANUP jobs with reload recovery a
   assert(retryModalContent.includes('indeterminateLock'));
 });
 
-const pubDetailModalPath = path.join('src', 'components', 'knowledge', 'publication', 'PublicationDetailModal.tsx');
+const pubDetailModalPath = path.join(ROOT, 'src', 'components', 'knowledge', 'publication', 'PublicationDetailModal.tsx');
 const pubDetailModalContent = fs.readFileSync(pubDetailModalPath, 'utf8');
 
 it('PublicationDetailModal renders Manifest, Fingerprint, Jobs, Runs, and Audit Events with race condition guards', () => {
@@ -203,7 +208,7 @@ it('PublicationDetailModal renders Manifest, Fingerprint, Jobs, Runs, and Audit 
   assert(pubDetailModalContent.includes('eventsSessionRef'));
 });
 
-const headCardPath = path.join('src', 'components', 'knowledge', 'publication', 'PublicationHeadCard.tsx');
+const headCardPath = path.join(ROOT, 'src', 'components', 'knowledge', 'publication', 'PublicationHeadCard.tsx');
 const headCardContent = fs.readFileSync(headCardPath, 'utf8');
 
 it('PublicationHeadCard separates review state from publication state and binds modals', () => {
@@ -218,7 +223,7 @@ it('PublicationHeadCard separates review state from publication state and binds 
   assert(headCardContent.includes('handleVerifyReceipt'));
 });
 
-const pubTabPath = path.join('src', 'components', 'knowledge', 'publication', 'AdminPublicationsTab.tsx');
+const pubTabPath = path.join(ROOT, 'src', 'components', 'knowledge', 'publication', 'AdminPublicationsTab.tsx');
 const pubTabContent = fs.readFileSync(pubTabPath, 'utf8');
 
 it('AdminPublicationsTab queries listPublications with status filters, pagination and detail inspection', () => {
@@ -253,8 +258,30 @@ it('AdminPublicationsTab guards handleVerifyReceipt and onReloadHead against lat
   assert(pubTabContent.includes('capturedTargetId'));
 });
 
+it('PublicationDetailModal strictly separates audit events error from empty state and adheres to Stitch footer layout', () => {
+  assert(pubDetailModalContent.includes('events-error-banner'));
+  assert(pubDetailModalContent.includes('retry-events-button'));
+  assert(pubDetailModalContent.includes('events-empty-state'));
+  assert(pubDetailModalContent.includes('eventsLoaded'));
+  assert(pubDetailModalContent.includes('hidden md:block'));
+  assert(pubDetailModalContent.includes('order-1 md:order-2'));
+  assert(pubDetailModalContent.includes('order-2 md:order-1'));
+});
+
+it('AdminPublicationsTab and PublicationHeadCard strictly retain indeterminate lock when head is unchanged and receipt is 404', () => {
+  assert(pubTabContent.includes('isConfirmed'));
+  assert(pubTabContent.includes('freshHead.version > op.version'));
+  assert(pubTabContent.includes('freshHead.activePublicationId !== op.targetId'));
+  assert(pubTabContent.includes("detailRes.publication.status === 'REVOKED'"));
+  assert(pubTabContent.includes('freshHead.pendingPublicationId !== op.targetId'));
+  assert(headCardContent.includes('isConfirmed'));
+  assert(headCardContent.includes('freshHead.version > indeterminateOp.version'));
+  assert(headCardContent.includes("detailRes.publication.status === 'REVOKED'"));
+  assert(headCardContent.includes('freshHead.pendingPublicationId !== indeterminateOp.targetId'));
+});
+
 // 4. Verify Pages Integration
-const sourceDetailPagePath = path.join('src', 'pages', 'KnowledgeSourceDetailPage.tsx');
+const sourceDetailPagePath = path.join(ROOT, 'src', 'pages', 'KnowledgeSourceDetailPage.tsx');
 const sourceDetailPageContent = fs.readFileSync(sourceDetailPagePath, 'utf8');
 
 it('KnowledgeSourceDetailPage renders PublicationHeadCard only for ADMIN role', () => {
@@ -262,7 +289,7 @@ it('KnowledgeSourceDetailPage renders PublicationHeadCard only for ADMIN role', 
   assert(sourceDetailPageContent.includes("user?.role === 'ADMIN'"));
 });
 
-const adminPagePath = path.join('src', 'pages', 'AdminKnowledgeSubmissionsPage.tsx');
+const adminPagePath = path.join(ROOT, 'src', 'pages', 'AdminKnowledgeSubmissionsPage.tsx');
 const adminPageContent = fs.readFileSync(adminPagePath, 'utf8');
 
 it('AdminKnowledgeSubmissionsPage includes PUBLICATIONS tab and renders AdminPublicationsTab', () => {
@@ -273,9 +300,9 @@ it('AdminKnowledgeSubmissionsPage includes PUBLICATIONS tab and renders AdminPub
 });
 
 // 5. Verify Governance Boundary Preservation
-const govTypesPath = path.join('src', 'types', 'governance.ts');
+const govTypesPath = path.join(ROOT, 'src', 'types', 'governance.ts');
 const govTypesContent = fs.readFileSync(govTypesPath, 'utf8');
-const govApiPath = path.join('src', 'api', 'governance.ts');
+const govApiPath = path.join(ROOT, 'src', 'api', 'governance.ts');
 const govApiContent = fs.readFileSync(govApiPath, 'utf8');
 
 it('Governance Boundary: types/governance.ts and api/governance.ts retain v1.1 integrity', () => {
@@ -286,8 +313,8 @@ it('Governance Boundary: types/governance.ts and api/governance.ts retain v1.1 i
 });
 
 // 6. Verify Localization Dictionary Completeness
-const viJson = JSON.parse(fs.readFileSync(path.join('src', 'i18n', 'locales', 'vi', 'translation.json'), 'utf8'));
-const enJson = JSON.parse(fs.readFileSync(path.join('src', 'i18n', 'locales', 'en', 'translation.json'), 'utf8'));
+const viJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'i18n', 'locales', 'vi', 'translation.json'), 'utf8'));
+const enJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'i18n', 'locales', 'en', 'translation.json'), 'utf8'));
 
 const testKeys = [
   'Chờ xuất bản',

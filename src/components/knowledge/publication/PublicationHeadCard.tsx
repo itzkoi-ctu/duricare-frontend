@@ -10,6 +10,7 @@ import type {
   IndeterminateOperation,
 } from '../../../types/publication';
 import type { RevisionResponse, SourceResponse } from '../../../types/governance';
+import PublicationStatusBadge from './PublicationStatusBadge';
 import PublishRevisionModal from './PublishRevisionModal';
 import RevokePublicationModal from './RevokePublicationModal';
 import RetryPublicationModal from './RetryPublicationModal';
@@ -70,7 +71,30 @@ export default function PublicationHeadCard({
     if (!indeterminateOp) return;
     try {
       const receipt = await getOperationReceipt(indeterminateOp.requestId);
-      if (receipt && receipt.response) {
+      let isConfirmed = false;
+      if (
+        receipt &&
+        receipt.response &&
+        receipt.requestId === indeterminateOp.requestId &&
+        receipt.operation === indeterminateOp.operation
+      ) {
+        if (indeterminateOp.operation === 'REVOKE') {
+          if (receipt.response.publication?.id === indeterminateOp.targetId) {
+            isConfirmed = true;
+          }
+        } else if (indeterminateOp.operation === 'RETRY_INDEX' || indeterminateOp.operation === 'RETRY_CLEANUP') {
+          if (
+            receipt.response.job?.id === indeterminateOp.targetId ||
+            receipt.response.publication?.id === indeterminateOp.targetId
+          ) {
+            isConfirmed = true;
+          }
+        } else {
+          isConfirmed = true;
+        }
+      }
+
+      if (isConfirmed && receipt && receipt.response) {
         setIndeterminateOp(null);
         setIndeterminateLock(false);
         if (receipt.operation === 'PUBLISH') {
@@ -85,15 +109,60 @@ export default function PublicationHeadCard({
     } catch (err: unknown) {
       const parsed = parsePublicationError(err, '');
       if (parsed.status === 404) {
-        try {
-          const freshHead = await getPublicationHead(source.id);
+        let isConfirmed = false;
+        let freshHead: PublicationHead | null = null;
+
+        if (indeterminateOp.operation === 'REVOKE') {
+          const [detailRes, headRes] = await Promise.all([
+            getPublicationDetail(indeterminateOp.targetId),
+            getPublicationHead(source.id),
+          ]);
+          if (!isMountedRef.current) return;
+          freshHead = headRes;
+
+          // Strict confirmation criteria:
+          // 1. Target publication status is strictly REVOKED
+          // 2. Target is not in activePublicationId
+          // 3. Target is not in pendingPublicationId
+          if (
+            detailRes.publication.id === indeterminateOp.targetId &&
+            detailRes.publication.status === 'REVOKED' &&
+            freshHead.activePublicationId !== indeterminateOp.targetId &&
+            freshHead.pendingPublicationId !== indeterminateOp.targetId
+          ) {
+            isConfirmed = true;
+          } else {
+            isConfirmed = false;
+          }
+        } else if (
+          indeterminateOp.operation === 'PUBLISH' ||
+          indeterminateOp.operation === 'RETRY_INDEX' ||
+          indeterminateOp.operation === 'RETRY_CLEANUP'
+        ) {
+          freshHead = await getPublicationHead(source.id);
+          if (!isMountedRef.current) return;
+          if (freshHead.version > indeterminateOp.version) {
+            isConfirmed = true;
+          }
+        }
+
+        if (isConfirmed && freshHead) {
           setIndeterminateOp(null);
           setIndeterminateLock(false);
           setHead(freshHead);
+          setIsRevokeModalOpen(false);
+          setIsRetryModalOpen(false);
+          setIsPublishModalOpen(false);
           return freshHead;
-        } catch {
-          // If readback fails, keep locked
+        } else {
+          // Receipt 404 and unconfirmed: retain lock
+          if (freshHead) {
+            setHead(freshHead);
+            return freshHead;
+          }
         }
+      } else {
+        throw err;
       }
     }
   }, [indeterminateOp, source.id]);
@@ -344,6 +413,18 @@ export default function PublicationHeadCard({
         )}
       </div>
 
+      {/* Active publication state indicator / current revision context */}
+      <div className="text-xs flex items-center justify-between text-gray border-t border-border/60 pt-2 font-mono">
+        <span>
+          {t('Bản đang hoạt động:')} {activePublication ? `Bản ${activePublication.revisionNumber}` : t('Chưa có')}
+        </span>
+        {!isCurrentRevActive && !isCurrentRevPending && currentRevision?.status === 'APPROVED' && (
+          <span className="text-text font-sans text-xs">
+            {t('Phiên bản đã duyệt, sẵn sàng xuất bản')}
+          </span>
+        )}
+      </div>
+
       {/* Error banner if present */}
       {(error || activeDetailError || pendingDetailError) && (
         <div className="p-3 rounded-xl border border-coral/30 bg-coral/10 text-coral text-xs flex items-center justify-between gap-2">
@@ -493,30 +574,41 @@ export default function PublicationHeadCard({
 
         {/* Pending Publication Secondary Actions */}
         {pendingPublication && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              data-testid="inspect-pending-pub-button"
-              onClick={() => setInspectPublicationId(pendingPublication.id)}
-              className="flex-1 h-11 min-h-[44px] px-3 rounded-xl border border-border bg-surface text-text hover:bg-surface-hover text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <span aria-hidden="true" className="material-symbols-outlined text-[16px]">hourglass_top</span>
-              <span>{t('Kiểm tra tiến độ')}</span>
-            </button>
-            {isAdmin && (
+          <div className="space-y-2">
+            <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-950/20 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-text">{t('Bản chờ xử lý (Pending)')}</span>
+                <PublicationStatusBadge status={pendingPublication.status} />
+              </div>
+              <div className="text-gray font-mono text-[11px]">
+                Rev #{pendingPublication.revisionNumber} (Gen #{pendingPublication.generation}) · ID: {pendingPublication.id}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                data-testid="revoke-pending-pub-button"
-                onClick={() => {
-                  setRevokeTarget(pendingPublication);
-                  setIsRevokeModalOpen(true);
-                }}
-                className="h-11 min-h-[44px] px-4 rounded-xl border border-coral/30 bg-coral/10 hover:bg-coral/20 text-coral text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                data-testid="inspect-pending-pub-button"
+                onClick={() => setInspectPublicationId(pendingPublication.id)}
+                className="flex-1 h-11 min-h-[44px] px-3 rounded-xl border border-border bg-surface text-text hover:bg-surface-hover text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">cancel</span>
-                <span>{t('Hủy')}</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">hourglass_top</span>
+                <span>{t('Kiểm tra tiến độ')}</span>
               </button>
-            )}
+              {isAdmin && (
+                <button
+                  type="button"
+                  data-testid="revoke-pending-pub-button"
+                  onClick={() => {
+                    setRevokeTarget(pendingPublication);
+                    setIsRevokeModalOpen(true);
+                  }}
+                  className="h-11 min-h-[44px] px-4 rounded-xl border border-coral/30 bg-coral/10 hover:bg-coral/20 text-coral text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">cancel</span>
+                  <span>{t('Hủy')}</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
