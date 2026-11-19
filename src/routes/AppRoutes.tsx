@@ -32,6 +32,8 @@ const ExpertReviewWorkspacePage = lazy(() => import('../pages/ExpertReviewWorksp
 const ExpertListPage = lazy(() => import('../pages/ExpertListPage'));
 const ExpertCreatePage = lazy(() => import('../pages/ExpertCreatePage'));
 const ExpertDetailPage = lazy(() => import('../pages/ExpertDetailPage'));
+const OwnerListPage = lazy(() => import('../pages/OwnerListPage'));
+const OwnerDetailPage = lazy(() => import('../pages/OwnerDetailPage'));
 
 import { useAuth } from '../hooks/useAuth';
 
@@ -110,6 +112,8 @@ export default function AppRoutes() {
                 <Route path="/settings/experts" element={<ExpertListPage />} />
                 <Route path="/settings/experts/new" element={<ExpertCreatePage />} />
                 <Route path="/settings/experts/:id" element={<ExpertDetailPage />} />
+                <Route path="/settings/owners" element={<OwnerListPage />} />
+                <Route path="/settings/owners/:id" element={<OwnerDetailPage />} />
                 <Route path="/settings/knowledge" element={<AdminKnowledgeSubmissionsPage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />

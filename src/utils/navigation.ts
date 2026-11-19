@@ -12,6 +12,7 @@ export const NAVIGATION: readonly NavigationItem[] = [
   { path: '/knowledge/sources', label: 'Nguồn tri thức', mobileLabel: 'Tri thức', icon: 'menu_book', tone: 'navy', roles: ['ADMIN'], group: 'QUAN_TRI' },
   { path: '/settings/knowledge', label: 'Điều phối thẩm định', mobileLabel: 'Điều phối', icon: 'rule', tone: 'navy', roles: ['ADMIN'], group: 'QUAN_TRI' },
   { path: '/settings/experts', label: 'Chuyên gia', mobileLabel: 'Chuyên gia', icon: 'badge', tone: 'navy', roles: ['ADMIN'], group: 'QUAN_TRI' },
+  { path: '/settings/owners', label: 'Chủ vườn', mobileLabel: 'Chủ vườn', icon: 'person', tone: 'navy', roles: ['ADMIN'], group: 'QUAN_TRI' },
   { path: '/settings/farm', label: 'Cài đặt vườn', icon: 'settings', tone: 'navy', roles: ['ADMIN'], group: 'QUAN_TRI' },
 ];
 
