@@ -104,9 +104,10 @@ export default function AppRoutes() {
               <Route path="/zones/:zoneCode" element={<ZoneDetailPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
               <Route path="/agent" element={<AgentPage />} />
+              <Route path="/settings/zones" element={<ZoneManagementPage />} />
+              <Route path="/farms/:farmId/layout" element={<ZoneManagementPage />} />
               <Route element={<RequireRole roles={['ADMIN']} />}>
                 <Route path="/settings/farm" element={<FarmSettingsPage />} />
-                <Route path="/settings/zones" element={<ZoneManagementPage />} />
                 <Route path="/settings/zones/new" element={<ZoneEditorPage />} />
                 <Route path="/settings/zones/:code/edit" element={<ZoneEditorPage />} />
                 <Route path="/settings/experts" element={<ExpertListPage />} />

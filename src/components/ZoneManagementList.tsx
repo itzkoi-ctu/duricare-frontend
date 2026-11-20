@@ -4,7 +4,7 @@ import { useLanguage } from '../i18n/useLanguage';
 import { GROWTH_STAGE_LABELS } from '../types/zone';
 import type { ZoneManagementListProps } from '../types/zoneManagement';
 
-export default function ZoneManagementList({ zones }: ZoneManagementListProps) {
+export default function ZoneManagementList({ zones, readOnly = false }: ZoneManagementListProps & { readOnly?: boolean }) {
   useLanguage();
   return <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
     <div aria-hidden="true" className="hidden md:grid grid-cols-[1.5fr_1.2fr_1fr_5rem] gap-4 border-b border-border bg-bg px-5 py-3 text-xs font-semibold text-gray">
@@ -16,10 +16,17 @@ export default function ZoneManagementList({ zones }: ZoneManagementListProps) {
       <span className="col-start-1 row-start-2 md:col-auto md:row-auto justify-self-start rounded-full bg-teal/10 px-2.5 py-1 text-xs font-semibold text-teal">
         {t(zone.growthStage ? GROWTH_STAGE_LABELS[zone.growthStage] : 'Chưa cập nhật')}</span>
       <p className="col-start-1 row-start-3 md:col-auto md:row-auto text-xs md:text-sm text-gray"><span className="md:hidden">{t('Giống')}: </span>{zone.variety || t('Chưa cập nhật')}</p>
-      <Link aria-label={t('Sửa khu vực {0}', [zone.code])} to={`/settings/zones/${encodeURIComponent(zone.code)}/edit${zone.farmId ? `?farmId=${zone.farmId}` : ''}`}
-        className="col-start-2 row-start-1 row-span-3 md:col-auto md:row-auto md:row-span-1 flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-bg px-3 text-xs font-semibold text-navy dark:text-blue hover:border-navy/50">
-        <span aria-hidden="true" className="material-symbols-outlined text-lg">edit</span>{t('Sửa')}
-      </Link>
+      {!readOnly ? (
+        <Link aria-label={t('Sửa khu vực {0}', [zone.code])} to={`/settings/zones/${encodeURIComponent(zone.code)}/edit${zone.farmId ? `?farmId=${zone.farmId}` : ''}`}
+          className="col-start-2 row-start-1 row-span-3 md:col-auto md:row-auto md:row-span-1 flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-bg px-3 text-xs font-semibold text-navy dark:text-blue hover:border-navy/50">
+          <span aria-hidden="true" className="material-symbols-outlined text-lg">edit</span>{t('Sửa')}
+        </Link>
+      ) : (
+        <Link aria-label={t('Chi tiết khu vực {0}', [zone.code])} to={`/zones/${encodeURIComponent(zone.code)}`}
+          className="col-start-2 row-start-1 row-span-3 md:col-auto md:row-auto md:row-span-1 flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-bg px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:border-slate-400">
+          <span aria-hidden="true" className="material-symbols-outlined text-lg">visibility</span>{t('Xem')}
+        </Link>
+      )}
     </li>)}</ul>
   </div>;
 }

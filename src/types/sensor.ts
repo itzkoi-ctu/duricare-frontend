@@ -10,6 +10,18 @@ export type SensorType =
   | 'SOIL_K'
   | 'BATTERY_VOLTAGE';
 
+export const ALL_SENSOR_TYPES: readonly SensorType[] = [
+  'TEMPERATURE',
+  'HUMIDITY',
+  'SOIL_MOISTURE',
+  'SOIL_PH',
+  'SOIL_EC',
+  'SOIL_N',
+  'SOIL_P',
+  'SOIL_K',
+  'BATTERY_VOLTAGE',
+] as const;
+
 export const SOIL_CHEMISTRY_TYPES: readonly SensorType[] = [
   'SOIL_PH',
   'SOIL_EC',
