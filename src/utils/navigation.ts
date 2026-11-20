@@ -8,7 +8,7 @@ export const NAVIGATION: readonly NavigationItem[] = [
   { path: '/agent', label: 'Trợ lý AI', icon: 'psychology', tone: 'navy', group: 'THEO_DOI' },
 
   // QUẢN TRỊ (Thứ tự chuẩn theo thiết kế Stitch đã duyệt)
-  { path: '/settings/zones', label: 'Quản lý khu vực', mobileLabel: 'Khu vực', icon: 'yard', tone: 'navy', roles: ['ADMIN'], group: 'QUAN_TRI' },
+  { path: '/settings/zones', label: 'Quản lý khu vực', mobileLabel: 'Khu vực', icon: 'yard', tone: 'navy', roles: ['ADMIN', 'OWNER'], group: 'QUAN_TRI' },
   { path: '/knowledge/sources', label: 'Nguồn tri thức', mobileLabel: 'Tri thức', icon: 'menu_book', tone: 'navy', roles: ['ADMIN'], group: 'QUAN_TRI' },
   { path: '/settings/knowledge', label: 'Điều phối thẩm định', mobileLabel: 'Điều phối', icon: 'rule', tone: 'navy', roles: ['ADMIN'], group: 'QUAN_TRI' },
   { path: '/settings/experts', label: 'Chuyên gia', mobileLabel: 'Chuyên gia', icon: 'badge', tone: 'navy', roles: ['ADMIN'], group: 'QUAN_TRI' },
