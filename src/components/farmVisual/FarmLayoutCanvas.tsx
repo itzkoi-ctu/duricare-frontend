@@ -249,45 +249,60 @@ export default function FarmLayoutCanvas({
   return (
     <div className="flex flex-col h-full bg-white dark:bg-[#0f172a] rounded-2xl border border-[#e2e8f0] dark:border-slate-800 shadow-sm overflow-hidden select-none">
       {/* Canvas Top Toolbar: Zoom & Fit & Instructions */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#e2e8f0] dark:border-slate-800 bg-[#f8f9ff] dark:bg-[#1e293b]/50">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[#1e293b] dark:text-slate-200">
-          <span className="material-symbols-outlined text-[#1f5ca9] dark:text-[#60a5fa] text-base">
-            map
-          </span>
-          <span>{t('Sơ đồ bố trí khu vực canh tác')}</span>
-          <span className="text-[11px] font-normal text-[#64748b] dark:text-slate-400">
-            ({items.length} {t('khu vực trên sơ đồ')})
+      <div
+        id="canvas-toolbar"
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 border-b border-[#e2e8f0] dark:border-slate-800 bg-[#f8f9ff] dark:bg-[#1e293b]/50"
+      >
+        <div className="flex items-center justify-between sm:justify-start gap-2 min-w-0 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="material-symbols-outlined text-[#1f5ca9] dark:text-[#60a5fa] text-base shrink-0">
+              map
+            </span>
+            <span className="text-xs font-semibold text-[#1e293b] dark:text-slate-200 truncate">
+              {t('Sơ đồ bố trí khu vực canh tác')}
+            </span>
+          </div>
+          <span className="text-[11px] font-normal text-[#64748b] dark:text-slate-400 shrink-0 bg-slate-200/60 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+            {items.length} {t('khu vực')}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-between sm:justify-start gap-1.5 w-full sm:w-auto shrink-0">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              id="btn-zoom-out"
+              onClick={handleZoomOut}
+              aria-label={t('Thu nhỏ')}
+              title={t('Thu nhỏ')}
+              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg border border-[#e2e8f0] dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-[#64748b] hover:text-[#1e293b] dark:text-slate-400 dark:hover:text-white transition-colors"
+            >
+              <span className="material-symbols-outlined text-base">remove</span>
+            </button>
+            <span
+              id="zoom-percent-indicator"
+              className="font-mono text-xs font-semibold px-1.5 text-[#1e293b] dark:text-slate-200 min-w-[42px] text-center"
+            >
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              type="button"
+              id="btn-zoom-in"
+              onClick={handleZoomIn}
+              aria-label={t('Phóng to')}
+              title={t('Phóng to')}
+              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg border border-[#e2e8f0] dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-[#64748b] hover:text-[#1e293b] dark:text-slate-400 dark:hover:text-white transition-colors"
+            >
+              <span className="material-symbols-outlined text-base">add</span>
+            </button>
+          </div>
           <button
             type="button"
-            onClick={handleZoomOut}
-            aria-label={t('Thu nhỏ')}
-            title={t('Thu nhỏ')}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg border border-[#e2e8f0] dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-[#64748b] hover:text-[#1e293b] dark:text-slate-400 dark:hover:text-white transition-colors"
-          >
-            <span className="material-symbols-outlined text-base">remove</span>
-          </button>
-          <span className="font-mono text-xs font-semibold px-1.5 text-[#1e293b] dark:text-slate-200 min-w-[42px] text-center">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={handleZoomIn}
-            aria-label={t('Phóng to')}
-            title={t('Phóng to')}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg border border-[#e2e8f0] dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-[#64748b] hover:text-[#1e293b] dark:text-slate-400 dark:hover:text-white transition-colors"
-          >
-            <span className="material-symbols-outlined text-base">add</span>
-          </button>
-          <button
-            type="button"
+            id="btn-zoom-fit"
             onClick={handleFit}
             aria-label={t('Khớp khung hình (100%)')}
             title={t('Khớp khung hình')}
-            className="px-3 h-11 min-h-[44px] rounded-lg border border-[#e2e8f0] dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-[#64748b] hover:text-[#1e293b] dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1"
+            className="px-3.5 h-11 min-h-[44px] rounded-lg border border-[#e2e8f0] dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-[#64748b] hover:text-[#1e293b] dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1.5 shrink-0"
           >
             <span className="material-symbols-outlined text-base">fit_screen</span>
             <span>{t('Khớp')}</span>

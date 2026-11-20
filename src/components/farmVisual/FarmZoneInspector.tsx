@@ -220,6 +220,7 @@ export default function FarmZoneInspector({
         {!isOwner && (
           <button
             type="button"
+            data-testid="btn-open-source-drawer"
             onClick={() => onConfigureSource(zone)}
             className="w-full h-[44px] min-h-[44px] px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[#004489] dark:text-[#60a5fa] text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
           >

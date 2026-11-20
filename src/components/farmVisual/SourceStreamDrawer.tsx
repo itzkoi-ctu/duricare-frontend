@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { Zone } from '../../types/zone';
 import type { SensorMetadata } from '../../types/sensor';
 import { ALL_SENSOR_TYPES } from '../../types/sensor';
@@ -41,8 +42,17 @@ export default function SourceStreamDrawer({
   const [loadingMore, setLoadingMore] = useState(false);
   const [providerFilter, setProviderFilter] = useState<string>('ALL');
   const [sensorTypeFilter, setSensorTypeFilter] = useState<string>('ALL');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // F1: Independent loading and error states for each domain
+  const [sensorsLoading, setSensorsLoading] = useState(false);
+  const [sensorsError, setSensorsError] = useState<string | null>(null);
+
+  const [sourcesLoading, setSourcesLoading] = useState(false);
+  const [sourcesError, setSourcesError] = useState<string | null>(null);
+
+  const [registryLoading, setRegistryLoading] = useState(false);
+  const [registryError, setRegistryError] = useState<string | null>(null);
+  const [isMetadataDisabled, setIsMetadataDisabled] = useState(false);
 
   // Assignment Modal / Form State
   const [isAssigning, setIsAssigning] = useState(false);
@@ -73,6 +83,9 @@ export default function SourceStreamDrawer({
   latestZoneCodeRef.current = zone?.code;
 
   const drawerScopeSessionRef = useRef(0);
+  const sensorRequestTokenRef = useRef(0);
+  const sourcesRequestTokenRef = useRef(0);
+  const registryRequestTokenRef = useRef(0);
   const selectStreamSessionRef = useRef(0);
   const isSubmittingAssignmentRef = useRef(false);
   const confirmationTokenRef = useRef(0);
@@ -102,23 +115,100 @@ export default function SourceStreamDrawer({
     setSelectedSensorId(id);
   };
 
-  const loadData = async (
+  // F1 & R1: Scoped loaders preserving independent success results with domain token fences
+  const loadSensors = async (
     zoneCode: string,
+    drawerSession = drawerScopeSessionRef.current,
+  ) => {
+    const token = ++sensorRequestTokenRef.current;
+    setSensorsLoading(true);
+    setSensorsError(null);
+    try {
+      const sensorList = await getSensors(zoneCode);
+      if (
+        drawerScopeSessionRef.current !== drawerSession ||
+        !latestIsOpenRef.current ||
+        latestZoneCodeRef.current !== zoneCode ||
+        sensorRequestTokenRef.current !== token
+      ) {
+        return;
+      }
+      setSensors(sensorList);
+      if (sensorList.length > 0 && latestSelectedSensorIdRef.current === null) {
+        changeSelectedSensor(sensorList[0].id);
+      }
+    } catch {
+      if (
+        drawerScopeSessionRef.current !== drawerSession ||
+        !latestIsOpenRef.current ||
+        latestZoneCodeRef.current !== zoneCode ||
+        sensorRequestTokenRef.current !== token
+      ) {
+        return;
+      }
+      setSensorsError(t('Không thể tải danh sách cảm biến kỹ thuật.'));
+    } finally {
+      if (
+        drawerScopeSessionRef.current === drawerSession &&
+        sensorRequestTokenRef.current === token
+      ) {
+        setSensorsLoading(false);
+      }
+    }
+  };
+
+  const loadSources = async (
+    zoneCode: string,
+    drawerSession = drawerScopeSessionRef.current,
+  ) => {
+    const token = ++sourcesRequestTokenRef.current;
+    setSourcesLoading(true);
+    setSourcesError(null);
+    try {
+      const sourceList = await getZoneSources(zoneCode);
+      if (
+        drawerScopeSessionRef.current !== drawerSession ||
+        !latestIsOpenRef.current ||
+        latestZoneCodeRef.current !== zoneCode ||
+        sourcesRequestTokenRef.current !== token
+      ) {
+        return;
+      }
+      setSources(sourceList);
+    } catch {
+      if (
+        drawerScopeSessionRef.current !== drawerSession ||
+        !latestIsOpenRef.current ||
+        latestZoneCodeRef.current !== zoneCode ||
+        sourcesRequestTokenRef.current !== token
+      ) {
+        return;
+      }
+      setSourcesError(t('Không thể tải thông tin luồng telemetry đã gán.'));
+    } finally {
+      if (
+        drawerScopeSessionRef.current === drawerSession &&
+        sourcesRequestTokenRef.current === token
+      ) {
+        setSourcesLoading(false);
+      }
+    }
+  };
+
+  const loadRegistry = async (
     pFilter = providerFilter,
     sFilter = sensorTypeFilter,
-    session = ++drawerScopeSessionRef.current,
+    drawerSession = drawerScopeSessionRef.current,
   ) => {
-    // R3-F2: New scope disowns old pagination and resets busy state
+    const token = ++registryRequestTokenRef.current;
     paginationSessionRef.current++;
     setLoadingMore(false);
-
-    setLoading(true);
-    setError(null);
+    setRegistryLoading(true);
+    setRegistryError(null);
+    setIsMetadataDisabled(false);
 
     try {
-      const [sensorList, sourceList, streamPage, providerPage, contract] = await Promise.all([
-        getSensors(zoneCode),
-        getZoneSources(zoneCode),
+      const [streamPage, providerPage, contract] = await Promise.all([
         getSourceStreams({
           limit: 50,
           includeRetired: false,
@@ -132,26 +222,60 @@ export default function SourceStreamDrawer({
         getSourceRoutingContract().catch(() => null),
       ]);
 
-      if (drawerScopeSessionRef.current !== session || !latestIsOpenRef.current) return;
+      if (
+        drawerScopeSessionRef.current !== drawerSession ||
+        !latestIsOpenRef.current ||
+        registryRequestTokenRef.current !== token
+      ) {
+        return;
+      }
 
-      setSensors(sensorList);
-      setSources(sourceList);
       setAvailableStreams(streamPage.items);
       setNextAfterId(streamPage.page.nextAfterId);
       setProviders(providerPage.items);
       setRoutingContract(contract);
-
-      if (sensorList.length > 0 && selectedSensorId === null) {
-        changeSelectedSensor(sensorList[0].id);
+    } catch (err: unknown) {
+      if (
+        drawerScopeSessionRef.current !== drawerSession ||
+        !latestIsOpenRef.current ||
+        registryRequestTokenRef.current !== token
+      ) {
+        return;
       }
-    } catch {
-      if (drawerScopeSessionRef.current !== session || !latestIsOpenRef.current) return;
-      setError(t('Không thể tải thông tin nguồn nhận dữ liệu.'));
+      const resData = (err as { response?: { data?: { code?: string; error?: string; message?: string } } })?.response?.data;
+      const errorCode = resData?.code || resData?.error;
+      const errorMsg = resData?.message || '';
+      if (errorCode === 'SOURCE_METADATA_DISABLED' || errorMsg.includes('SOURCE_METADATA_DISABLED')) {
+        setIsMetadataDisabled(true);
+        setRegistryError(t('Tính năng siêu dữ liệu nguồn nhận (SOURCE_METADATA_DISABLED) đang bị vô hiệu hóa trên máy chủ.'));
+      } else {
+        setRegistryError(t('Không thể tải danh sách luồng telemetry từ Registry.'));
+      }
     } finally {
-      if (drawerScopeSessionRef.current === session) {
-        setLoading(false);
+      if (
+        drawerScopeSessionRef.current === drawerSession &&
+        registryRequestTokenRef.current === token
+      ) {
+        setRegistryLoading(false);
       }
     }
+  };
+
+  const loadData = async (
+    zoneCode: string,
+    pFilter = providerFilter,
+    sFilter = sensorTypeFilter,
+  ) => {
+    // New zone or drawer open: increment drawer scope session
+    const drawerSession = ++drawerScopeSessionRef.current;
+    paginationSessionRef.current++;
+    setLoadingMore(false);
+
+    await Promise.allSettled([
+      loadSensors(zoneCode, drawerSession),
+      loadSources(zoneCode, drawerSession),
+      loadRegistry(pFilter, sFilter, drawerSession),
+    ]);
   };
 
   useEffect(() => {
@@ -191,7 +315,7 @@ export default function SourceStreamDrawer({
     setNextAfterId(null);
 
     if (zone) {
-      loadData(zone.code, newPFilter, newSFilter);
+      loadRegistry(newPFilter, newSFilter);
     }
   };
 
@@ -401,7 +525,7 @@ export default function SourceStreamDrawer({
       setChosenStreamDetail(null);
       setReason('');
       setIsAssigning(false);
-      if (zone) loadData(zone.code);
+      if (zone) loadSources(zone.code);
     } catch (err: unknown) {
       if (
         confirmationTokenRef.current !== confirmToken ||
@@ -436,7 +560,7 @@ export default function SourceStreamDrawer({
     }
     try {
       await retireCurrentAssignment(streamId, version);
-      if (zone) loadData(zone.code);
+      if (zone) loadSources(zone.code);
     } catch {
       alert(t('Không thể ngừng luồng telemetry. Vui lòng kiểm tra lại.'));
     }
@@ -447,7 +571,7 @@ export default function SourceStreamDrawer({
   const currentSources = sources.filter(s => s.effectiveTo === null);
   const historicalSources = sources.filter(s => s.effectiveTo !== null);
 
-  return (
+  const drawerContent = (
     <div
       role="dialog"
       aria-modal="true"
@@ -456,7 +580,7 @@ export default function SourceStreamDrawer({
     >
       <div className="relative w-full md:max-w-[520px] h-full bg-white dark:bg-[#0f172a] shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-[#f8f9ff] dark:bg-slate-800/40 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-[#f8f9ff] dark:bg-slate-800/40 shrink-0 pt-[max(1rem,env(safe-area-inset-top))] md:pt-4">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-[#004489]/10 text-[#004489] dark:bg-[#60a5fa]/20 dark:text-[#60a5fa] flex items-center justify-center">
               <span className="material-symbols-outlined text-lg">settings_input_antenna</span>
@@ -484,12 +608,6 @@ export default function SourceStreamDrawer({
 
         {/* Drawer Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300">
-              {error}
-            </div>
-          )}
-
           {/* Logical Sensors in Zone */}
           <div className="space-y-2">
             <h3 className="text-xs font-bold text-[#0b1c30] dark:text-slate-200 flex items-center gap-1.5">
@@ -497,12 +615,24 @@ export default function SourceStreamDrawer({
               {t('Các loại cảm biến kỹ thuật trong khu vực')}
             </h3>
 
-            {loading ? (
+            {sensorsLoading ? (
               <div className="text-xs text-slate-400 animate-pulse py-2">{t('Đang tải danh sách sensor...')}</div>
+            ) : sensorsError ? (
+              <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300 flex items-center justify-between gap-2">
+                <span>{sensorsError}</span>
+                <button
+                  type="button"
+                  data-testid="btn-retry-sensors"
+                  onClick={() => zone && loadSensors(zone.code)}
+                  className="px-2.5 py-1 text-xs font-semibold rounded bg-red-100 hover:bg-red-200 text-red-800 dark:bg-red-900/60 dark:text-red-200 transition-colors shrink-0"
+                >
+                  {t('Thử lại')}
+                </button>
+              </div>
             ) : sensors.length === 0 ? (
               <p className="text-xs text-slate-500 py-1">{t('Khu vực chưa cấu hình sensor kỹ thuật.')}</p>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2" data-testid="zone-sensors-grid">
                 {sensors.map(s => (
                   <div
                     key={s.id}
@@ -516,6 +646,50 @@ export default function SourceStreamDrawer({
             )}
           </div>
 
+          {/* R2: Independent Capability Notice when SOURCE_METADATA_DISABLED */}
+          {isMetadataDisabled && (
+            <div
+              data-testid="metadata-disabled-banner"
+              className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-1.5"
+            >
+              <div className="font-bold flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-base">lock</span>
+                  {t('Tính năng siêu dữ liệu chưa kích hoạt')} (SOURCE_METADATA_DISABLED)
+                </span>
+                <button
+                  type="button"
+                  data-testid="btn-retry-registry"
+                  onClick={() => loadRegistry(providerFilter, sensorTypeFilter)}
+                  className="px-2.5 py-1 text-xs font-semibold rounded bg-amber-200/80 hover:bg-amber-300 text-amber-900 dark:bg-amber-900 dark:text-amber-200 transition-colors shrink-0"
+                >
+                  {t('Thử lại')}
+                </button>
+              </div>
+              <p className="leading-relaxed">
+                {t('Máy chủ hiện đang tắt tính năng siêu dữ liệu nguồn nhận. Không thể liệt kê hoặc gán mới luồng telemetry từ Registry.')}
+              </p>
+            </div>
+          )}
+
+          {/* Independent Registry Error Notice (when not metadata disabled and form not open) */}
+          {!isAssigning && registryError && !isMetadataDisabled && (
+            <div
+              data-testid="registry-error-banner"
+              className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300 flex items-center justify-between gap-2"
+            >
+              <span>{registryError}</span>
+              <button
+                type="button"
+                data-testid="btn-retry-registry"
+                onClick={() => loadRegistry(providerFilter, sensorTypeFilter)}
+                className="px-2.5 py-1 text-xs font-semibold rounded bg-red-100 hover:bg-red-200 text-red-800 dark:bg-red-900/60 dark:text-red-200 transition-colors shrink-0"
+              >
+                {t('Thử lại')}
+              </button>
+            </div>
+          )}
+
           {/* Current Active Stream */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -527,6 +701,7 @@ export default function SourceStreamDrawer({
               {!isAssigning && (
                 <button
                   type="button"
+                  data-testid="btn-open-assign-stream"
                   onClick={() => {
                     setSelectedStreamId(null);
                     setChosenStreamDetail(null);
@@ -534,7 +709,17 @@ export default function SourceStreamDrawer({
                     setAssignmentError(null);
                     setIsAssigning(true);
                   }}
-                  className="h-11 min-h-[44px] px-4 rounded-xl bg-[#004489] hover:bg-[#184988] text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
+                  disabled={sensorsLoading || sensorsError !== null || sensors.length === 0 || isMetadataDisabled}
+                  title={
+                    sensorsError
+                      ? t('Vui lòng tải lại cảm biến trước khi gán')
+                      : sensors.length === 0
+                      ? t('Khu vực chưa có cảm biến để gán')
+                      : isMetadataDisabled
+                      ? t('Tính năng siêu dữ liệu đang bị tắt')
+                      : t('Gán hoặc thay đổi luồng nhận')
+                  }
+                  className="h-11 min-h-[44px] px-4 rounded-xl bg-[#004489] hover:bg-[#184988] text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors disabled:opacity-50 disabled:pointer-events-none"
                 >
                   <span className="material-symbols-outlined text-base">swap_horiz</span>
                   <span>{t('Gán / Thay nguồn nhận')}</span>
@@ -542,7 +727,21 @@ export default function SourceStreamDrawer({
               )}
             </div>
 
-            {currentSources.length === 0 ? (
+            {sourcesLoading ? (
+              <div className="text-xs text-slate-400 animate-pulse py-2">{t('Đang tải luồng telemetry...')}</div>
+            ) : sourcesError ? (
+              <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300 flex items-center justify-between gap-2">
+                <span>{sourcesError}</span>
+                <button
+                  type="button"
+                  data-testid="btn-retry-sources"
+                  onClick={() => zone && loadSources(zone.code)}
+                  className="px-2.5 py-1 text-xs font-semibold rounded bg-red-100 hover:bg-red-200 text-red-800 dark:bg-red-900/60 dark:text-red-200 transition-colors shrink-0"
+                >
+                  {t('Thử lại')}
+                </button>
+              </div>
+            ) : currentSources.length === 0 ? (
               <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-800 dark:text-amber-300">
                 {t('Chưa có luồng telemetry nào được gán cho khu vực này.')}
               </div>
@@ -677,54 +876,92 @@ export default function SourceStreamDrawer({
                     </div>
                   </div>
 
-                  <div
-                    data-testid="available-streams-list"
-                    className="max-h-44 overflow-y-auto space-y-1.5 p-1 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
-                  >
-                    {availableStreams.length === 0 ? (
-                      <p className="text-xs text-slate-400 p-2 text-center">{t('Không có stream phù hợp bộ lọc.')}</p>
-                    ) : (
-                      availableStreams.map(st => {
-                        const isSelected = st.id === selectedStreamId;
-                        return (
-                          <div
-                            key={st.id}
-                            data-testid={`stream-card-${st.id}`}
-                            onClick={() => handleSelectStream(st.id)}
-                            className={`p-2 rounded-md text-xs transition-colors ${
-                              submittingAssignment ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-                            } ${
-                              isSelected
-                                ? 'bg-[#eff4ff] dark:bg-blue-950/60 border border-[#004489] text-[#004489] dark:text-[#60a5fa]'
-                                : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold">Stream #{st.id}: {st.externalId}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 font-mono">
-                                {st.sensorType}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-[#64748b] mt-0.5">
-                              {st.provider?.displayName || st.provider?.name || 'Provider'} · {st.acquisitionSupport}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
+                  {registryLoading ? (
+                    <div className="text-xs text-slate-400 animate-pulse py-3 text-center">{t('Đang tải danh sách stream...')}</div>
+                  ) : isMetadataDisabled ? (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                      <div className="font-bold flex items-center justify-between">
+                        <span className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm">lock</span>
+                          {t('Tính năng siêu dữ liệu chưa kích hoạt')} (SOURCE_METADATA_DISABLED)
+                        </span>
+                        <button
+                          type="button"
+                          data-testid="btn-retry-registry"
+                          onClick={() => loadRegistry(providerFilter, sensorTypeFilter)}
+                          className="px-2.5 py-1 text-xs font-semibold rounded bg-amber-200 hover:bg-amber-300 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 transition-colors shrink-0"
+                        >
+                          {t('Thử lại')}
+                        </button>
+                      </div>
+                      <p className="leading-relaxed">
+                        {t('Máy chủ hiện đang tắt tính năng siêu dữ liệu nguồn nhận. Không thể liệt kê hoặc chọn stream từ Registry.')}
+                      </p>
+                    </div>
+                  ) : registryError ? (
+                    <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300 flex items-center justify-between gap-2">
+                      <span>{registryError}</span>
+                      <button
+                        type="button"
+                        data-testid="btn-retry-registry"
+                        onClick={() => loadRegistry(providerFilter, sensorTypeFilter)}
+                        className="px-2.5 py-1 text-xs font-semibold rounded bg-red-100 hover:bg-red-200 text-red-800 dark:bg-red-900/60 dark:text-red-200 transition-colors shrink-0"
+                      >
+                        {t('Thử lại')}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        data-testid="available-streams-list"
+                        className="max-h-44 overflow-y-auto space-y-1.5 p-1 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                      >
+                        {availableStreams.length === 0 ? (
+                          <p className="text-xs text-slate-400 p-2 text-center">{t('Không có stream phù hợp bộ lọc.')}</p>
+                        ) : (
+                          availableStreams.map(st => {
+                            const isSelected = st.id === selectedStreamId;
+                            return (
+                              <div
+                                key={st.id}
+                                data-testid={`stream-card-${st.id}`}
+                                onClick={() => handleSelectStream(st.id)}
+                                className={`p-2 rounded-md text-xs transition-colors ${
+                                  submittingAssignment ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                                } ${
+                                  isSelected
+                                    ? 'bg-[#eff4ff] dark:bg-blue-950/60 border border-[#004489] text-[#004489] dark:text-[#60a5fa]'
+                                    : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold">Stream #{st.id}: {st.externalId}</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 font-mono">
+                                    {st.sensorType}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-[#64748b] mt-0.5">
+                                  {st.provider?.displayName || st.provider?.name || 'Provider'} · {st.acquisitionSupport}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
 
-                  {nextAfterId !== null && (
-                    <button
-                      type="button"
-                      data-testid="btn-load-more-streams"
-                      onClick={handleLoadMore}
-                      disabled={loadingMore || submittingAssignment}
-                      className="w-full h-11 min-h-[44px] mt-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                    >
-                      <span className="material-symbols-outlined text-sm">expand_more</span>
-                      <span>{loadingMore ? t('Đang tải...') : t('Tải thêm nguồn dữ liệu')}</span>
-                    </button>
+                      {nextAfterId !== null && (
+                        <button
+                          type="button"
+                          data-testid="btn-load-more-streams"
+                          onClick={handleLoadMore}
+                          disabled={loadingMore || submittingAssignment}
+                          className="w-full h-11 min-h-[44px] mt-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                          <span className="material-symbols-outlined text-sm">expand_more</span>
+                          <span>{loadingMore ? t('Đang tải...') : t('Tải thêm nguồn dữ liệu')}</span>
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -796,7 +1033,11 @@ export default function SourceStreamDrawer({
               {t('Lịch sử gán nguồn trước đây')} ({historicalSources.length})
             </h3>
 
-            {historicalSources.length === 0 ? (
+            {sourcesLoading ? (
+              <div className="text-xs text-slate-400 animate-pulse py-2">{t('Đang tải lịch sử...')}</div>
+            ) : sourcesError ? (
+              <p className="text-xs text-red-500 py-1">{sourcesError}</p>
+            ) : historicalSources.length === 0 ? (
               <p className="text-xs text-slate-400">{t('Chưa có lịch sử gán nguồn.')}</p>
             ) : (
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
@@ -819,4 +1060,6 @@ export default function SourceStreamDrawer({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(drawerContent, document.body) : null;
 }
