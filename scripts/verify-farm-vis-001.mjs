@@ -15,12 +15,7 @@ console.log('FE-FARM-VIS-001: Visual Farm Layout Diagram & Zone Management Verif
 console.log('================================================================');
 
 const PRIMARY_EVIDENCE_DIR = 'C:/Users/default.LAPTOP-9T9UMS3I/.gemini/antigravity/brain/2cc3cdd9-0f13-4c1a-bbe7-141069b357d2/evidence';
-const MIRROR_EVIDENCE_DIR = 'E:/CTU/LuanVan/docs/ai/thesis/evidence/FARM-VIS-001';
-
 const EVIDENCE_DIRS = [PRIMARY_EVIDENCE_DIR];
-if (fs.existsSync(MIRROR_EVIDENCE_DIR)) {
-  EVIDENCE_DIRS.push(MIRROR_EVIDENCE_DIR);
-}
 
 const PORT = 5195;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -208,6 +203,10 @@ let holdDetailIds = new Set();
 let heldDetailRequests = {};
 let holdNextPagination = false;
 let heldPaginationReq = null;
+let holdSourcesReq = false;
+let heldSourcesReq = null;
+let sensorFail503 = false;
+let registryFail503 = false;
 let scenario = 'normal'; // 'normal' | 'uncertain' | 'conflict' | 'delayed' | 'treeFail' | 'catalogConflict' | 'gate503' | 'zoneCrudFail' | 'iotlab'
 
 let server;
@@ -528,6 +527,9 @@ async function run() {
     }
 
     if (url.includes('/sensors') && method === 'GET') {
+      if (sensorFail503) {
+        return respondJson(req, 503, { error: 'service_unavailable', message: 'Sensors temporarily unavailable' });
+      }
       return respondJson(req, 200, [
         { id: 1, zoneCode: 'A01', type: 'TEMPERATURE', unit: '°C' },
         { id: 2, zoneCode: 'A01', type: 'HUMIDITY', unit: '%' },
@@ -597,6 +599,21 @@ async function run() {
         acquisitionSupport: 'IOTLAB_BOUND_MAPPING',
       };
 
+      if (scenario === 'stream_503' || registryFail503) {
+        return respondJson(req, 503, {
+          error: 'Service Unavailable',
+          message: 'Telemetry stream registry is temporarily unavailable',
+        });
+      }
+
+      if (scenario === 'stream_disabled') {
+        return respondJson(req, 503, {
+          code: 'SOURCE_METADATA_DISABLED',
+          error: 'SOURCE_METADATA_DISABLED',
+          message: 'Source metadata capability is disabled on this server',
+        });
+      }
+
       if (scenario === 'iotlab') {
         return respondJson(
           req,
@@ -656,6 +673,10 @@ async function run() {
     }
 
     if (url.includes('/zones/') && url.includes('/sources')) {
+      if (holdSourcesReq) {
+        heldSourcesReq = req;
+        return;
+      }
       return respondJson(req, 200, { items: [MOCK_STREAMS[0].currentAssignment] });
     }
 
@@ -1887,6 +1908,465 @@ async function run() {
     if (closeDrawerBtn) await closeDrawerBtn.click();
   });
 
+  // =========================================================================
+  // REMEDIATION TEST SUITE: Findings F1, F2, F3
+  // =========================================================================
+
+  // FE-FV48: F1 Remediation — Source stream registry error does not imply absent sensors
+  await test('FE-FV48: F1 Remediation - Source registry failure preserves sensor list', async () => {
+    currentUser = ADMIN_USER;
+    scenario = 'stream_503';
+    await page.setViewport({ width: 1440, height: 900 });
+    await page.goto(`${BASE_URL}/settings/zones?farmId=1`, { waitUntil: 'networkidle0' });
+    await page.waitForSelector('#canvas-viewport');
+
+    // Click on placed zone A01 to open inspector
+    await page.waitForSelector('[data-testid="canvas-zone-A01"]');
+    await page.click('[data-testid="canvas-zone-A01"]');
+    await page.waitForSelector('[data-testid="btn-open-source-drawer"]');
+
+    // Open SourceStreamDrawer while stream registry is 503
+    await page.click('[data-testid="btn-open-source-drawer"]');
+    await page.waitForSelector('[role="dialog"][aria-labelledby="source-drawer-title"]');
+
+    // 1. Assert logical sensors are committed and visible (NOT empty!)
+    await page.waitForSelector('[data-testid="zone-sensors-grid"]');
+    const sensorsGridText = await page.$eval('[data-testid="zone-sensors-grid"]', el => el.textContent);
+    assert(sensorsGridText.includes('SOIL_MOISTURE'), 'Sensors grid must display SOIL_MOISTURE despite stream 503');
+    assert(sensorsGridText.includes('TEMPERATURE'), 'Sensors grid must display TEMPERATURE despite stream 503');
+
+    // 2. KEY F1 ASSERTION: False empty sensor message must NEVER be rendered
+    const drawerFullText = await page.$eval('[role="dialog"][aria-labelledby="source-drawer-title"]', el => el.textContent);
+    assert(
+      !drawerFullText.includes('Khu vực chưa cấu hình sensor kỹ thuật'),
+      'Must NOT display false "Khu vực chưa cấu hình sensor kỹ thuật" when sensors exist',
+    );
+
+    // 3. Open assignment section and verify scoped registry error and retry button
+    await page.click('[data-testid="btn-open-assign-stream"]');
+    await page.waitForSelector('[data-testid="btn-retry-registry"]');
+    const regErrorText = await page.$eval('[role="dialog"][aria-labelledby="source-drawer-title"]', el => el.textContent);
+    assert(
+      regErrorText.includes('Không thể tải danh sách luồng telemetry từ Registry'),
+      'Must display truthful scoped registry error message',
+    );
+
+    // 4. Test scoped retry recovery: switch scenario to normal, click retry button
+    scenario = 'normal';
+    await page.click('[data-testid="btn-retry-registry"]');
+    await page.waitForSelector('[data-testid="available-streams-list"]');
+    const streamCards = await page.$$('[data-testid^="stream-card-"]');
+    assert(streamCards.length > 0, 'Available streams list must populate after successful retry');
+
+    // Sensors must remain intact after registry retry
+    const sensorsGridAfter = await page.$eval('[data-testid="zone-sensors-grid"]', el => el.textContent);
+    assert(sensorsGridAfter.includes('SOIL_MOISTURE'), 'Sensors must remain committed after registry retry');
+
+    // 5. Test SOURCE_METADATA_DISABLED banner
+    scenario = 'stream_disabled';
+    // Change filter to trigger reload of registry
+    await page.select('[data-testid="select-provider-filter"]', '1');
+    await page.waitForFunction(
+      () => document.body.innerText.includes('SOURCE_METADATA_DISABLED')
+    );
+    const disabledText = await page.$eval('[role="dialog"][aria-labelledby="source-drawer-title"]', el => el.textContent);
+    assert(
+      disabledText.includes('SOURCE_METADATA_DISABLED'),
+      'Must display distinct SOURCE_METADATA_DISABLED banner when capability is disabled',
+    );
+    // Sensor list must STILL be preserved
+    const sensorsStillThere = await page.$eval('[data-testid="zone-sensors-grid"]', el => el.textContent);
+    assert(sensorsStillThere.includes('SOIL_MOISTURE'), 'Sensors must remain visible during SOURCE_METADATA_DISABLED');
+
+    // Close drawer
+    scenario = 'normal';
+    const closeBtn = await page.$('[role="dialog"][aria-labelledby="source-drawer-title"] button[aria-label="Đóng"]');
+    if (closeBtn) await closeBtn.click();
+    await pause(300);
+  });
+
+  // FE-FV49: F2 Remediation — Mobile toolbar reflow prevents clipping and text compression
+  await test('FE-FV49: F2 Remediation - Mobile toolbar reflow prevents clipping and text compression', async () => {
+    currentUser = ADMIN_USER;
+    scenario = 'normal';
+
+    // Test Viewport 1: 375x812 (Vietnamese default)
+    await page.setViewport({ width: 375, height: 812 });
+    await page.goto(`${BASE_URL}/settings/zones?farmId=1`, { waitUntil: 'networkidle0' });
+    await page.waitForSelector('#canvas-toolbar');
+    await page.waitForSelector('#btn-zoom-fit');
+
+    const geom375 = await page.evaluate(() => {
+      const toolbar = document.getElementById('canvas-toolbar');
+      const fitBtn = document.getElementById('btn-zoom-fit');
+      const titleSpan = toolbar.querySelector('span.truncate');
+      const tRect = toolbar.getBoundingClientRect();
+      const fRect = fitBtn.getBoundingClientRect();
+      const titleRect = titleSpan.getBoundingClientRect();
+      return {
+        toolbarRight: tRect.right,
+        fitRight: fRect.right,
+        fitWidth: fRect.width,
+        fitHeight: fRect.height,
+        titleHeight: titleRect.height,
+        titleText: titleSpan.textContent,
+      };
+    });
+
+    // 1. KEY F2 ASSERTION: Fit button must NOT be clipped by toolbar or parent container
+    assert(
+      geom375.fitRight <= geom375.toolbarRight + 1,
+      `Fit button right (${geom375.fitRight}) must not overflow toolbar right (${geom375.toolbarRight}) on 375px`,
+    );
+
+    // 2. Minimum 44px touch target preserved
+    assert(geom375.fitHeight >= 44, `Fit button height (${geom375.fitHeight}) must be >= 44px`);
+    assert(geom375.fitWidth >= 44, `Fit button width (${geom375.fitWidth}) must be >= 44px`);
+
+    // 3. Title is uncompressed and not wrapped into a vertical letter-by-letter column
+    assert(
+      geom375.titleHeight <= 30,
+      `Title height (${geom375.titleHeight}) must be single line <= 30px, not wrapped vertically into column`,
+    );
+
+    // Test Viewport 2: 390x844 (English language)
+    await page.setViewport({ width: 390, height: 844 });
+    const langSelect = await page.$('header select');
+    if (langSelect) {
+      await page.select('header select', 'en');
+      await pause(200);
+    }
+
+    const geom390En = await page.evaluate(() => {
+      const toolbar = document.getElementById('canvas-toolbar');
+      const fitBtn = document.getElementById('btn-zoom-fit');
+      const titleSpan = toolbar.querySelector('span.truncate');
+      const tRect = toolbar.getBoundingClientRect();
+      const fRect = fitBtn.getBoundingClientRect();
+      const titleRect = titleSpan.getBoundingClientRect();
+      return {
+        toolbarRight: tRect.right,
+        fitRight: fRect.right,
+        fitWidth: fRect.width,
+        fitHeight: fRect.height,
+        titleHeight: titleRect.height,
+      };
+    });
+
+    assert(
+      geom390En.fitRight <= geom390En.toolbarRight + 1,
+      `Fit button right (${geom390En.fitRight}) must not overflow toolbar right (${geom390En.toolbarRight}) on 390px English`,
+    );
+    assert(geom390En.fitHeight >= 44, 'Fit height must be >= 44px on 390px');
+    assert(geom390En.titleHeight <= 30, 'Title must not wrap into column on 390px English');
+
+    // Restore Vietnamese and desktop viewport
+    if (langSelect) {
+      await page.select('header select', 'vi');
+      await pause(200);
+    }
+  });
+
+  // FE-FV50: F3 Remediation — Modals and Drawers mounted via Portal above Shell
+  await test('FE-FV50: F3 Remediation - Modals and drawers mounted via Portal above Shell', async () => {
+    currentUser = ADMIN_USER;
+    scenario = 'normal';
+    await page.setViewport({ width: 375, height: 812 });
+    await page.goto(`${BASE_URL}/settings/zones?farmId=1`, { waitUntil: 'networkidle0' });
+    await page.waitForSelector('#canvas-viewport');
+
+    // 1. Open ZoneCreateModal
+    await page.waitForSelector('[data-testid="btn-add-zone"]');
+    await page.click('[data-testid="btn-add-zone"]');
+    await page.waitForSelector('#create-zone-title');
+
+    // KEY F3 ASSERTION: elementFromPoint at center of heading must return modal element, NOT shell LanguageSelect
+    const headingTopCheck = await page.evaluate(() => {
+      const heading = document.getElementById('create-zone-title');
+      const rect = heading.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const topElement = document.elementFromPoint(centerX, centerY);
+
+      // Check close button as well
+      const closeBtn = document.querySelector('[role="dialog"][aria-labelledby="create-zone-title"] button[aria-label="Đóng"]');
+      const cRect = closeBtn ? closeBtn.getBoundingClientRect() : null;
+      const closeTopElement = cRect ? document.elementFromPoint(cRect.left + cRect.width / 2, cRect.top + cRect.height / 2) : null;
+
+      return {
+        headingY: centerY,
+        topElementTag: topElement ? topElement.tagName : null,
+        topElementId: topElement ? topElement.id : null,
+        isHeadingOrChild: heading.contains(topElement) || topElement === heading,
+        isCloseBtnOrChild: closeBtn ? closeBtn.contains(closeTopElement) || closeTopElement === closeBtn : false,
+      };
+    });
+
+    assert(
+      headingTopCheck.isHeadingOrChild,
+      `elementFromPoint at heading center must hit modal heading, not shell element (hit: <${headingTopCheck.topElementTag} id="${headingTopCheck.topElementId}">)`,
+    );
+    assert(
+      headingTopCheck.isCloseBtnOrChild,
+      'elementFromPoint at close button must hit modal close button, not shell element',
+    );
+
+    // Close create modal
+    await page.click('[role="dialog"][aria-labelledby="create-zone-title"] button[aria-label="Đóng"]');
+    await pause(300);
+
+    // 2. Open SourceStreamDrawer and check Portal stacking above shell
+    await page.waitForSelector('[data-testid="canvas-zone-A01"]');
+    await page.click('[data-testid="canvas-zone-A01"]');
+    await page.waitForSelector('[data-testid="btn-open-source-drawer"]');
+    await page.click('[data-testid="btn-open-source-drawer"]');
+    await page.waitForSelector('#source-drawer-title');
+
+    const drawerTopCheck = await page.evaluate(() => {
+      const heading = document.getElementById('source-drawer-title');
+      const rect = heading.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const topElement = document.elementFromPoint(centerX, centerY);
+
+      return {
+        topElementTag: topElement ? topElement.tagName : null,
+        topElementId: topElement ? topElement.id : null,
+        isHeadingOrChild: heading.contains(topElement) || topElement === heading,
+      };
+    });
+
+    assert(
+      drawerTopCheck.isHeadingOrChild,
+      `elementFromPoint at drawer title must hit drawer title, not shell element (hit: <${drawerTopCheck.topElementTag} id="${drawerTopCheck.topElementId}">)`,
+    );
+
+    const closeDrawerBtn = await page.$('[role="dialog"][aria-labelledby="source-drawer-title"] button[aria-label="Đóng"]');
+    if (closeDrawerBtn) await closeDrawerBtn.click();
+    await pause(300);
+
+    // Restore desktop viewport
+    await page.setViewport({ width: 1440, height: 900 });
+  });
+
+  // FE-FV51: Review R1 — Scoped sensor retry does not invalidate in-flight zone sources loader
+  await test('FE-FV51: [Reviewer R1] Scoped sensor retry does not invalidate in-flight zone sources or strand loading', async () => {
+    currentUser = ADMIN_USER;
+    scenario = 'normal';
+    holdSourcesReq = true;
+    heldSourcesReq = null;
+    sensorFail503 = true;
+
+    await page.setViewport({ width: 1440, height: 900 });
+    await page.goto(`${BASE_URL}/settings/zones?farmId=1`, { waitUntil: 'networkidle0' });
+    await page.waitForSelector('#canvas-viewport');
+
+    // Click zone A01 and open drawer
+    await page.waitForSelector('[data-testid="canvas-zone-A01"]');
+    await page.click('[data-testid="canvas-zone-A01"]');
+    await page.waitForSelector('[data-testid="btn-open-source-drawer"]');
+    await page.click('[data-testid="btn-open-source-drawer"]');
+    await page.waitForSelector('[role="dialog"][aria-labelledby="source-drawer-title"]');
+
+    // 1. Wait until sources request is held
+    await wait(() => heldSourcesReq !== null);
+
+    // 2. Wait until sensor error appears with retry button
+    await page.waitForSelector('[data-testid="btn-retry-sensors"]');
+
+    // 3. Verify sources section is currently in loading state
+    const drawerLoadingText = await page.$eval('[role="dialog"][aria-labelledby="source-drawer-title"]', el => el.textContent);
+    assert(
+      drawerLoadingText.includes('Đang tải luồng telemetry...') || drawerLoadingText.includes('Đang tải lịch sử...'),
+      'Sources section must be loading while sources request is held',
+    );
+
+    // 4. Recover sensors: switch sensorFail503 = false, click retry sensors
+    sensorFail503 = false;
+    await page.click('[data-testid="btn-retry-sensors"]');
+
+    // Wait until sensors recover
+    await page.waitForSelector('[data-testid="zone-sensors-grid"]');
+    const sensorsGridText = await page.$eval('[data-testid="zone-sensors-grid"]', el => el.textContent);
+    assert(sensorsGridText.includes('SOIL_MOISTURE'), 'Sensors must recover after retry');
+
+    // 5. CRITICAL CHECK: Held sources request must NOT have been invalidated or disowned
+    assert(heldSourcesReq !== null, 'Sources request must still be held and pending');
+
+    // 6. Release the held sources response with status 200
+    await heldSourcesReq.respond({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [MOCK_STREAMS[0].currentAssignment] }),
+    });
+    heldSourcesReq = null;
+    holdSourcesReq = false;
+
+    // 7. Verify sources loading state finishes and current assignment displays
+    await page.waitForFunction(
+      () => !document.querySelector('[role="dialog"][aria-labelledby="source-drawer-title"]').textContent.includes('Đang tải luồng telemetry...')
+    );
+
+    const drawerBodyAfter = await page.$eval('[role="dialog"][aria-labelledby="source-drawer-title"]', el => el.textContent);
+    assert(
+      !drawerBodyAfter.includes('Đang tải luồng telemetry...'),
+      'Sources loading indicator must clear after release',
+    );
+    assert(
+      !drawerBodyAfter.includes('Đang tải lịch sử...'),
+      'History loading indicator must clear after release',
+    );
+    assert(
+      drawerBodyAfter.includes('Stream #1') || drawerBodyAfter.includes('Đang nhận'),
+      'Assigned stream must be displayed successfully without being discarded by sensor retry',
+    );
+
+    // Close drawer
+    const closeDrawerBtn2 = await page.$('[role="dialog"][aria-labelledby="source-drawer-title"] button[aria-label="Đóng"]');
+    if (closeDrawerBtn2) await closeDrawerBtn2.click();
+    await pause(300);
+  });
+
+  // FE-FV52: Review R2 — Scoped registry retry does not invalidate in-flight zone sources loader
+  await test('FE-FV52: [Reviewer R2] Scoped registry retry does not invalidate in-flight zone sources or strand loading', async () => {
+    currentUser = ADMIN_USER;
+    scenario = 'normal';
+    holdSourcesReq = true;
+    heldSourcesReq = null;
+    registryFail503 = true;
+    sensorFail503 = false;
+
+    await page.setViewport({ width: 1440, height: 900 });
+    await page.goto(`${BASE_URL}/settings/zones?farmId=1`, { waitUntil: 'networkidle0' });
+    await page.waitForSelector('#canvas-viewport');
+
+    // Click zone A01 and open drawer
+    await page.waitForSelector('[data-testid="canvas-zone-A01"]');
+    await page.click('[data-testid="canvas-zone-A01"]');
+    await page.waitForSelector('[data-testid="btn-open-source-drawer"]');
+    await page.click('[data-testid="btn-open-source-drawer"]');
+    await page.waitForSelector('[role="dialog"][aria-labelledby="source-drawer-title"]');
+
+    // 1. Wait until sources request is held
+    await wait(() => heldSourcesReq !== null);
+
+    // 2. Wait until registry error appears with retry button in drawer body
+    await page.waitForSelector('[data-testid="btn-retry-registry"]');
+
+    // 3. Verify sources section is currently in loading state
+    const drawerLoadingText = await page.$eval('[role="dialog"][aria-labelledby="source-drawer-title"]', el => el.textContent);
+    assert(
+      drawerLoadingText.includes('Đang tải luồng telemetry...'),
+      'Sources section must be loading while sources request is held',
+    );
+
+    // 4. Recover registry: switch registryFail503 = false, click retry registry
+    registryFail503 = false;
+    await page.click('[data-testid="btn-retry-registry"]');
+
+    // Wait until registry error banner disappears
+    await page.waitForFunction(
+      () => !document.querySelector('[data-testid="registry-error-banner"]')
+    );
+
+    // 5. CRITICAL CHECK: Held sources request must NOT have been invalidated or disowned
+    assert(heldSourcesReq !== null, 'Sources request must still be held and pending');
+
+    // 6. Release the held sources response with status 200
+    await heldSourcesReq.respond({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [MOCK_STREAMS[0].currentAssignment] }),
+    });
+    heldSourcesReq = null;
+    holdSourcesReq = false;
+
+    // 7. Verify sources loading state finishes and current assignment displays
+    await page.waitForFunction(
+      () => !document.querySelector('[role="dialog"][aria-labelledby="source-drawer-title"]').textContent.includes('Đang tải luồng telemetry...')
+    );
+
+    const drawerBodyAfter = await page.$eval('[role="dialog"][aria-labelledby="source-drawer-title"]', el => el.textContent);
+    assert(
+      !drawerBodyAfter.includes('Đang tải luồng telemetry...'),
+      'Sources loading indicator must clear after release',
+    );
+    assert(
+      drawerBodyAfter.includes('Stream #1') || drawerBodyAfter.includes('Đang nhận'),
+      'Assigned stream must be displayed successfully without being discarded by registry retry',
+    );
+
+    // Close drawer
+    const closeDrawerBtn3 = await page.$('[role="dialog"][aria-labelledby="source-drawer-title"] button[aria-label="Đóng"]');
+    if (closeDrawerBtn3) await closeDrawerBtn3.click();
+    await pause(300);
+  });
+
+  // FE-FV53: Review R3 — Initial SOURCE_METADATA_DISABLED displays capability banner and retry button in drawer body
+  await test('FE-FV53: [Reviewer R3] Initial SOURCE_METADATA_DISABLED displays capability banner and allows recovery', async () => {
+    currentUser = ADMIN_USER;
+    scenario = 'stream_disabled';
+    sensorFail503 = false;
+    registryFail503 = false;
+    holdSourcesReq = false;
+    heldSourcesReq = null;
+
+    await page.setViewport({ width: 1440, height: 900 });
+    await page.goto(`${BASE_URL}/settings/zones?farmId=1`, { waitUntil: 'networkidle0' });
+    await page.waitForSelector('#canvas-viewport');
+
+    // Click zone A01 and open drawer under initial stream_disabled scenario
+    await page.waitForSelector('[data-testid="canvas-zone-A01"]');
+    await page.click('[data-testid="canvas-zone-A01"]');
+    await page.waitForSelector('[data-testid="btn-open-source-drawer"]');
+    await page.click('[data-testid="btn-open-source-drawer"]');
+    await page.waitForSelector('[role="dialog"][aria-labelledby="source-drawer-title"]');
+
+    // 1. Assert metadata-disabled-banner is visible in drawer body WITHOUT entering isAssigning
+    await page.waitForSelector('[data-testid="metadata-disabled-banner"]');
+    const bannerText = await page.$eval('[data-testid="metadata-disabled-banner"]', el => el.textContent);
+    assert(
+      bannerText.includes('SOURCE_METADATA_DISABLED') || bannerText.includes('Tính năng siêu dữ liệu chưa kích hoạt'),
+      'Must explain capability status in drawer body banner',
+    );
+
+    // 2. Assert "Gán / Thay nguồn nhận" button is disabled
+    const isAssignBtnDisabled = await page.$eval('[data-testid="btn-open-assign-stream"]', el => el.disabled);
+    assert(isAssignBtnDisabled === true, 'Assign button must be disabled when SOURCE_METADATA_DISABLED');
+
+    // 3. Assert sensors are displayed and intact
+    await page.waitForSelector('[data-testid="zone-sensors-grid"]');
+    const sensorsGridText = await page.$eval('[data-testid="zone-sensors-grid"]', el => el.textContent);
+    assert(sensorsGridText.includes('SOIL_MOISTURE'), 'Sensors must remain visible during SOURCE_METADATA_DISABLED');
+
+    // 4. Assert active assignment is displayed
+    const drawerFullText = await page.$eval('[role="dialog"][aria-labelledby="source-drawer-title"]', el => el.textContent);
+    assert(drawerFullText.includes('Stream #1') || drawerFullText.includes('Đang nhận'), 'Active assignment must be displayed');
+
+    // 5. Test recovery: server re-enables metadata (scenario = 'normal'), user clicks retry registry in banner
+    scenario = 'normal';
+    await page.waitForSelector('[data-testid="metadata-disabled-banner"] [data-testid="btn-retry-registry"]');
+    await page.click('[data-testid="metadata-disabled-banner"] [data-testid="btn-retry-registry"]');
+
+    // Wait until metadata-disabled-banner unmounts
+    await page.waitForFunction(
+      () => !document.querySelector('[data-testid="metadata-disabled-banner"]')
+    );
+
+    // 6. Assert "Gán / Thay nguồn nhận" button is now ENABLED
+    const isAssignBtnNowEnabled = await page.$eval('[data-testid="btn-open-assign-stream"]', el => !el.disabled);
+    assert(isAssignBtnNowEnabled === true, 'Assign button must become enabled after registry recovers');
+
+    // 7. Sensors must still be preserved without re-fetching
+    const sensorsGridAfter = await page.$eval('[data-testid="zone-sensors-grid"]', el => el.textContent);
+    assert(sensorsGridAfter.includes('SOIL_MOISTURE'), 'Sensors must remain committed after registry recovery');
+
+    // Close drawer
+    const closeDrawerBtn4 = await page.$('[role="dialog"][aria-labelledby="source-drawer-title"] button[aria-label="Đóng"]');
+    if (closeDrawerBtn4) await closeDrawerBtn4.click();
+    await pause(300);
+  });
+
   console.log('\n--- All Verification Tests Finished ---');
   const passCount = testResults.filter(r => r.status === 'PASS').length;
   const failCount = testResults.filter(r => r.status === 'FAIL').length;
@@ -1915,12 +2395,6 @@ async function run() {
     path.join(evidenceDir, 'farm-vis-001-evidence-hashes.json'),
     JSON.stringify(hashes, null, 2) + '\n',
   );
-  if (fs.existsSync(MIRROR_EVIDENCE_DIR)) {
-    fs.writeFileSync(
-      path.join(MIRROR_EVIDENCE_DIR, 'farm-vis-001-evidence-hashes.json'),
-      JSON.stringify(hashes, null, 2) + '\n',
-    );
-  }
 
   console.log('Saved farm-vis-001-evidence-hashes.json with ' + Object.keys(hashes).length + ' screenshots');
 }

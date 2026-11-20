@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { Zone, ZoneRequest } from '../../types/zone';
 import { createZone } from '../../api/zones';
 import { t } from '../../i18n';
@@ -120,7 +121,7 @@ export default function ZoneCreateModal({
     }
   };
 
-  return (
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
@@ -129,7 +130,7 @@ export default function ZoneCreateModal({
     >
       <div className="relative w-full h-full md:h-auto md:max-w-[520px] bg-white dark:bg-[#0f172a] md:rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[100vh] md:max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-[#f8f9ff] dark:bg-slate-800/40 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-[#f8f9ff] dark:bg-slate-800/40 shrink-0 pt-[max(1rem,env(safe-area-inset-top))] md:pt-4">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-[#004489]/10 text-[#004489] dark:bg-[#60a5fa]/20 dark:text-[#60a5fa] flex items-center justify-center">
               <span className="material-symbols-outlined text-lg">add_location_alt</span>
@@ -272,7 +273,7 @@ export default function ZoneCreateModal({
           </div>
 
           {/* Footer CTAs: Mobile Stacked (Primary above Cancel), Desktop Row */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row-reverse items-stretch md:items-center gap-2.5">
+          <div className="pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-4 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row-reverse items-stretch md:items-center gap-2.5">
             <button
               type="submit"
               disabled={isSubmitting || Boolean(codeError)}
@@ -305,4 +306,6 @@ export default function ZoneCreateModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 }
