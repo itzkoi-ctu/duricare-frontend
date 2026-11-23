@@ -84,29 +84,46 @@ export default function CitationDetailModal({
   const activeGroup =
     groups.find(g => (g.citationId || g.id) === activeGroupId) ?? groups[0];
 
-  const originClassLabel =
-    activeGroup.originClass === 'EXPERT_AUTHORED'
-      ? t('Chuyên gia cung cấp')
-      : activeGroup.originClass === 'EXTERNAL_REFERENCE'
-      ? t('Tài liệu tham khảo')
-      : activeGroup.originClass
-      ? t('Chưa xác định lớp nguồn')
-      : null;
+  // Origin Class Config: Deterministic mapping with neutral fallback (FE-RAG-ORIGIN-001)
+  const getOriginClassConfig = (originClass?: string) => {
+    if (originClass === 'EXPERT_AUTHORED') {
+      return {
+        label: t('Chuyên gia cung cấp'),
+        icon: 'person',
+        className: 'bg-navy/10 dark:bg-blue/20 text-navy dark:text-blue border-navy/20 dark:border-blue/30',
+      };
+    }
+    if (originClass === 'EXTERNAL_REFERENCE') {
+      return {
+        label: t('Tài liệu tham khảo'),
+        icon: 'menu_book',
+        className: 'bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+      };
+    }
+    // UNDETERMINED, legacy, null, undefined, or any unsupported enum value: neutral gray, info icon
+    return {
+      label: t('Chưa xác định lớp nguồn'),
+      icon: 'info',
+      className: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+    };
+  };
 
+  const originConfig = getOriginClassConfig(activeGroup.originClass);
+
+  // Author label: NAMED exposes publicAuthorName, WITHHELD uses contract microcopy, UNKNOWN/null uses "Chưa xác định tác giả"
   const authorLabel =
     activeGroup.authorState === 'NAMED' && activeGroup.publicAuthorName
       ? activeGroup.publicAuthorName
       : activeGroup.authorState === 'WITHHELD'
       ? t('Tên tác giả chưa được công bố')
-      : activeGroup.authorState === 'UNKNOWN'
-      ? t('Chưa xác định tác giả')
-      : null;
+      : t('Chưa xác định tác giả');
 
+  // Origin status: REVIEWED or LEGACY_UNDETERMINED ("Dữ liệu kế thừa")
   const originStatusLabel =
     activeGroup.originStatus === 'REVIEWED'
       ? t('Xuất xứ đã duyệt')
       : activeGroup.originStatus === 'LEGACY_UNDETERMINED'
-      ? t('Dữ liệu kế thừa (Legacy)')
+      ? t('Dữ liệu kế thừa')
       : null;
 
   const fetchPassage = async (chunk: CitationChunk) => {
@@ -239,38 +256,64 @@ export default function CitationDetailModal({
 
         {/* Origin & Provenance Badges Row */}
         <div className="flex flex-wrap items-center gap-2">
-          {originClassLabel && (
-            <span
-              data-testid="citation-origin-badge"
-              className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 text-xs font-semibold flex items-center gap-1"
-            >
-              <span className="material-symbols-outlined text-[13px]">verified</span>
-              {originClassLabel}
+          {/* Origin class badge */}
+          <span
+            data-testid="citation-origin-badge"
+            className={`inline-flex items-center gap-1.5 min-h-[24px] rounded-full border px-2.5 py-0.5 text-xs font-medium leading-none ${originConfig.className}`}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined text-[14px] shrink-0 leading-none">
+              {originConfig.icon}
             </span>
-          )}
+            <span className="break-words">{originConfig.label}</span>
+          </span>
 
-          {authorLabel && (
-            <span className="rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs text-text font-medium">
-              <span className="text-gray">{t('Tác giả')}:</span> {authorLabel}
-            </span>
-          )}
+          {/* Author badge */}
+          <span
+            data-testid="citation-author-badge"
+            className="inline-flex items-center gap-1 min-h-[24px] rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs text-text font-medium leading-none"
+          >
+            <span className="text-gray">{t('Tác giả')}:</span>
+            <span className="break-words font-medium">{authorLabel}</span>
+          </span>
 
+          {/* Origin status (Reviewed / Legacy) badge */}
           {originStatusLabel && (
-            <span className="rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-0.5 text-[11px] font-medium border border-border">
+            <span
+              data-testid="citation-status-badge"
+              className={`inline-flex items-center min-h-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium border leading-none ${
+                activeGroup.originStatus === 'REVIEWED'
+                  ? 'bg-navy/5 text-navy dark:bg-blue/10 dark:text-blue border-navy/20 dark:border-blue/30'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-border'
+              }`}
+            >
               {originStatusLabel}
             </span>
           )}
 
+          {/* Tier badge */}
           {activeGroup.tier && (
-            <span className="rounded-full bg-navy/10 px-2.5 py-0.5 text-xs font-semibold text-navy dark:bg-blue/20 dark:text-blue">
+            <span
+              data-testid="citation-tier-badge"
+              className="inline-flex items-center min-h-[24px] rounded-full bg-navy/10 px-2.5 py-0.5 text-xs font-semibold text-navy dark:bg-blue/20 dark:text-blue border border-navy/20 dark:border-blue/30 leading-none"
+            >
               {t('Tầng {0}', [activeGroup.tier])}
             </span>
           )}
-          <span className="rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs text-gray">
-            {t('Phiên bản {0}', [activeGroup.revisionNumber])}
+
+          {/* Revision badge */}
+          <span
+            data-testid="citation-revision-badge"
+            className="inline-flex items-center min-h-[24px] rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs font-medium text-gray leading-none"
+          >
+            {t('Phiên bản {0}', [activeGroup.revisionNumber ?? 1])}
           </span>
+
+          {/* Year badge */}
           {activeGroup.year && (
-            <span className="rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs text-gray">
+            <span
+              data-testid="citation-year-badge"
+              className="inline-flex items-center min-h-[24px] rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs font-medium text-gray leading-none"
+            >
               {t('Năm {0}', [activeGroup.year])}
             </span>
           )}
@@ -279,11 +322,11 @@ export default function CitationDetailModal({
         {/* Excerpts / Locators */}
         <div className="space-y-2.5">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-gray">
-            {t('Các đoạn trích được dùng ({0})', [activeGroup.chunks.length])}
+            {t('Các đoạn trích đã cung cấp cho AI ({0})', [activeGroup.chunks.length])}
           </h3>
           <ul className="space-y-2">
             {activeGroup.chunks.map((chunk, index) => {
-              const chunkKey = `${activeGroup.id}:${chunk.chunkId}`;
+              const chunkKey = `${activeGroup.citationId || activeGroup.id}:${chunk.chunkId}`;
               const passage = loadedPassages[chunkKey] || (chunk.content ? { content: chunk.content, locator: chunk.locator } : null);
               const isLoadingThis = passageLoading[chunkKey];
               const errorThis = passageError[chunkKey];
@@ -295,7 +338,7 @@ export default function CitationDetailModal({
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold text-text">
-                      {t('Đoạn {0}', [index + 1])}
+                      {t('Đoạn trích {0}', [index + 1])}
                     </span>
                     <span className="font-mono text-[10px] text-gray select-all">
                       {chunk.chunkId.slice(0, 8)}...
@@ -364,7 +407,7 @@ export default function CitationDetailModal({
               <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
                 open_in_new
               </span>
-              <span>{t('Mở tài liệu gốc')}</span>
+              <span>{t('Mở tài liệu nguồn')}</span>
             </a>
           )}
 
@@ -385,7 +428,7 @@ export default function CitationDetailModal({
         {/* Collapsible Audit / Provenance Information */}
         <details className="group border-t border-border pt-3">
           <summary className="flex items-center justify-between text-xs font-semibold text-gray cursor-pointer select-none">
-            <span>{t('Thông tin truy xuất')}</span>
+            <span>{t('Thông tin kiểm tra')}</span>
             <span
               aria-hidden="true"
               className="material-symbols-outlined text-base group-open:rotate-180 transition-transform text-gray"
