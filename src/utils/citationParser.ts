@@ -140,6 +140,7 @@ export function groupCitations(entries: RawParsedEntry[]): CitationGroup[] {
     if (!group) {
       group = {
         id: groupId,
+        citationId: groupId,
         sourceTitle: entry.sourceTitle,
         revisionNumber: entry.revisionNumber,
         tier: entry.tier,
@@ -274,4 +275,155 @@ export function extractCitations(content: string): ExtractedCitationsResult {
     citations: [],
     hasRawFooter: false,
   };
+}
+
+/**
+ * Strips the recognized server footer `Căn cứ đã xác minh:\n...` from markdown prose.
+ * Only recognized bullet citation lines attached to the header are stripped.
+ * Preserves all other content before and after the footer block.
+ */
+export function stripCitationFooter(content: string): string {
+  if (!content || typeof content !== 'string') return '';
+  const result = extractCitations(content);
+  return result.hasRawFooter ? result.cleanContent : content;
+}
+
+/**
+ * Validates whether a wire citation group conforms to the approved RAG-ORIGIN C0 wire contract shape.
+ * Requires complete identity fields (citationId, sourceId, revisionId, publicationId, sourceTitle)
+ * and a non-empty array of valid chunks.
+ * Rejects null, undefined, non-objects, or incomplete groups without valid source identity.
+ */
+export function isValidWireCitationGroup(wire: any): boolean {
+  if (!wire || typeof wire !== 'object' || Array.isArray(wire)) {
+    return false;
+  }
+
+  const citationId =
+    (typeof wire.citationId === 'string' && wire.citationId.trim()) ||
+    (typeof wire.id === 'string' && wire.id.trim());
+  if (!citationId) {
+    return false;
+  }
+
+  const sourceTitle = typeof wire.sourceTitle === 'string' && wire.sourceTitle.trim();
+  if (!sourceTitle) {
+    return false;
+  }
+
+  const sourceId = typeof wire.sourceId === 'string' && wire.sourceId.trim();
+  if (!sourceId) {
+    return false;
+  }
+
+  const revisionId = typeof wire.revisionId === 'string' && wire.revisionId.trim();
+  if (!revisionId) {
+    return false;
+  }
+
+  const publicationId = typeof wire.publicationId === 'string' && wire.publicationId.trim();
+  if (!publicationId) {
+    return false;
+  }
+
+  if (!Array.isArray(wire.chunks) || wire.chunks.length === 0) {
+    return false;
+  }
+
+  for (const ch of wire.chunks) {
+    if (!ch || typeof ch !== 'object' || Array.isArray(ch)) {
+      return false;
+    }
+    const chunkId = typeof ch.chunkId === 'string' && ch.chunkId.trim();
+    if (!chunkId) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Adapts a wire citation group from the backend RAG-ORIGIN C0 envelope into a view CitationGroup.
+ * Validates the wire shape and returns null if malformed or incomplete.
+ * Generating presentation fallbacks must NOT promote a null or invalid group into an authenticated citation.
+ */
+export function adaptWireCitationGroup(wire: any, _index = 0): CitationGroup | null {
+  if (!isValidWireCitationGroup(wire)) {
+    return null;
+  }
+
+  const citationId = ((typeof wire.citationId === 'string' && wire.citationId.trim()) || wire.id.trim()) as string;
+
+  return {
+    id: citationId,
+    citationId,
+    sourceTitle: wire.sourceTitle.trim(),
+    revisionNumber: typeof wire.revisionNumber === 'number' ? wire.revisionNumber : 1,
+    tier: wire.tier,
+    year: typeof wire.year === 'number' ? wire.year : undefined,
+    sourceUrl: sanitizeSourceUrl(wire.sourceUrl),
+    publicationId: wire.publicationId.trim(),
+    sourceId: wire.sourceId.trim(),
+    revisionId: wire.revisionId.trim(),
+    originClass: wire.originClass,
+    authorState: wire.authorState,
+    publicAuthorName: wire.publicAuthorName ?? null,
+    originStatus: wire.originStatus,
+    chunks: wire.chunks.map((ch: any) => ({
+      chunkId: ch.chunkId.trim(),
+      locator: ch.locator || '',
+      contentHash: ch.contentHash,
+      detailPath: ch.detailPath,
+      content: ch.content,
+    })),
+  };
+}
+
+/**
+ * Resolves a message-scoped citation detailPath against the shared Axios client.
+ * The backend wire contract returns paths starting with `/api/agent/conversations/...`.
+ * Since Axios client baseURL already includes `/api` (e.g. `/api` or `http://host:port/api`),
+ * passing `/api/...` causes Axios to generate `/api/api/...`.
+ *
+ * This function validates the permitted path shape and strips the redundant `/api` prefix
+ * so Axios resolves it to `/api/agent/...` exactly once.
+ */
+export function resolveCitationDetailEndpoint(
+  detailPath?: string | null,
+  context?: { conversationId?: string; messageId?: string | number; citationId?: string; chunkId?: string },
+): string | null {
+  if (detailPath && typeof detailPath === 'string') {
+    const trimmed = detailPath.trim();
+    // Validate path safety: must NOT have scheme/protocol (http:, https:, etc.), host (//), or path traversal (..)
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed) || trimmed.startsWith('//') || trimmed.includes('..')) {
+      return null;
+    }
+
+    // Permitted backend wire pattern:
+    // /api/agent/conversations/<id>/messages/<id>/citations/<id>/chunks/<id>
+    // or /agent/conversations/<id>/messages/<id>/citations/<id>/chunks/<id>
+    const wirePattern = /^(?:\/api)?(\/agent\/conversations\/[a-zA-Z0-9_-]+\/messages\/[a-zA-Z0-9_-]+\/citations\/[a-zA-Z0-9_-]+\/chunks\/[a-zA-Z0-9_-]+)$/;
+    const wireMatch = trimmed.match(wirePattern);
+    if (wireMatch) {
+      return wireMatch[1];
+    }
+
+    // Fallback pattern for safe endpoints under /agent/
+    const fallbackPattern = /^(?:\/api)?(\/agent\/[a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_.-]+)*)$/;
+    const fallbackMatch = trimmed.match(fallbackPattern);
+    if (fallbackMatch) {
+      return fallbackMatch[1];
+    }
+    return null;
+  }
+
+  // Canonical fallback when detailPath is not provided on chunk
+  if (context?.conversationId && context.messageId && context.citationId && context.chunkId) {
+    return `/agent/conversations/${encodeURIComponent(context.conversationId)}/messages/${encodeURIComponent(
+      String(context.messageId),
+    )}/citations/${encodeURIComponent(context.citationId)}/chunks/${encodeURIComponent(context.chunkId)}`;
+  }
+
+  return null;
 }

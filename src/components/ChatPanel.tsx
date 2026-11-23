@@ -1,14 +1,19 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import ReactMarkdown from 'react-markdown';
 import useAgentChat, { type AgentChatState } from '../hooks/useAgentChat';
 import type { ChatFormValues } from '../types/agent';
 import type { CitationGroup } from '../types/citation';
-import { extractCitations } from '../utils/citationParser';
+import {
+  adaptWireCitationGroup,
+  isValidWireCitationGroup,
+  extractCitations,
+  stripCitationFooter,
+} from '../utils/citationParser';
 import CitationChips from './chat/CitationChips';
 import CitationDetailModal from './chat/CitationDetailModal';
-import { modelProviderLabel } from '../utils/agentAnswer';
+import MarkdownContent from './chat/MarkdownContent';
+import { isSystemRefusal, modelProviderLabel } from '../utils/agentAnswer';
 import { useLanguage } from '../i18n/useLanguage';
 import { getLocale, t } from '../i18n';
 import { useOptionalOverviewContext } from '../context/OverviewContext';
@@ -109,10 +114,17 @@ export function ChatPanelView({
     setCitationModal(prev => ({ ...prev, isOpen: false }));
   };
 
-  const submitQuestion = (question: string) => {
+  const submitQuestion = (
+    question: string,
+    isRetry = false,
+    overrideContext?: { conversationId?: string; zoneCode?: string },
+  ) => {
     if (!question.trim() || busy || historyError) return;
-    reset();
-    void sendQuestion(question);
+    // Retrying an old question preserves what the user is currently typing in the input box
+    if (!isRetry) {
+      reset();
+    }
+    void sendQuestion(question, overrideContext);
   };
 
   return (
@@ -259,10 +271,53 @@ export function ChatPanelView({
         {visibleMessages.map(message => {
           const user = message.role === 'user';
           const retryQuestion = message.retryQuestion;
-          const { cleanContent, citations } =
-            !user && !message.isError
-              ? extractCitations(message.content)
-              : { cleanContent: message.content, citations: [] };
+          const isSystem = isSystemRefusal(message.modelUsed);
+          const isInsufficientData = message.status === 'INSUFFICIENT_DATA';
+
+          // Extract citations or use structured citations envelope if provided
+          let cleanContent = message.content;
+          let citations: CitationGroup[] = [];
+
+          if (!user && !message.isError && !isSystem) {
+            // Check if structured envelope is provided by backend
+            if (message.citations !== undefined && message.citations !== null) {
+              // F6: Strip any recognized technical citation footer (e.g. "Căn cứ đã xác minh:\n...")
+              // while deriving verified identities exclusively from structured evidence
+              cleanContent = stripCitationFooter(message.content);
+
+              const env = message.citations as any;
+              // F1: Validate supported envelope schemaVersion and complete groups before adapting:
+              // - Must be a non-null object and NOT an array
+              // - schemaVersion MUST be exact number 1 (rejects 999, absent, string "1", etc.)
+              // - status MUST be VERIFIED_CONTEXT or LEGACY_REFERENCE (rejects NONE, INVALID, etc.)
+              // - groups MUST be a non-empty array where EVERY group is a valid wire citation group
+              // Fail conservatively on malformed structured evidence (produces citations = [])
+              // Under NO circumstances do we fall through to extractCitations from prose when envelope exists!
+              if (
+                typeof env !== 'object' ||
+                Array.isArray(env) ||
+                typeof env.schemaVersion !== 'number' ||
+                env.schemaVersion !== 1 ||
+                (env.status !== 'VERIFIED_CONTEXT' && env.status !== 'LEGACY_REFERENCE') ||
+                !Array.isArray(env.groups) ||
+                env.groups.length === 0 ||
+                !env.groups.every(isValidWireCitationGroup)
+              ) {
+                citations = [];
+              } else {
+                // F2: Map wire groups through adaptWireCitationGroup to ensure citationId and unique id
+                const adapted = env.groups
+                  .map((g: any, idx: number) => adaptWireCitationGroup(g, idx))
+                  .filter((g: CitationGroup | null): g is CitationGroup => g !== null);
+                citations = adapted;
+              }
+            } else {
+              // Legacy plain-text mode without structured envelope
+              const parsed = extractCitations(message.content);
+              cleanContent = parsed.cleanContent;
+              citations = parsed.citations;
+            }
+          }
 
           if (user) {
             return (
@@ -271,8 +326,8 @@ export function ChatPanelView({
                 data-chat-role="user"
                 className="flex justify-end"
               >
-                <div className="max-w-[85%] md:max-w-xl bg-[#eff4ff] dark:bg-sky-950/40 text-[#0f172a] dark:text-sky-100 text-[14px] leading-relaxed p-3.5 md:p-4 rounded-2xl rounded-tr-sm border border-[#dbeafe] dark:border-sky-800 shadow-2xs">
-                  <p className="whitespace-pre-wrap">{message.content}</p>
+                <div className="max-w-[85%] md:max-w-xl bg-[#eff4ff] dark:bg-sky-950/40 text-[#0f172a] dark:text-sky-100 text-[14px] leading-relaxed p-3.5 md:p-4 rounded-2xl rounded-tr-sm border border-[#dbeafe] dark:border-sky-800 shadow-2xs min-w-0">
+                  <p className="whitespace-pre-wrap break-words">{message.content}</p>
                   <div className="mt-1 text-right">
                     <time
                       dateTime={message.createdAt.toISOString()}
@@ -292,27 +347,53 @@ export function ChatPanelView({
           return (
             <article
               key={message.id}
+              role={message.isError ? 'alert' : undefined}
               data-chat-role="assistant"
               data-chat-error={message.isError || undefined}
-              className="flex items-start gap-2.5 md:gap-3 max-w-[96%] md:max-w-2xl"
+              data-chat-system={isSystem || undefined}
+              data-chat-status={message.status || undefined}
+              className="flex items-start gap-2.5 md:gap-3 max-w-[96%] md:max-w-2xl min-w-0"
             >
               {/* Bot Avatar */}
-              <div className="w-8 h-8 rounded-full bg-[#1f5ca9] text-white flex items-center justify-center shrink-0 text-xs font-bold shadow-sm mt-0.5">
-                <span className="material-symbols-outlined text-[18px]">psychology</span>
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold shadow-sm mt-0.5 ${
+                  isSystem
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-[#1f5ca9] text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {isSystem ? 'shield' : 'psychology'}
+                </span>
               </div>
 
               {/* Bot Response Card */}
               <div
-                className={`bg-white dark:bg-surface border rounded-2xl rounded-tl-sm p-4 md:p-5 shadow-xs space-y-3 flex-1 min-w-0 ${
+                className={`border rounded-2xl rounded-tl-sm p-4 md:p-5 shadow-xs space-y-3 flex-1 min-w-0 ${
                   message.isError
                     ? 'border-coral/40 bg-coral/5 text-coral'
-                    : 'border-[#e2e8f0] dark:border-border text-text'
+                    : isSystem
+                    ? 'border-amber-300 dark:border-amber-800/70 bg-amber-50/50 dark:bg-amber-950/20 text-text'
+                    : 'bg-white dark:bg-surface border-[#e2e8f0] dark:border-border text-text'
                 }`}
               >
                 {/* Author & Timestamp */}
                 <div className="flex items-center justify-between pb-2 border-b border-[#f1f5f9] dark:border-border/40">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-xs text-[#1f5ca9] dark:text-sky-400">DuriCare</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className={`font-semibold text-xs ${
+                        isSystem
+                          ? 'text-amber-700 dark:text-amber-400'
+                          : 'text-[#1f5ca9] dark:text-sky-400'
+                      }`}
+                    >
+                      {isSystem ? t('Hệ thống DuriCare') : 'DuriCare'}
+                    </span>
+                    {isSystem && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-semibold border border-amber-200 dark:border-amber-800">
+                        {t('Giới hạn xử lý')}
+                      </span>
+                    )}
                     <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">
                       · {message.createdAt.toLocaleTimeString(getLocale(), {
                         hour: '2-digit',
@@ -322,24 +403,55 @@ export function ChatPanelView({
                   </div>
                 </div>
 
-                {/* Content */}
-                <div className="text-[14px] text-[#1e293b] dark:text-slate-200 leading-relaxed space-y-2 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_h1]:font-bold [&_h2]:font-bold [&_h3]:font-bold [&_a]:text-[#1f5ca9] [&_a]:underline [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-slate-50 dark:[&_pre]:bg-slate-900 [&_pre]:p-3 [&_code]:break-words">
-                  <ReactMarkdown>{message.isError ? t(message.content) : cleanContent}</ReactMarkdown>
+                {/* INSUFFICIENT_DATA Notice if returned by BE */}
+                {isInsufficientData && (
+                  <div
+                    data-testid="insufficient-data-card"
+                    className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 space-y-1"
+                  >
+                    <div className="font-semibold flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-sm text-amber-600">info</span>
+                      <span>{t('Dữ liệu chưa đủ điều kiện phân tích')}</span>
+                    </div>
+                    {message.insufficientDataInfo && (
+                      <div className="text-[11px] text-amber-800/80 dark:text-amber-300/80 space-y-0.5 pt-0.5">
+                        {message.insufficientDataInfo.zoneCode && (
+                          <div>{t('Khu vực')}: {message.insufficientDataInfo.zoneCode}</div>
+                        )}
+                        {message.insufficientDataInfo.dataPoints !== undefined && (
+                          <div>{t('Số điểm đo hợp lệ')}: {message.insufficientDataInfo.dataPoints}</div>
+                        )}
+                        {(message.insufficientDataInfo.timeWindow || (message.insufficientDataInfo.windowStart && message.insufficientDataInfo.windowEnd)) && (
+                          <div>
+                            {t('Cửa sổ thời gian')}: {message.insufficientDataInfo.timeWindow || `${message.insufficientDataInfo.windowStart} - ${message.insufficientDataInfo.windowEnd}`}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Content with GFM Markdown Table & Scrolling Wrapper */}
+                <div className="text-[14px] leading-relaxed min-w-0">
+                  <MarkdownContent content={message.isError ? t(message.content) : cleanContent} />
                 </div>
 
-                {/* Scientific Citations */}
-                {citations.length > 0 && (
+                {/* Scientific Citations (Suppressed on System Refusal) */}
+                {!isSystem && citations.length > 0 && (
                   <CitationChips
                     groups={citations}
-                    onSelectGroup={group => openCitations(message.id, group.id, citations)}
+                    supportLevel={message.citations?.supportLevel}
+                    onSelectGroup={group => openCitations(message.id, group.citationId || group.id, citations)}
                   />
                 )}
 
                 {/* Footer Metadata */}
                 <div className="text-[11px] text-slate-400 dark:text-slate-500 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#f8f9fa] dark:border-border/30">
                   {message.modelUsed && (
-                    <span title={message.modelUsed}>
-                      {t('Trả lời bởi {0}', [modelProviderLabel(message.modelUsed)])}
+                    <span data-testid="agent-model-badge" title={message.modelUsed}>
+                      {isSystem
+                        ? t('Phản hồi hệ thống ({0})', [message.modelUsed])
+                        : t('Trả lời bởi {0}', [modelProviderLabel(message.modelUsed)])}
                     </span>
                   )}
                   {!!message.toolsUsed?.length && (
@@ -354,10 +466,10 @@ export function ChatPanelView({
                                   ? 'Có dữ liệu'
                                   : tool.outcome === 'DENIED'
                                   ? 'Bị từ chối'
-                                  : 'Không có dữ liệu'
-                              )
-                            )
-                          )
+                                  : 'Không có dữ liệu',
+                              ),
+                            ),
+                          ),
                         ).join(' · ');
                         return (
                           <span
@@ -374,13 +486,14 @@ export function ChatPanelView({
                   )}
                 </div>
 
-                {/* Error Retry */}
+                {/* Error Retry: Retrying preserves input in composer */}
                 {message.isError && retryQuestion && (
                   <button
                     type="button"
+                    data-testid="btn-retry-question"
                     disabled={busy}
-                    onClick={() => submitQuestion(retryQuestion)}
-                    className="mt-2 min-h-9 rounded-lg border border-coral/30 px-3 text-xs font-semibold text-coral hover:bg-coral/10 disabled:opacity-50 cursor-pointer"
+                    onClick={() => submitQuestion(retryQuestion, true, message.retryContext)}
+                    className="mt-2 min-h-9 rounded-lg border border-coral/30 px-3 text-xs font-semibold text-coral hover:bg-coral/10 disabled:opacity-50 cursor-pointer transition-colors"
                   >
                     {t('Thử lại câu hỏi')}
                   </button>
@@ -401,7 +514,7 @@ export function ChatPanelView({
       {/* ─── Composer Form ─── */}
       <div className={`${full ? 'shrink-0 bg-white dark:bg-surface border-t border-[#e2e8f0] dark:border-border p-3 md:p-4' : ''}`}>
         <form
-          onSubmit={handleSubmit(({ question }) => submitQuestion(question))}
+          onSubmit={handleSubmit(({ question }) => submitQuestion(question, false))}
           className="flex items-center gap-2 max-w-4xl mx-auto"
         >
           <div className="relative flex-1 min-w-0">
@@ -410,6 +523,7 @@ export function ChatPanelView({
             </label>
             <input
               id={inputId}
+              data-testid="input-chat-question"
               {...register('question', { required: true, validate: value => value.trim().length > 0 })}
               disabled={busy || !!historyError}
               maxLength={4000}
@@ -420,6 +534,7 @@ export function ChatPanelView({
           </div>
           <button
             type="submit"
+            data-testid="btn-send-question"
             disabled={busy || !!historyError}
             className="h-11 px-5 bg-[#1f5ca9] hover:bg-[#184a87] text-white rounded-xl text-sm font-medium flex items-center justify-center gap-1.5 shrink-0 transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
           >
@@ -454,6 +569,8 @@ export function ChatPanelView({
         onClose={closeCitations}
         groups={citationModal.groups}
         initialGroupId={citationModal.initialGroupId}
+        conversationId={conversationId}
+        messageId={citationModal.messageId}
       />
     </section>
   );

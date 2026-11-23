@@ -5,12 +5,14 @@ interface CitationChipsProps {
   groups: CitationGroup[];
   onSelectGroup: (group: CitationGroup) => void;
   maxVisible?: number;
+  supportLevel?: string;
 }
 
 export default function CitationChips({
   groups,
   onSelectGroup,
   maxVisible = 2,
+  supportLevel = 'RETRIEVED_CONTEXT',
 }: CitationChipsProps) {
   if (!groups || groups.length === 0) return null;
 
@@ -20,36 +22,50 @@ export default function CitationChips({
   const visibleGroups = groups.slice(0, limit);
   const overflowCount = groups.length - limit;
 
+  const sectionLabel =
+    supportLevel === 'RETRIEVED_CONTEXT'
+      ? t('Các nguồn đã cung cấp cho AI')
+      : t('Nguồn tham khảo');
+
   return (
     <div
       role="region"
-      aria-label={t('Nguồn tham khảo')}
+      aria-label={sectionLabel}
       className="mt-3 pt-2.5 border-t border-border/60"
     >
       <div className="flex items-center gap-1.5 text-xs font-semibold text-gray mb-2">
         <span aria-hidden="true" className="material-symbols-outlined text-[15px] text-navy dark:text-blue">
           menu_book
         </span>
-        <span>{t('Nguồn tham khảo')}</span>
+        <span>{sectionLabel}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
         {visibleGroups.map((group, index) => {
           const numberLabel = index + 1;
-          const accessibleName = t('Nguồn {0}: {1} (bản {2})', [
+          const authorText =
+            group.authorState === 'NAMED' && group.publicAuthorName
+              ? ` · ${group.publicAuthorName}`
+              : group.authorState === 'WITHHELD'
+              ? ` · ${t('Tác giả chưa công bố')}`
+              : '';
+
+          const accessibleName = t('Nguồn {0}: {1} (bản {2}){3}', [
             numberLabel,
             group.sourceTitle,
             group.revisionNumber,
+            authorText,
           ]);
 
           return (
             <button
-              key={group.id}
+              key={group.citationId || group.id}
               type="button"
+              data-testid="citation-chip"
               onClick={() => onSelectGroup(group)}
               aria-label={accessibleName}
-              title={`${group.sourceTitle} (${t('bản {0}', [group.revisionNumber])})`}
-              className="group inline-flex items-center gap-1.5 min-h-[32px] max-w-[200px] sm:max-w-[260px] rounded-lg border border-border bg-surface px-2.5 py-1 text-xs text-text hover:border-navy hover:text-navy dark:hover:border-blue dark:hover:text-blue transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy/30"
+              title={`${group.sourceTitle} (${t('bản {0}', [group.revisionNumber])})${authorText}`}
+              className="group inline-flex items-center gap-1.5 min-h-[32px] max-w-[200px] sm:max-w-[280px] rounded-lg border border-border bg-surface px-2.5 py-1 text-xs text-text hover:border-navy hover:text-navy dark:hover:border-blue dark:hover:text-blue transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy/30"
             >
               <span className="font-semibold text-navy dark:text-blue shrink-0">
                 [{numberLabel} ·
@@ -63,6 +79,7 @@ export default function CitationChips({
         {overflowCount > 0 && (
           <button
             type="button"
+            data-testid="citation-overflow-chip"
             onClick={() => onSelectGroup(groups[limit])}
             aria-label={t('Xem thêm {0} nguồn tham khảo khác', [overflowCount])}
             title={t('Xem thêm {0} nguồn tham khảo khác', [overflowCount])}
