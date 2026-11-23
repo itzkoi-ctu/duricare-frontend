@@ -87,7 +87,7 @@ async function runVerification() {
         title: 'Thử nghiệm xuất xứ và trích dẫn tri thức',
         createdAt: '2026-11-23T10:00:00Z',
         updatedAt: '2026-11-23T10:05:00Z',
-        messageCount: 6,
+        messageCount: 7,
       },
     ];
 
@@ -266,7 +266,7 @@ async function runVerification() {
         {
           id: 6,
           role: 'ASSISTANT',
-          content: 'Tài liệu có tiêu đề, tên tác giả và vị trí siêu dài để kiểm tra tràn khung trên mobile 375px.',
+          content: 'Tài liệu có tiêu đề, tên tác giả và vị trí siêu dài có khoảng trắng để kiểm tra tràn khung trên mobile 375px.',
           createdAt: '2026-11-23T10:06:00Z',
           citations: {
             schemaVersion: 1,
@@ -293,6 +293,42 @@ async function runVerification() {
                     locator: 'Chương 4, Phần 2.3.1, Bảng số liệu tổng hợp quan trắc độ dẫn điện EC và nồng độ ion Natri trong đất nhiễm phèn mặn',
                     contentHash: 'hash-long-06',
                     detailPath: '/agent/conversations/conv-origin-test/messages/6/citations/cit-long-006/chunks/chk-long-06',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        // Message 7: UNBROKEN author name 180+ chars (within OriginDeclaration.java:32 limit <= 300)
+        {
+          id: 7,
+          role: 'ASSISTANT',
+          content: 'Tài liệu có tên tác giả viết liền không khoảng trắng 196 ký tự để kiểm tra flex-safe wrapping và chống tràn ngang modal.',
+          createdAt: '2026-11-23T10:07:00Z',
+          citations: {
+            schemaVersion: 1,
+            status: 'VERIFIED_CONTEXT',
+            supportLevel: 'RETRIEVED_CONTEXT',
+            groups: [
+              {
+                citationId: 'cit-unbroken-007',
+                sourceId: 'src-unbroken-007',
+                revisionId: 'rev-unbroken-007',
+                publicationId: 'pub-unbroken-007',
+                sourceTitle: 'Tài liệu kiểm tra tên tác giả viết liền 196 ký tự không khoảng trắng',
+                revisionNumber: 1,
+                tier: 'A',
+                year: 2026,
+                originClass: 'EXPERT_AUTHORED',
+                authorState: 'NAMED',
+                publicAuthorName: 'GS.TS.DangVanChuyenGiaNghienCuuSauRiengCanThoVaMienTayNamBoChuyenGiaNongNghiepBenTreTienGiangVinhLongTraVinhSocTrangHauGiangAnGiangKienGiangDongThapLongAnCaMauBacLieuBinhPhuocDongNaiDakLak180Chars',
+                originStatus: 'REVIEWED',
+                chunks: [
+                  {
+                    chunkId: 'chk-unbroken-07',
+                    locator: 'Mục 1.0 - Unbroken author test',
+                    contentHash: 'hash-unbroken-07',
+                    detailPath: '/agent/conversations/conv-origin-test/messages/7/citations/cit-unbroken-007/chunks/chk-unbroken-07',
                   },
                 ],
               },
@@ -404,7 +440,7 @@ async function runVerification() {
     const chipSelector = '[data-testid="citation-chip"]';
     await page.waitForSelector(chipSelector, { timeout: 8000 });
     const chips = await page.$$(chipSelector);
-    assert.ok(chips.length >= 6, `Expected at least 6 citation chips, got ${chips.length}`);
+    assert.ok(chips.length >= 7, `Expected at least 7 citation chips, got ${chips.length}`);
 
     // Click the first chip (msg-legacy)
     await chips[0].click();
@@ -664,45 +700,197 @@ async function runVerification() {
     await page.waitForFunction(() => !document.querySelector('[data-testid="citation-detail-modal"]'), { timeout: 3000 });
 
     // -------------------------------------------------------------
-    // Test 7: Mobile 375px Viewport with Long Metadata
+    // Test 7: Mobile 375x812 Viewport with Spaced Long Metadata
     // -------------------------------------------------------------
-    console.log('\n--- Test Case 7: Mobile 375px Viewport with Long Metadata ---');
-    await page.setViewport({ width: 375, height: 667 });
+    console.log('\n--- Test Case 7: Mobile 375x812 Viewport with Spaced Long Metadata ---');
+    await page.setViewport({ width: 375, height: 812 });
     await new Promise(r => setTimeout(r, 500));
 
     const mobileChips = await page.$$(chipSelector);
-    // Chip 5 is msg-long-meta
+    // Chip 5 is msg-long-meta (spaced long metadata)
     await mobileChips[5].click();
     await page.waitForSelector('[data-testid="citation-detail-modal"]', { timeout: 5000 });
 
-    const mobileModalGeometry = await page.evaluate(() => {
+    const spacedModalGeometry = await page.evaluate(() => {
       const modalCard = document.querySelector('[data-testid="citation-detail-modal"]');
+      const authorBadge = modalCard?.querySelector('[data-testid="citation-author-badge"]');
       const closeBtn = modalCard?.querySelector('[data-testid="modal-close-btn"]');
       const heading = modalCard?.querySelector('#citation-modal-title');
+      const locatorP = modalCard?.querySelector('li p');
       const bodyWidth = document.body.clientWidth;
       const windowWidth = window.innerWidth;
 
       const cardRect = modalCard?.getBoundingClientRect();
+      const authorRect = authorBadge?.getBoundingClientRect();
       const closeBtnRect = closeBtn?.getBoundingClientRect();
 
+      const headingStyle = heading ? window.getComputedStyle(heading) : null;
+      const locatorStyle = locatorP ? window.getComputedStyle(locatorP) : null;
+
+      // Word boundary check for long spaced title (ordinary words must not split)
+      const textNode = heading?.firstChild;
+      let splitWordsCount = 0;
+      const headingWords = [];
+      if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+        const text = textNode.textContent || '';
+        // Match ordinary words (alphanumeric sequences, excluding hyphens which naturally allow breaks)
+        const regex = /[A-Za-zÀ-ỹ0-9]+/gu;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+          const range = document.createRange();
+          range.setStart(textNode, match.index);
+          range.setEnd(textNode, match.index + match[0].length);
+          const rects = Array.from(range.getClientRects());
+          const tops = new Set(rects.map(r => Math.round(r.top)));
+          const isSplit = tops.size > 1;
+          if (isSplit) splitWordsCount++;
+          headingWords.push({
+            word: match[0],
+            rectsCount: rects.length,
+            tops: Array.from(tops),
+            isSplit,
+          });
+        }
+      }
+
       return {
-        cardWidth: cardRect?.width,
+        cardWidth: cardRect?.width || 0,
+        cardClientWidth: modalCard?.clientWidth || 0,
+        cardScrollWidth: modalCard?.scrollWidth || 0,
+        authorWidth: authorRect?.width || 0,
+        authorRight: authorRect?.right || 0,
+        cardRight: cardRect?.right || 0,
+        cardLeft: cardRect?.left || 0,
+        authorLeft: authorRect?.left || 0,
         bodyWidth,
         windowWidth,
         isScrollable: (modalCard?.scrollHeight || 0) > (modalCard?.clientHeight || 0),
         closeBtnVisible: !!closeBtn && (closeBtnRect?.width || 0) > 0,
         closeBtnMinSize: closeBtnRect ? Math.min(closeBtnRect.width, closeBtnRect.height) : 0,
-        headingBreakWords: heading ? window.getComputedStyle(heading).wordBreak : '',
+        headingWordBreak: headingStyle?.wordBreak || '',
+        headingOverflowWrap: headingStyle?.overflowWrap || '',
+        locatorWordBreak: locatorStyle?.wordBreak || '',
+        splitWordsCount,
+        headingWords,
       };
     });
 
-    assert.ok(mobileModalGeometry.cardWidth <= 375, 'Modal width must fit inside 375px screen');
-    assert.equal(mobileModalGeometry.bodyWidth, 375, 'Page must not scroll horizontally on 375px');
-    assert.equal(mobileModalGeometry.closeBtnVisible, true, 'Close button must be visible on mobile');
-    assert.ok(mobileModalGeometry.closeBtnMinSize >= 28, 'Close button touch area must be accessible');
+    console.log('Test 7 heading metrics:', {
+      headingWordBreak: spacedModalGeometry.headingWordBreak,
+      headingOverflowWrap: spacedModalGeometry.headingOverflowWrap,
+      splitWordsCount: spacedModalGeometry.splitWordsCount,
+    });
+    if (spacedModalGeometry.splitWordsCount > 0) {
+      console.log('Test 7 split words:', spacedModalGeometry.headingWords.filter(w => w.isSplit));
+    }
+
+    assert.ok(spacedModalGeometry.cardWidth <= 375, 'Modal width must fit inside 375px screen');
+    assert.equal(spacedModalGeometry.bodyWidth, 375, 'Page must not scroll horizontally on 375px');
+    assert.ok(spacedModalGeometry.cardScrollWidth <= spacedModalGeometry.cardClientWidth + 1, `Modal must not have horizontal scroll (scrollWidth: ${spacedModalGeometry.cardScrollWidth}, clientWidth: ${spacedModalGeometry.cardClientWidth})`);
+    assert.ok(spacedModalGeometry.authorWidth <= spacedModalGeometry.cardClientWidth, `Author badge width (${spacedModalGeometry.authorWidth}) must fit within modal clientWidth (${spacedModalGeometry.cardClientWidth})`);
+    assert.ok(spacedModalGeometry.authorRight <= spacedModalGeometry.cardRight + 1, 'Author badge must not overflow modal right boundary');
+    assert.equal(spacedModalGeometry.closeBtnVisible, true, 'Close button must be visible on mobile');
+    assert.ok(spacedModalGeometry.closeBtnMinSize >= 28, 'Close button touch area must be accessible');
+    assert.equal(spacedModalGeometry.headingWordBreak, 'normal', 'Heading word-break must be normal');
+    assert.equal(spacedModalGeometry.locatorWordBreak, 'normal', 'Locator word-break must be normal');
+    assert.equal(spacedModalGeometry.splitWordsCount, 0, `No ordinary Vietnamese words in title should split across lines (got ${spacedModalGeometry.splitWordsCount})`);
 
     await page.screenshot({ path: path.join(EVIDENCE_DIR, 'rag_orig_03_mobile_375_long_metadata.png') });
-    record('FE-ORIGIN-07', 'Mobile 375px chứa metadata dài cuộn mượt mà, không vỡ layout hoặc tràn màn hình ngang', true);
+    record('FE-ORIGIN-07', 'Mobile 375px chứa metadata dài có khoảng trắng cuộn mượt mà, không vỡ layout hoặc tràn ngang modal', true);
+
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('[data-testid="citation-detail-modal"]'), { timeout: 3000 });
+
+    // -------------------------------------------------------------
+    // Test 7B: Mobile 375x812 Viewport with 180+ Chars UNBROKEN Author Name & Word Boundaries
+    // -------------------------------------------------------------
+    console.log('\n--- Test Case 7B: Mobile 375x812 with 180+ Chars UNBROKEN Author Name & Word Boundaries ---');
+    const mobileChips2 = await page.$$(chipSelector);
+    // Chip 6 is msg-unbroken (unbroken author name >= 180 chars, no spaces)
+    await mobileChips2[6].click();
+    await page.waitForSelector('[data-testid="citation-detail-modal"]', { timeout: 5000 });
+
+    const unbrokenModalGeometry = await page.evaluate(() => {
+      const modalCard = document.querySelector('[data-testid="citation-detail-modal"]');
+      const authorBadge = modalCard?.querySelector('[data-testid="citation-author-badge"]');
+      const authorTextSpan = authorBadge?.querySelector('.break-words, span:last-child');
+      const heading = modalCard?.querySelector('#citation-modal-title');
+      const locatorP = modalCard?.querySelector('li p');
+      const bodyWidth = document.body.clientWidth;
+
+      const cardRect = modalCard?.getBoundingClientRect();
+      const authorRect = authorBadge?.getBoundingClientRect();
+
+      const headingStyle = heading ? window.getComputedStyle(heading) : null;
+      const locatorStyle = locatorP ? window.getComputedStyle(locatorP) : null;
+
+      // Check DOM Range for every word in heading to verify normal Vietnamese words are NOT split across lines
+      const textNode = heading?.firstChild;
+      const headingWords = [];
+      let splitWordsCount = 0;
+      if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+        const text = textNode.textContent || '';
+        const regex = /[A-Za-zÀ-ỹ0-9]+/gu;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+          const range = document.createRange();
+          range.setStart(textNode, match.index);
+          range.setEnd(textNode, match.index + match[0].length);
+          const rects = Array.from(range.getClientRects());
+          const tops = new Set(rects.map(r => Math.round(r.top)));
+          const isSplit = tops.size > 1;
+          if (isSplit) splitWordsCount++;
+          headingWords.push({
+            word: match[0],
+            rectsCount: rects.length,
+            tops: Array.from(tops),
+            isSplit,
+          });
+        }
+      }
+
+      return {
+        cardWidth: cardRect?.width || 0,
+        cardClientWidth: modalCard?.clientWidth || 0,
+        cardScrollWidth: modalCard?.scrollWidth || 0,
+        authorWidth: authorRect?.width || 0,
+        authorRight: authorRect?.right || 0,
+        cardRight: cardRect?.right || 0,
+        cardLeft: cardRect?.left || 0,
+        authorLeft: authorRect?.left || 0,
+        bodyWidth,
+        authorFullText: authorBadge?.textContent?.trim() || '',
+        authorTextSpanText: authorTextSpan?.textContent?.trim() || '',
+        headingWordBreak: headingStyle?.wordBreak || '',
+        headingOverflowWrap: headingStyle?.overflowWrap || '',
+        locatorWordBreak: locatorStyle?.wordBreak || '',
+        locatorOverflowWrap: locatorStyle?.overflowWrap || '',
+        headingWords,
+        splitWordsCount,
+      };
+    });
+
+    console.log(`Unbroken author metrics: cardClientWidth=${unbrokenModalGeometry.cardClientWidth}, cardScrollWidth=${unbrokenModalGeometry.cardScrollWidth}, authorWidth=${unbrokenModalGeometry.authorWidth}`);
+    console.log(`Word boundary metrics: headingWordBreak=${unbrokenModalGeometry.headingWordBreak}, headingOverflowWrap=${unbrokenModalGeometry.headingOverflowWrap}, splitWordsCount=${unbrokenModalGeometry.splitWordsCount}`);
+    if (unbrokenModalGeometry.splitWordsCount > 0) {
+      console.log('Split words details:', unbrokenModalGeometry.headingWords.filter(w => w.isSplit));
+    }
+
+    assert.equal(unbrokenModalGeometry.bodyWidth, 375, 'Page must not scroll horizontally on 375px');
+    assert.ok(unbrokenModalGeometry.cardScrollWidth <= unbrokenModalGeometry.cardClientWidth + 1, `Modal must NOT have internal horizontal scroll (scrollWidth: ${unbrokenModalGeometry.cardScrollWidth}, clientWidth: ${unbrokenModalGeometry.cardClientWidth})`);
+    assert.ok(unbrokenModalGeometry.authorWidth <= unbrokenModalGeometry.cardClientWidth, `Author badge width (${unbrokenModalGeometry.authorWidth}) must fit within modal clientWidth (${unbrokenModalGeometry.cardClientWidth}) and not expand to ~1500px!`);
+    assert.ok(unbrokenModalGeometry.authorRight <= unbrokenModalGeometry.cardRight + 1, 'Author badge right boundary must not overflow modal right boundary');
+    assert.ok(unbrokenModalGeometry.authorLeft >= unbrokenModalGeometry.cardLeft - 1, 'Author badge left boundary must remain inside modal');
+    assert.ok(unbrokenModalGeometry.authorFullText.includes('GS.TS.DangVanChuyenGiaNghienCuuSauRiengCanThoVaMienTayNamBo'), 'Full unbroken author name must remain completely accessible in DOM');
+
+    // Readability & Word Boundary assertions:
+    assert.equal(unbrokenModalGeometry.headingWordBreak, 'normal', 'Heading word-break must be "normal" to avoid splitting ordinary Vietnamese words');
+    assert.equal(unbrokenModalGeometry.headingOverflowWrap, 'break-word', 'Heading overflow-wrap must be "break-word"');
+    assert.equal(unbrokenModalGeometry.locatorWordBreak, 'normal', 'Locator word-break must be "normal"');
+    assert.equal(unbrokenModalGeometry.splitWordsCount, 0, `No ordinary Vietnamese words in title should be split across lines (got ${unbrokenModalGeometry.splitWordsCount} split words)`);
+
+    await page.screenshot({ path: path.join(EVIDENCE_DIR, 'rag_orig_09_mobile_375_unbroken_author.png') });
+    record('FE-ORIGIN-09', 'Tên tác giả viết liền không khoảng trắng (180+ ký tự) co giãn flex-safe không tràn ngang modal, từ tiếng Việt thông thường không bị bẻ dòng giữa chừng (wordBreak normal, splitWordsCount 0)', true);
 
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.querySelector('[data-testid="citation-detail-modal"]'), { timeout: 3000 });
