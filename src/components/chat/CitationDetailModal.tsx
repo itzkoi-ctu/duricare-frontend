@@ -195,7 +195,7 @@ export default function CitationDetailModal({
       <div
         ref={modalRef}
         data-testid="citation-detail-modal"
-        className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-2xl space-y-4 text-text animate-scaleUp pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-2xl space-y-4 text-text animate-scaleUp pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
@@ -259,28 +259,28 @@ export default function CitationDetailModal({
           {/* Origin class badge */}
           <span
             data-testid="citation-origin-badge"
-            className={`inline-flex items-center gap-1.5 min-h-[24px] rounded-full border px-2.5 py-0.5 text-xs font-medium leading-none ${originConfig.className}`}
+            className={`inline-flex items-center gap-1.5 min-h-[24px] max-w-full rounded-full border px-2.5 py-0.5 text-xs font-medium leading-none ${originConfig.className}`}
           >
             <span aria-hidden="true" className="material-symbols-outlined text-[14px] shrink-0 leading-none">
               {originConfig.icon}
             </span>
-            <span className="break-words">{originConfig.label}</span>
+            <span className="min-w-0 break-words">{originConfig.label}</span>
           </span>
 
           {/* Author badge */}
           <span
             data-testid="citation-author-badge"
-            className="inline-flex items-center gap-1 min-h-[24px] rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs text-text font-medium leading-none"
+            className="inline-flex items-center gap-1 min-h-[24px] max-w-full rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs text-text font-medium leading-normal"
           >
-            <span className="text-gray">{t('Tác giả')}:</span>
-            <span className="break-words font-medium">{authorLabel}</span>
+            <span className="text-gray shrink-0">{t('Tác giả')}:</span>
+            <span className="min-w-0 break-words font-medium">{authorLabel}</span>
           </span>
 
           {/* Origin status (Reviewed / Legacy) badge */}
           {originStatusLabel && (
             <span
               data-testid="citation-status-badge"
-              className={`inline-flex items-center min-h-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium border leading-none ${
+              className={`inline-flex items-center min-h-[24px] max-w-full rounded-full px-2.5 py-0.5 text-xs font-medium border leading-none ${
                 activeGroup.originStatus === 'REVIEWED'
                   ? 'bg-navy/5 text-navy dark:bg-blue/10 dark:text-blue border-navy/20 dark:border-blue/30'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-border'
@@ -294,7 +294,7 @@ export default function CitationDetailModal({
           {activeGroup.tier && (
             <span
               data-testid="citation-tier-badge"
-              className="inline-flex items-center min-h-[24px] rounded-full bg-navy/10 px-2.5 py-0.5 text-xs font-semibold text-navy dark:bg-blue/20 dark:text-blue border border-navy/20 dark:border-blue/30 leading-none"
+              className="inline-flex items-center min-h-[24px] max-w-full rounded-full bg-navy/10 px-2.5 py-0.5 text-xs font-semibold text-navy dark:bg-blue/20 dark:text-blue border border-navy/20 dark:border-blue/30 leading-none"
             >
               {t('Tầng {0}', [activeGroup.tier])}
             </span>
@@ -303,7 +303,7 @@ export default function CitationDetailModal({
           {/* Revision badge */}
           <span
             data-testid="citation-revision-badge"
-            className="inline-flex items-center min-h-[24px] rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs font-medium text-gray leading-none"
+            className="inline-flex items-center min-h-[24px] max-w-full rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs font-medium text-gray leading-none"
           >
             {t('Phiên bản {0}', [activeGroup.revisionNumber ?? 1])}
           </span>
@@ -312,7 +312,7 @@ export default function CitationDetailModal({
           {activeGroup.year && (
             <span
               data-testid="citation-year-badge"
-              className="inline-flex items-center min-h-[24px] rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs font-medium text-gray leading-none"
+              className="inline-flex items-center min-h-[24px] max-w-full rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs font-medium text-gray leading-none"
             >
               {t('Năm {0}', [activeGroup.year])}
             </span>
