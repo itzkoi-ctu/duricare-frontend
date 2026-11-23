@@ -1,14 +1,25 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
+import client from '../../api/client';
 import { t } from '../../i18n';
 import { AuthContext } from '../../contexts/authContextStore';
-import type { CitationGroup } from '../../types/citation';
+import type { CitationChunk, CitationGroup } from '../../types/citation';
+import { resolveCitationDetailEndpoint } from '../../utils/citationParser';
 
 interface CitationDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   groups: CitationGroup[];
   initialGroupId?: string;
+  conversationId?: string;
+  messageId?: string;
+}
+
+interface LoadedPassage {
+  content: string;
+  locator: string;
+  contentKind?: string;
 }
 
 export default function CitationDetailModal({
@@ -16,12 +27,17 @@ export default function CitationDetailModal({
   onClose,
   groups,
   initialGroupId,
+  conversationId,
+  messageId,
 }: CitationDetailModalProps) {
   const auth = useContext(AuthContext);
   const userRole = auth?.user?.role;
   const canViewSourceProfile = userRole === 'ADMIN' || userRole === 'EXPERT';
 
   const [userSelectedId, setUserSelectedId] = useState<string | undefined>(undefined);
+  const [loadedPassages, setLoadedPassages] = useState<Record<string, LoadedPassage>>({});
+  const [passageLoading, setPassageLoading] = useState<Record<string, boolean>>({});
+  const [passageError, setPassageError] = useState<Record<string, string>>({});
 
   const modalRef = useRef<HTMLDivElement>(null);
   const triggerElementRef = useRef<HTMLElement | null>(null);
@@ -56,27 +72,113 @@ export default function CitationDetailModal({
 
   if (!isOpen || !groups || groups.length === 0) return null;
 
-  // Determine active group: user explicit tab selection > initialGroupId > first group
   const activeGroupId =
-    (userSelectedId && groups.some(g => g.id === userSelectedId) ? userSelectedId : undefined) ??
-    (initialGroupId && groups.some(g => g.id === initialGroupId) ? initialGroupId : undefined) ??
-    groups[0]?.id;
+    (userSelectedId && groups.some(g => (g.citationId || g.id) === userSelectedId)
+      ? userSelectedId
+      : undefined) ??
+    (initialGroupId && groups.some(g => (g.citationId || g.id) === initialGroupId)
+      ? initialGroupId
+      : undefined) ??
+    (groups[0]?.citationId || groups[0]?.id);
 
-  const activeGroup = groups.find(g => g.id === activeGroupId) ?? groups[0];
+  const activeGroup =
+    groups.find(g => (g.citationId || g.id) === activeGroupId) ?? groups[0];
 
-  return (
+  const originClassLabel =
+    activeGroup.originClass === 'EXPERT_AUTHORED'
+      ? t('Chuyên gia cung cấp')
+      : activeGroup.originClass === 'EXTERNAL_REFERENCE'
+      ? t('Tài liệu tham khảo')
+      : activeGroup.originClass
+      ? t('Chưa xác định lớp nguồn')
+      : null;
+
+  const authorLabel =
+    activeGroup.authorState === 'NAMED' && activeGroup.publicAuthorName
+      ? activeGroup.publicAuthorName
+      : activeGroup.authorState === 'WITHHELD'
+      ? t('Tên tác giả chưa được công bố')
+      : activeGroup.authorState === 'UNKNOWN'
+      ? t('Chưa xác định tác giả')
+      : null;
+
+  const originStatusLabel =
+    activeGroup.originStatus === 'REVIEWED'
+      ? t('Xuất xứ đã duyệt')
+      : activeGroup.originStatus === 'LEGACY_UNDETERMINED'
+      ? t('Dữ liệu kế thừa (Legacy)')
+      : null;
+
+  const fetchPassage = async (chunk: CitationChunk) => {
+    const chunkKey = `${activeGroup.citationId || activeGroup.id}:${chunk.chunkId}`;
+    if (chunk.content) {
+      setLoadedPassages(prev => ({
+        ...prev,
+        [chunkKey]: { content: chunk.content!, locator: chunk.locator },
+      }));
+      return;
+    }
+
+    // F3: Resolve message-scoped endpoint safely, stripping redundant /api prefix
+    const endpoint = resolveCitationDetailEndpoint(chunk.detailPath, {
+      conversationId,
+      messageId,
+      citationId: activeGroup.citationId || activeGroup.id,
+      chunkId: chunk.chunkId,
+    });
+
+    if (!endpoint) {
+      setPassageError(prev => ({
+        ...prev,
+        [chunkKey]: t('Không tìm thấy đường dẫn đoạn trích hợp lệ.'),
+      }));
+      return;
+    }
+
+    setPassageLoading(prev => ({ ...prev, [chunkKey]: true }));
+    setPassageError(prev => {
+      const next = { ...prev };
+      delete next[chunkKey];
+      return next;
+    });
+
+    try {
+      const res = await client.get<LoadedPassage>(endpoint);
+      setLoadedPassages(prev => ({ ...prev, [chunkKey]: res.data }));
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number; data?: { code?: string } } })?.response?.status;
+      const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+
+      if (status === 410 || code === 'source_no_longer_eligible') {
+        setPassageError(prev => ({ ...prev, [chunkKey]: t('Nguồn không còn khả dụng trên hệ thống.') }));
+      } else if (status === 404) {
+        setPassageError(prev => ({ ...prev, [chunkKey]: t('Không tìm thấy nội dung đoạn trích.') }));
+      } else if (status === 503) {
+        setPassageError(prev => ({ ...prev, [chunkKey]: t('Kho lưu trữ đoạn trích tạm thời không phản hồi.') }));
+      } else if (status === 403) {
+        setPassageError(prev => ({ ...prev, [chunkKey]: t('Không có quyền truy cập đoạn trích này.') }));
+      } else {
+        setPassageError(prev => ({ ...prev, [chunkKey]: t('Không thể tải nội dung đoạn trích. Vui lòng thử lại.') }));
+      }
+    } finally {
+      setPassageLoading(prev => ({ ...prev, [chunkKey]: false }));
+    }
+  };
+
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="citation-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
       onClick={e => {
         if (e.target === e.currentTarget) handleClose();
       }}
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-2xl space-y-4 text-text animate-scaleUp"
+        data-testid="citation-detail-modal"
+        className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-2xl space-y-4 text-text animate-scaleUp pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
@@ -85,7 +187,7 @@ export default function CitationDetailModal({
               <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
                 menu_book
               </span>
-              <span>{t('Chi tiết nguồn tham khảo')}</span>
+              <span>{t('Chi tiết nguồn tri thức')}</span>
             </div>
             <h2
               id="citation-modal-title"
@@ -96,6 +198,7 @@ export default function CitationDetailModal({
           </div>
           <button
             type="button"
+            data-testid="modal-close-btn"
             onClick={handleClose}
             aria-label={t('Đóng chi tiết nguồn')}
             className="shrink-0 p-1.5 rounded-lg border border-border text-gray hover:text-text hover:border-navy cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy/30"
@@ -110,12 +213,13 @@ export default function CitationDetailModal({
         {groups.length > 1 && (
           <div className="flex flex-wrap gap-1.5 border-b border-border pb-2.5">
             {groups.map((g, idx) => {
-              const isSelected = g.id === activeGroup.id;
+              const gKey = g.citationId || g.id;
+              const isSelected = gKey === (activeGroup.citationId || activeGroup.id);
               return (
                 <button
-                  key={g.id}
+                  key={gKey}
                   type="button"
-                  onClick={() => setUserSelectedId(g.id)}
+                  onClick={() => setUserSelectedId(gKey)}
                   aria-pressed={isSelected}
                   className={`inline-flex items-center gap-1.5 min-h-[30px] rounded-lg px-2.5 py-1 text-xs font-medium cursor-pointer transition-colors ${
                     isSelected
@@ -133,8 +237,30 @@ export default function CitationDetailModal({
           </div>
         )}
 
-        {/* Meta badges row */}
+        {/* Origin & Provenance Badges Row */}
         <div className="flex flex-wrap items-center gap-2">
+          {originClassLabel && (
+            <span
+              data-testid="citation-origin-badge"
+              className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 text-xs font-semibold flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-[13px]">verified</span>
+              {originClassLabel}
+            </span>
+          )}
+
+          {authorLabel && (
+            <span className="rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs text-text font-medium">
+              <span className="text-gray">{t('Tác giả')}:</span> {authorLabel}
+            </span>
+          )}
+
+          {originStatusLabel && (
+            <span className="rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-0.5 text-[11px] font-medium border border-border">
+              {originStatusLabel}
+            </span>
+          )}
+
           {activeGroup.tier && (
             <span className="rounded-full bg-navy/10 px-2.5 py-0.5 text-xs font-semibold text-navy dark:bg-blue/20 dark:text-blue">
               {t('Tầng {0}', [activeGroup.tier])}
@@ -151,30 +277,78 @@ export default function CitationDetailModal({
         </div>
 
         {/* Excerpts / Locators */}
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-gray">
             {t('Các đoạn trích được dùng ({0})', [activeGroup.chunks.length])}
           </h3>
-          <ul className="space-y-1.5">
-            {activeGroup.chunks.map((chunk, index) => (
-              <li
-                key={`${chunk.chunkId}:${index}`}
-                className="rounded-lg border border-border bg-bg p-2.5 text-xs text-text space-y-1"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-text">
-                    {t('Đoạn {0}', [index + 1])}
-                  </span>
-                  <span className="font-mono text-[10px] text-gray select-all">
-                    {chunk.chunkId.slice(0, 8)}...
-                  </span>
-                </div>
-                <p className="text-gray break-words">
-                  <span className="font-medium text-text">{t('Vị trí / Mục')}:</span>{' '}
-                  {chunk.locator}
-                </p>
-              </li>
-            ))}
+          <ul className="space-y-2">
+            {activeGroup.chunks.map((chunk, index) => {
+              const chunkKey = `${activeGroup.id}:${chunk.chunkId}`;
+              const passage = loadedPassages[chunkKey] || (chunk.content ? { content: chunk.content, locator: chunk.locator } : null);
+              const isLoadingThis = passageLoading[chunkKey];
+              const errorThis = passageError[chunkKey];
+
+              return (
+                <li
+                  key={`${chunk.chunkId}:${index}`}
+                  className="rounded-xl border border-border bg-bg p-3 text-xs text-text space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-text">
+                      {t('Đoạn {0}', [index + 1])}
+                    </span>
+                    <span className="font-mono text-[10px] text-gray select-all">
+                      {chunk.chunkId.slice(0, 8)}...
+                    </span>
+                  </div>
+
+                  <p className="text-gray break-words">
+                    <span className="font-medium text-text">{t('Vị trí / Mục')}:</span>{' '}
+                    {chunk.locator}
+                  </p>
+
+                  {/* Passage Content or Load Action */}
+                  {passage ? (
+                    <div className="mt-2 p-2.5 rounded-lg bg-surface border border-border/80 text-text space-y-1">
+                      <div className="text-[11px] font-semibold text-gray flex items-center justify-between">
+                        <span>{t('Nội dung đã duyệt')}:</span>
+                        {chunk.contentHash && (
+                          <span className="font-mono text-[10px] text-slate-400 select-all">
+                            SHA: {chunk.contentHash.slice(0, 8)}
+                          </span>
+                        )}
+                      </div>
+                      <p data-testid="citation-passage-content" className="text-xs leading-relaxed whitespace-pre-wrap break-words">
+                        {passage.content}
+                      </p>
+                    </div>
+                  ) : errorThis ? (
+                    <div data-testid="passage-error-card" className="mt-2 p-2 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 flex items-center justify-between gap-2">
+                      <span>{errorThis}</span>
+                      <button
+                        type="button"
+                        data-testid="btn-retry-passage"
+                        onClick={() => fetchPassage(chunk)}
+                        className="px-2 py-0.5 rounded bg-red-100 hover:bg-red-200 text-red-800 font-semibold cursor-pointer shrink-0"
+                      >
+                        {t('Thử lại')}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      data-testid="btn-fetch-passage"
+                      disabled={isLoadingThis}
+                      onClick={() => fetchPassage(chunk)}
+                      className="mt-1 inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border border-border bg-surface hover:border-navy hover:text-navy text-gray transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">read_more</span>
+                      <span>{isLoadingThis ? t('Đang tải nội dung...') : t('Xem nội dung đoạn trích')}</span>
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
 
@@ -220,6 +394,12 @@ export default function CitationDetailModal({
             </span>
           </summary>
           <div className="mt-2 space-y-1.5 font-mono text-[11px] text-gray bg-bg p-3 rounded-lg border border-border select-all break-all">
+            {activeGroup.citationId && (
+              <div>
+                <span className="font-semibold text-text">{t('Mã trích dẫn')}:</span>{' '}
+                {activeGroup.citationId}
+              </div>
+            )}
             <div>
               <span className="font-semibold text-text">{t('Mã xuất bản')}:</span>{' '}
               {activeGroup.publicationId}
@@ -250,11 +430,13 @@ export default function CitationDetailModal({
         <div className="border-t border-border pt-3">
           <p className="text-[11px] leading-relaxed text-gray italic">
             {t(
-              'Nguồn tri thức được truy xuất tự động từ cơ sở dữ liệu đã qua kiểm duyệt. Việc trích dẫn phản ánh cơ sở dữ liệu hiện hành, không đảm bảo tính đúng đắn tuyệt đối của toàn bộ câu trả lời.'
+              'Các nguồn tri thức được cung cấp cho mô hình AI trong ngữ cảnh đã duyệt. Trích dẫn thể hiện cơ sở tri thức hiện hành, không đảm bảo tính đúng đắn tuyệt đối của toàn bộ câu trả lời.',
             )}
           </p>
         </div>
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 }

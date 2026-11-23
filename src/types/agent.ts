@@ -1,3 +1,14 @@
+import type { StructuredCitationsEnvelope } from './citation';
+
+export interface InsufficientDataInfo {
+  reason?: string;
+  dataPoints?: number;
+  windowStart?: string;
+  windowEnd?: string;
+  timeWindow?: string;
+  zoneCode?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -5,8 +16,13 @@ export interface ChatMessage {
   createdAt: Date;
   modelUsed?: string;
   isError?: boolean;
+  errorType?: '503' | 'timeout' | 'network' | 'rate' | 'general';
   retryQuestion?: string;
+  retryContext?: { conversationId?: string; zoneCode?: string };
   toolsUsed?: ToolInvocation[];
+  status?: string;
+  insufficientDataInfo?: InsufficientDataInfo;
+  citations?: StructuredCitationsEnvelope;
 }
 
 export interface AgentAskRequest {
@@ -19,7 +35,11 @@ export interface AgentAskResponse {
   answer: string;
   modelUsed?: string;
   conversationId?: string;
+  messageId?: number | null;
+  status?: string;
+  insufficientDataInfo?: InsufficientDataInfo;
   toolsUsed?: ToolInvocation[];
+  citations?: StructuredCitationsEnvelope;
 }
 
 export interface ToolInvocation {
@@ -44,6 +64,11 @@ export interface AgentStoredMessage {
   toolsUsed: ToolInvocation[];
   latencyMs: number | null;
   createdAt: string;
+  status?: string;
+  insufficientDataInfo?: InsufficientDataInfo;
+  citations?: StructuredCitationsEnvelope;
 }
 
-export interface ChatFormValues { question: string }
+export interface ChatFormValues {
+  question: string;
+}
