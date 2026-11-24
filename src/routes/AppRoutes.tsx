@@ -18,6 +18,7 @@ const AgentPage = lazy(() => import('../pages/AgentPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const FarmSettingsPage = lazy(() => import('../pages/FarmSettingsPage'));
+const FarmCreatePage = lazy(() => import('../pages/FarmCreatePage'));
 const ZoneManagementPage = lazy(() => import('../pages/ZoneManagementPage'));
 const ZoneEditorPage = lazy(() => import('../pages/ZoneEditorPage'));
 const KnowledgePage = lazy(() => import('../pages/KnowledgePage'));
@@ -108,6 +109,7 @@ export default function AppRoutes() {
               <Route path="/farms/:farmId/layout" element={<ZoneManagementPage />} />
               <Route element={<RequireRole roles={['ADMIN']} />}>
                 <Route path="/settings/farm" element={<FarmSettingsPage />} />
+                <Route path="/settings/farm/new" element={<FarmCreatePage />} />
                 <Route path="/settings/zones/new" element={<ZoneEditorPage />} />
                 <Route path="/settings/zones/:code/edit" element={<ZoneEditorPage />} />
                 <Route path="/settings/experts" element={<ExpertListPage />} />

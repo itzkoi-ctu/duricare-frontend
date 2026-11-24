@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { t } from '../i18n';
 import { useLanguage } from '../i18n/useLanguage';
 import { listOwners } from '../api/owner';
@@ -25,7 +25,6 @@ function formatDateTime(isoString: string): string {
 
 export default function OwnerListPage() {
   useLanguage();
-  const navigate = useNavigate();
 
   const [page, setPage] = useState(0);
   const size = 20;
@@ -44,8 +43,29 @@ export default function OwnerListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const shouldOpenCreate = searchParams.get('create') === '1';
+  const queryFarmId = searchParams.get('farmId');
+  const initialModalFarmId = queryFarmId ? Number(queryFarmId) : undefined;
+
   // Create Modal state
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(shouldOpenCreate);
+
+  useEffect(() => {
+    if (searchParams.get('create') === '1') {
+      setIsCreateOpen(true);
+    }
+  }, [searchParams]);
+
+  const handleCloseModal = () => {
+    setIsCreateOpen(false);
+    if (searchParams.has('create') || searchParams.has('farmId')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('create');
+      next.delete('farmId');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   // Load farms once
   useEffect(() => {
@@ -492,11 +512,10 @@ export default function OwnerListPage() {
       {/* Create Modal */}
       <OwnerCreateModal
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onSuccess={newOwner => {
-          setIsCreateOpen(false);
-          // Navigate to new owner detail page
-          navigate(`/settings/owners/${newOwner.id}`);
+        initialFarmId={initialModalFarmId}
+        onClose={handleCloseModal}
+        onSuccess={() => {
+          loadData();
         }}
       />
     </div>

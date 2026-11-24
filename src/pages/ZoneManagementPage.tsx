@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { t } from '../i18n';
 import { useLanguage } from '../i18n/useLanguage';
@@ -41,22 +41,33 @@ export default function ZoneManagementPage() {
   useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { farmId: pathFarmIdParam } = useParams<{ farmId?: string }>();
   const [params, setParams] = useSearchParams();
 
   const isOwner = user?.role === 'OWNER';
   const ownerFarmId = user?.farmId ?? null;
 
-  // Farm selection
-  const rawParamFarmId = params.get('farmId');
-  const parsedFarmId = rawParamFarmId ? parseInt(rawParamFarmId, 10) : null;
-  const isForeignOwner = isOwner && parsedFarmId !== null && ownerFarmId !== null && parsedFarmId !== ownerFarmId;
+  // Path param handling
+  const parsedPathFarmId = pathFarmIdParam ? Number(pathFarmIdParam) : null;
+  const isPathMalformed = pathFarmIdParam !== undefined && (!Number.isSafeInteger(parsedPathFarmId) || parsedPathFarmId! <= 0);
 
-  const initialFarmId = isForeignOwner
+  // Query param handling
+  const rawQueryFarmId = params.get('farmId');
+  const parsedQueryFarmId = rawQueryFarmId ? Number(rawQueryFarmId) : null;
+  const isQueryMalformed = rawQueryFarmId !== null && (!Number.isSafeInteger(parsedQueryFarmId) || parsedQueryFarmId! <= 0);
+
+  // Conflict detection
+  const hasConflict = parsedPathFarmId !== null && parsedQueryFarmId !== null && parsedPathFarmId !== parsedQueryFarmId;
+
+  const targetFarmId = parsedPathFarmId ?? parsedQueryFarmId;
+  const isForeignOwner = isOwner && targetFarmId !== null && ownerFarmId !== null && targetFarmId !== ownerFarmId;
+
+  const initialFarmId = hasConflict || isPathMalformed || isQueryMalformed || isForeignOwner
     ? null
     : isOwner
     ? ownerFarmId
-    : Number.isSafeInteger(parsedFarmId) && parsedFarmId! > 0
-    ? parsedFarmId
+    : targetFarmId && Number.isSafeInteger(targetFarmId) && targetFarmId > 0
+    ? targetFarmId
     : null;
 
   const [activeFarmId, setActiveFarmId] = useState<number | null>(initialFarmId);
@@ -67,7 +78,19 @@ export default function ZoneManagementPage() {
   const [layout, setLayout] = useState<LayoutView | null>(null);
   const [loadingLayout, setLoadingLayout] = useState(false);
   const [layoutError, setLayoutError] = useState<{ status?: number; code?: string; message: string } | null>(
-    isForeignOwner
+    hasConflict
+      ? {
+          status: 400,
+          code: 'CONFLICTING_FARM_ID',
+          message: 'Mã nông trại trong đường dẫn và tham số truy vấn không khớp.',
+        }
+      : isPathMalformed || isQueryMalformed
+      ? {
+          status: 400,
+          code: 'INVALID_FARM_ID',
+          message: 'Mã nông trại không hợp lệ.',
+        }
+      : isForeignOwner
       ? {
           status: 403,
           code: 'FORBIDDEN_FOREIGN_FARM',
@@ -165,7 +188,7 @@ export default function ZoneManagementPage() {
   // Handle URL param changes (Fencing foreign farms for OWNER)
   useEffect(() => {
     if (isOwner) {
-      if (parsedFarmId && ownerFarmId && parsedFarmId !== ownerFarmId) {
+      if (targetFarmId && ownerFarmId && targetFarmId !== ownerFarmId) {
         // OWNER attempting to access foreign farm: Denied
         setLayoutError({
           status: 403,
@@ -182,10 +205,10 @@ export default function ZoneManagementPage() {
       return;
     }
 
-    if (parsedFarmId && parsedFarmId !== activeFarmId) {
-      setActiveFarmId(parsedFarmId);
+    if (targetFarmId && targetFarmId !== activeFarmId) {
+      setActiveFarmId(targetFarmId);
     }
-  }, [parsedFarmId, isOwner, ownerFarmId, activeFarmId, t]);
+  }, [targetFarmId, isOwner, ownerFarmId, activeFarmId, t]);
 
   // Load Layout for Active Farm
   const loadLayout = useCallback(async (farmId: number) => {
@@ -705,24 +728,37 @@ export default function ZoneManagementPage() {
           )}
         </div>
       ) : layout && allZones.length === 0 ? (
-        /* Empty Farm: No Zones Created */
+        /* Empty Farm: No Zones Created (E06 ADMIN / E07 OWNER) */
         <div className="flex flex-col items-center justify-center min-h-[380px] bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center">
           <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-3">
-            <span className="material-symbols-outlined text-3xl">dashboard_customize</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-3xl">grid_view</span>
           </div>
           <h3 className="text-sm font-bold text-[#0b1c30] dark:text-slate-200">
-            {t('Vườn chưa có phân khu kỹ thuật')}
+            {t('Vườn chưa có khu vực')}
           </h3>
           <p className="text-xs text-[#64748b] dark:text-slate-400 max-w-sm mt-1 mb-4 leading-relaxed">
-            {t('Khởi tạo các lô canh tác và định hình vị trí tương đối để bắt đầu nhận luồng đo từ trạm cảm biến.')}
+            {isOwner
+              ? t('Liên hệ quản trị viên để cấu hình khu vực. Dữ liệu sẽ hiển thị khi có khu vực và cảm biến gửi về.')
+              : t('Thêm khu vực đầu tiên để tổ chức vườn. Bạn có thể bố trí các khu trên sơ đồ sau.')}
           </p>
-          {!isOwner && (
+          {isOwner ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (activeFarmId) loadLayout(activeFarmId);
+              }}
+              className="h-[44px] min-h-[44px] px-5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[#0b1c30] dark:text-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-base">refresh</span>
+              <span>{t('Làm mới')}</span>
+            </button>
+          ) : (
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(true)}
-              className="h-[44px] min-h-[44px] px-5 rounded-xl bg-[#004489] hover:bg-[#184988] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+              className="h-[44px] min-h-[44px] px-5 rounded-xl bg-[#004489] hover:bg-[#184988] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
             >
-              <span className="material-symbols-outlined text-base">add</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-base">add</span>
               <span>{t('Thêm khu vực')}</span>
             </button>
           )}

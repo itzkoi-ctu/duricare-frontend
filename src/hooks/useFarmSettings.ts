@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useContext } from 'react';
+import axios from 'axios';
 import { getFarm, getFarms, updateFarm } from '../api/farms';
 import type { Farm, FarmRequest } from '../types/farm';
+import { AuthContext } from '../contexts/authContextStore';
 
 export default function useFarmSettings(farmId: number | null) {
   const [farms, setFarms] = useState<Farm[]>([]);
@@ -9,10 +11,23 @@ export default function useFarmSettings(farmId: number | null) {
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUncertain, setIsUncertain] = useState(false);
   const [saved, setSaved] = useState(false);
   const [fetchKey, setFetchKey] = useState(0);
-  const saving = useRef(false);
+
+  const auth = useContext(AuthContext);
+  const activeOperationGen = useRef<number | null>(null);
   const generation = useRef(0);
+
+  const getActorId = (): number | null => {
+    if (auth?.user?.id != null) return auth.user.id;
+    try {
+      const userStr = sessionStorage.getItem('duricare-user');
+      return userStr ? JSON.parse(userStr)?.id ?? null : null;
+    } catch {
+      return null;
+    }
+  };
 
   useEffect(() => {
     const current = ++generation.current;
@@ -21,8 +36,9 @@ export default function useFarmSettings(farmId: number | null) {
       setFarm(null);
       setError(null);
       setSaveError(null);
+      setIsUncertain(false);
       setSaved(false);
-      setIsSaving(saving.current);
+      setIsSaving(false);
       try {
         const list = await getFarms();
         if (current !== generation.current) return;
@@ -49,28 +65,110 @@ export default function useFarmSettings(farmId: number | null) {
     return () => window.clearTimeout(timer);
   }, [saved]);
 
+  const reconcile = async (): Promise<Farm | null> => {
+    if (!farm || activeOperationGen.current === generation.current) return null;
+    const targetFarmId = farm.id;
+    const requestGen = generation.current;
+    const currentActorId = getActorId();
+    activeOperationGen.current = requestGen;
+    setIsSaving(true);
+    try {
+      const currentFarm = await getFarm(targetFarmId);
+      if (
+        requestGen !== generation.current ||
+        farmId !== targetFarmId ||
+        getActorId() !== currentActorId
+      ) {
+        return null;
+      }
+      setFarm(currentFarm);
+      setFarms(list => list.map(item => item.id === currentFarm.id ? currentFarm : item));
+      setIsUncertain(false);
+      setSaveError(null);
+      return currentFarm;
+    } catch {
+      return null;
+    } finally {
+      if (activeOperationGen.current === requestGen) {
+        activeOperationGen.current = null;
+      }
+      if (
+        requestGen === generation.current &&
+        farmId === targetFarmId &&
+        getActorId() === currentActorId
+      ) {
+        setIsSaving(false);
+      }
+    }
+  };
+
   const save = async (request: FarmRequest): Promise<boolean> => {
-    if (!farm || saving.current) return false;
-    const current = generation.current;
-    saving.current = true;
+    if (!farm || activeOperationGen.current === generation.current) return false;
+    const targetFarmId = farm.id;
+    const requestGen = generation.current;
+    const currentActorId = getActorId();
+    activeOperationGen.current = requestGen;
     setIsSaving(true);
     setSaveError(null);
     setSaved(false);
     try {
-      const updated = await updateFarm(farm.id, request);
-      if (current !== generation.current) return false;
+      const updated = await updateFarm(targetFarmId, request);
+      if (
+        requestGen !== generation.current ||
+        farmId !== targetFarmId ||
+        getActorId() !== currentActorId
+      ) {
+        return false;
+      }
       setFarm(updated);
       setFarms(list => list.map(item => item.id === updated.id ? updated : item));
       setSaved(true);
+      setIsUncertain(false);
       return true;
-    } catch {
-      if (current === generation.current) setSaveError('Không thể lưu cài đặt. Vui lòng thử lại.');
+    } catch (err: unknown) {
+      if (
+        requestGen !== generation.current ||
+        farmId !== targetFarmId ||
+        getActorId() !== currentActorId
+      ) {
+        return false;
+      }
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        if (status === 503 || status === 504 || status === 502 || !err.response) {
+          setIsUncertain(true);
+          setSaveError(null);
+          return false;
+        }
+      }
+      setIsUncertain(false);
+      setSaveError('Không thể lưu cài đặt. Vui lòng thử lại.');
       return false;
     } finally {
-      saving.current = false;
-      setIsSaving(false);
+      if (activeOperationGen.current === requestGen) {
+        activeOperationGen.current = null;
+      }
+      if (
+        requestGen === generation.current &&
+        farmId === targetFarmId &&
+        getActorId() === currentActorId
+      ) {
+        setIsSaving(false);
+      }
     }
   };
 
-  return { farms, farm, loading, error, saveError, isSaving, saved, save, retry: () => setFetchKey(key => key + 1) };
+  return {
+    farms,
+    farm,
+    loading,
+    error,
+    saveError,
+    isSaving,
+    isUncertain,
+    saved,
+    save,
+    reconcile,
+    retry: () => setFetchKey(key => key + 1),
+  };
 }

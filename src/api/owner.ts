@@ -32,10 +32,21 @@ export async function getOwner(id: number, signal?: AbortSignal): Promise<OwnerR
 
 export async function createOwner(
   request: CreateOwnerRequest,
+  idempotencyKey?: string,
   signal?: AbortSignal
-): Promise<OwnerResponse> {
-  const { data } = await client.post<OwnerResponse>('/admin/owners', request, { signal });
-  return data;
+): Promise<OwnerResponse & { status?: number; isReplay?: boolean }> {
+  const headers: Record<string, string> = {};
+  if (idempotencyKey) {
+    headers['Idempotency-Key'] = idempotencyKey;
+  }
+  const response = await client.post<OwnerResponse>('/admin/owners', request, {
+    headers,
+    signal,
+  });
+  return Object.assign(response.data, {
+    status: response.status,
+    isReplay: response.status === 200,
+  });
 }
 
 export async function updateOwnerStatus(
