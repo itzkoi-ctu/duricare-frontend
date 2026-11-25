@@ -1,51 +1,237 @@
-import { useEffect, useId } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, useEffect } from 'react';
 import { t } from '../i18n';
 import { useLanguage } from '../i18n/useLanguage';
-import type { FarmRequest, FarmSettingsFormProps } from '../types/farm';
+import {
+  FarmFields,
+  type FarmFormValues,
+} from './farm/FarmFields';
+import {
+  validateFarmFormValues,
+  convertFormValuesToRequest,
+} from '../utils/farmValidation';
+import type { FarmSettingsFormProps } from '../types/farm';
 
-const inputStyle = 'min-h-11 w-full rounded-xl border border-border bg-bg px-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-navy/40 disabled:opacity-60';
-const labelStyle = 'mb-1.5 block text-xs font-semibold text-text';
-
-export default function FarmSettingsForm({ farm, isSaving, error, onSave }: FarmSettingsFormProps) {
+export default function FarmSettingsForm({
+  farm,
+  isSaving,
+  error,
+  isUncertain = false,
+  onSave,
+  onReconcile,
+}: FarmSettingsFormProps) {
   useLanguage();
-  const id = useId();
-  const { register, reset, handleSubmit, formState: { errors } } = useForm<FarmRequest>();
+
+  const [values, setValues] = useState<FarmFormValues>({
+    name: farm.name,
+    location: farm.location ?? '',
+    area: farm.area !== null && farm.area !== undefined ? String(farm.area) : '',
+    latitude: farm.latitude !== null && farm.latitude !== undefined ? String(farm.latitude) : '',
+    longitude: farm.longitude !== null && farm.longitude !== undefined ? String(farm.longitude) : '',
+  });
+
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [showClearCoordinatesModal, setShowClearCoordinatesModal] = useState(false);
+
   useEffect(() => {
-    reset({ name: farm.name, location: farm.location ?? '', area: farm.area ?? Number.NaN,
-      latitude: farm.latitude ?? Number.NaN, longitude: farm.longitude ?? Number.NaN });
-  }, [farm, reset]);
-  const required = 'Vui lòng điền trường này.';
-  const fieldError = (field: keyof FarmRequest) => errors[field] && <p id={`${id}-${field}-error`} role="alert" className="mt-1 text-xs text-coral">{t(errors[field]?.message ?? required)}</p>;
-  const accessibility = (field: keyof FarmRequest) => ({ 'aria-invalid': Boolean(errors[field]), 'aria-describedby': errors[field] ? `${id}-${field}-error` : undefined });
-  const validNumber = (value: number) => Number.isFinite(value) || 'Vui lòng nhập một số hợp lệ.';
-  return <form noValidate aria-label={t('Cài đặt nông trại')} onSubmit={handleSubmit(values => onSave({ ...values, name: values.name.trim(), location: values.location.trim() }))}
-    className="rounded-2xl border border-border bg-surface p-4 md:p-6 shadow-sm">
-    <div className="mb-4 flex items-center gap-2 border-b border-border pb-3">
-      <span aria-hidden="true" className="material-symbols-outlined text-navy">agriculture</span>
-      <h2 className="text-sm font-bold text-text">{t('Thông tin nông trại')}</h2>
-    </div>
-    <fieldset disabled={isSaving} className="space-y-3 md:space-y-5">
-      <div><label htmlFor={`${id}-name`} className={labelStyle}>{t('Tên nông trại')}</label>
-        <input id={`${id}-name`} autoComplete="organization" {...register('name', { required, validate: value => Boolean(value.trim()) || required, maxLength: { value: 255, message: 'Tối đa 255 ký tự.' } })} {...accessibility('name')} className={inputStyle} />{fieldError('name')}</div>
-      <div><label htmlFor={`${id}-location`} className={labelStyle}>{t('Địa chỉ')}</label>
-        <input id={`${id}-location`} autoComplete="street-address" {...register('location', { required, validate: value => Boolean(value.trim()) || required, maxLength: { value: 255, message: 'Tối đa 255 ký tự.' } })} {...accessibility('location')} className={inputStyle} />{fieldError('location')}</div>
-      <div className="md:max-w-xs"><label htmlFor={`${id}-area`} className={labelStyle}>{t('Diện tích')}</label>
-        <input id={`${id}-area`} type="number" step="any" min="0" {...register('area', { valueAsNumber: true, required, validate: value => validNumber(value) === true ? value > 0 || 'Diện tích phải lớn hơn 0.' : validNumber(value) })} {...accessibility('area')} className={inputStyle} />{fieldError('area')}</div>
-      <div className="border-t border-border pt-3 md:pt-5">
-        <h3 className="mb-3 text-sm font-bold text-text">{t('Toạ độ')}</h3>
-        <div className="grid grid-cols-2 gap-3 md:gap-5">
-          <div><label htmlFor={`${id}-latitude`} className={labelStyle}>{t('Vĩ độ')}</label>
-            <input id={`${id}-latitude`} type="number" step="any" min="-90" max="90" {...register('latitude', { valueAsNumber: true, required, validate: validNumber, min: { value: -90, message: 'Vĩ độ phải từ -90 đến 90.' }, max: { value: 90, message: 'Vĩ độ phải từ -90 đến 90.' } })} {...accessibility('latitude')} className={inputStyle} />{fieldError('latitude')}</div>
-          <div><label htmlFor={`${id}-longitude`} className={labelStyle}>{t('Kinh độ')}</label>
-            <input id={`${id}-longitude`} type="number" step="any" min="-180" max="180" {...register('longitude', { valueAsNumber: true, required, validate: validNumber, min: { value: -180, message: 'Kinh độ phải từ -180 đến 180.' }, max: { value: 180, message: 'Kinh độ phải từ -180 đến 180.' } })} {...accessibility('longitude')} className={inputStyle} />{fieldError('longitude')}</div>
+    setValues({
+      name: farm.name,
+      location: farm.location ?? '',
+      area: farm.area !== null && farm.area !== undefined ? String(farm.area) : '',
+      latitude: farm.latitude !== null && farm.latitude !== undefined ? String(farm.latitude) : '',
+      longitude: farm.longitude !== null && farm.longitude !== undefined ? String(farm.longitude) : '',
+    });
+    setErrors({});
+  }, [farm]);
+
+  const handleChange = (field: keyof FarmFormValues, val: string) => {
+    setValues((prev) => ({ ...prev, [field]: val }));
+    if (errors[field] || errors.coordinates) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: undefined,
+        coordinates:
+          field === 'latitude' || field === 'longitude' ? undefined : prev.coordinates,
+      }));
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSaving) return;
+
+    const val = validateFarmFormValues(values);
+    if (!val.valid) {
+      setErrors(val.errors);
+      return;
+    }
+
+    // Check if clearing previously saved coordinates (E05)
+    const hadCoords = farm.latitude !== null && farm.longitude !== null;
+    const nowHasEmptyCoords = !values.latitude.trim() && !values.longitude.trim();
+    if (hadCoords && nowHasEmptyCoords) {
+      setShowClearCoordinatesModal(true);
+      return;
+    }
+
+    const request = convertFormValuesToRequest(values);
+    await onSave(request);
+  };
+
+  const handleConfirmClearCoordinates = async () => {
+    setShowClearCoordinatesModal(false);
+    const clearedValues = { ...values, latitude: '', longitude: '' };
+    const request = convertFormValuesToRequest(clearedValues);
+    await onSave(request);
+  };
+
+  const handleKeepCoordinates = () => {
+    setShowClearCoordinatesModal(false);
+    setValues((prev) => ({
+      ...prev,
+      latitude: farm.latitude !== null ? String(farm.latitude) : '',
+      longitude: farm.longitude !== null ? String(farm.longitude) : '',
+    }));
+  };
+
+  return (
+    <>
+      <form
+        noValidate
+        aria-label={t('Cài đặt nông trại')}
+        onSubmit={handleFormSubmit}
+        className="rounded-xl border border-border bg-surface p-6 shadow-sm"
+      >
+        <div className="mb-4 flex items-center gap-2 border-b border-border pb-3">
+          <span aria-hidden="true" className="material-symbols-outlined text-navy">
+            agriculture
+          </span>
+          <h2 className="text-base font-bold text-text">
+            {t('Thông tin vườn')}
+          </h2>
         </div>
-        <p className="mt-2 text-xs leading-relaxed text-gray">{t('Lấy toạ độ từ Google Maps: bấm giữ vị trí vườn trên bản đồ')}</p>
-      </div>
-    </fieldset>
-    {error && <p role="alert" className="mt-3 text-sm text-coral">{t(error)}</p>}
-    <button type="submit" disabled={isSaving} className="mt-4 flex min-h-11 w-full md:w-auto items-center justify-center gap-2 rounded-xl bg-navy px-5 py-3 text-sm font-semibold text-surface dark:text-bg disabled:opacity-50 cursor-pointer">
-      <span aria-hidden="true" className="material-symbols-outlined text-lg">save</span>{t(isSaving ? 'Đang lưu...' : 'Lưu thay đổi')}
-    </button>
-  </form>;
+
+        {isUncertain && (
+          <div className="mb-5 space-y-4">
+            <div>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={onReconcile}
+                className="min-h-11 px-5 rounded-lg bg-navy hover:bg-navy-hover text-surface text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-lg">
+                  refresh
+                </span>
+                {t('Tải lại thông tin hiện tại')}
+              </button>
+            </div>
+            <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-4 flex gap-3 text-amber-800 dark:text-amber-200">
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined text-lg shrink-0 mt-0.5"
+              >
+                warning
+              </span>
+              <div className="space-y-1">
+                <strong className="block text-sm font-semibold">
+                  {t('Chưa xác nhận được thay đổi')}
+                </strong>
+                <p className="text-xs leading-relaxed">
+                  {t(
+                    'Kết nối bị gián đoạn. Hãy tải lại thông tin hiện tại trước khi quyết định gửi lại.'
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <fieldset disabled={isSaving || isUncertain} className="space-y-4">
+          <FarmFields
+            idPrefix="farm-settings"
+            values={values}
+            onChange={handleChange}
+            errors={errors}
+            disabled={isSaving || isUncertain}
+          />
+        </fieldset>
+
+        {error && (
+          <p role="alert" className="mt-3 text-xs text-coral font-medium">
+            {t(error)}
+          </p>
+        )}
+
+        <div className="mt-6 pt-5 border-t border-border flex items-center justify-end gap-3">
+          <button
+            type="submit"
+            disabled={isSaving || isUncertain}
+            className="min-h-11 px-6 rounded-lg bg-navy hover:bg-navy-hover text-surface text-sm font-semibold transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {isSaving ? (
+              <>
+                <span
+                  aria-hidden="true"
+                  className="w-4 h-4 border-2 border-surface border-r-transparent rounded-full animate-spin"
+                />
+                <span>{t('Đang lưu…')}</span>
+              </>
+            ) : (
+              <>
+                <span aria-hidden="true" className="material-symbols-outlined text-lg">
+                  save
+                </span>
+                <span>{t('Lưu thay đổi')}</span>
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+
+      {/* Confirmation Modal E05: Clear Saved Coordinates */}
+      {showClearCoordinatesModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="clear-coords-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+        >
+          <div className="relative w-full max-w-[520px] bg-surface rounded-xl shadow-xl border border-border p-6 space-y-4">
+            <h2 id="clear-coords-title" className="text-base font-bold text-text">
+              {t('Xóa tọa độ đã lưu?')}
+            </h2>
+            <p className="text-xs text-gray leading-relaxed">
+              {t(
+                'Thông tin thời tiết theo vị trí sẽ không còn khả dụng cho vị trí hiện tại của vườn. Dữ liệu thời tiết đã lưu không bị xóa bởi thao tác này.'
+              )}
+            </p>
+
+            <div className="rounded-lg border border-border bg-surface-soft p-3 text-xs">
+              <span className="text-gray mr-3">{t('Vườn')}:</span>
+              <strong className="font-semibold text-text">
+                {farm.name} · #{farm.id}
+              </strong>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={handleConfirmClearCoordinates}
+                className="min-h-11 px-5 rounded-lg border border-border bg-surface hover:bg-surface-soft text-text text-sm font-medium cursor-pointer"
+              >
+                {t('Xóa tọa độ và lưu')}
+              </button>
+              <button
+                type="button"
+                onClick={handleKeepCoordinates}
+                className="min-h-11 px-6 rounded-lg bg-navy hover:bg-navy-hover text-surface text-sm font-semibold shadow-sm cursor-pointer"
+              >
+                {t('Giữ tọa độ')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }

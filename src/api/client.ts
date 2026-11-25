@@ -11,6 +11,10 @@ const client = axios.create({
   timeout: 15000,
 });
 
+if (typeof window !== 'undefined') {
+  (window as unknown as { __duricareClient?: typeof client }).__duricareClient = client;
+}
+
 type RetryConfig = InternalAxiosRequestConfig & { _authRetry?: boolean };
 function authPath(config: InternalAxiosRequestConfig): string {
   return (config.url ?? '').split('?')[0].replace(/\/+$/, '');

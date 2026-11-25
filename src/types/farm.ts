@@ -10,15 +10,18 @@ export interface Farm {
 
 export interface FarmRequest {
   name: string;
-  location: string;
-  area: number;
-  latitude: number;
-  longitude: number;
+  location?: string | null;
+  area?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface FarmSettingsFormProps {
   farm: Farm;
   isSaving: boolean;
   error: string | null;
+  isUncertain?: boolean;
   onSave: (request: FarmRequest) => Promise<boolean>;
+  onReconcile?: () => Promise<void>;
+  onClearCoordinates?: () => void;
 }

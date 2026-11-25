@@ -92,7 +92,7 @@ export default function DashboardPage() {
             {t('Hệ thống chưa có nông trại nào. Hãy tạo nông trại đầu tiên để bắt đầu theo dõi.')}
           </p>
           <Link
-            to="/settings/farm"
+            to="/settings/farm/new"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal text-white text-xs font-semibold hover:bg-teal/90 transition-all cursor-pointer shadow-2xs"
           >
             <span className="material-symbols-outlined text-[16px]">add</span>
