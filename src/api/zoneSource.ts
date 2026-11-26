@@ -11,6 +11,7 @@ import type { SensorMetadata } from '../types/sensor';
 import {
   assertSafeIntegerId,
   type DecimalId,
+  type DecimalVersion,
   type IotLabMappingAdminItem,
   type ParsedZoneSourceError,
   type ZoneSourceFieldError,
@@ -304,5 +305,72 @@ export function getZoneSourceErrorMessage(
         return t('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
       }
       return parsed.message || t('Không thể kết nối máy chủ. Vui lòng thử lại.');
+  }
+}
+
+export interface ResolveClosedAssignmentResult {
+  status: 'FOUND' | 'NOT_FOUND' | 'BUDGET_EXHAUSTED' | 'ERROR';
+  assignmentId?: DecimalId;
+  effectiveTo?: string | null;
+  error?: unknown;
+}
+
+export async function resolveClosedAssignmentId(
+  zoneCode: string,
+  sensorId: DecimalId,
+  streamId: DecimalId | number,
+  expectedVersion: DecimalVersion | number,
+  options?: {
+    maxPages?: number;
+    pageSize?: number;
+    signal?: AbortSignal;
+  }
+): Promise<ResolveClosedAssignmentResult> {
+  const maxPages = options?.maxPages ?? 5;
+  const pageSize = options?.pageSize ?? 20;
+  const targetStreamIdStr = String(streamId);
+  const targetVersionStr = String(expectedVersion);
+  const targetSensorIdStr = String(sensorId);
+
+  let afterAssignmentId: DecimalId | undefined = undefined;
+  let pagesVisited = 0;
+
+  try {
+    while (pagesVisited < maxPages) {
+      pagesVisited++;
+      const res = await getZoneSourceAssignments(
+        zoneCode,
+        {
+          sensorId,
+          limit: pageSize,
+          afterAssignmentId,
+        },
+        options?.signal
+      );
+
+      for (const row of res.items) {
+        if (
+          String(row.streamId) === targetStreamIdStr &&
+          String(row.version) === targetVersionStr &&
+          String(row.sensorId) === targetSensorIdStr &&
+          row.effectiveTo !== null
+        ) {
+          return {
+            status: 'FOUND',
+            assignmentId: row.assignmentId,
+            effectiveTo: row.effectiveTo,
+          };
+        }
+      }
+
+      if (!res.page.nextAfterAssignmentId) {
+        return { status: 'NOT_FOUND' };
+      }
+      afterAssignmentId = res.page.nextAfterAssignmentId;
+    }
+
+    return { status: 'BUDGET_EXHAUSTED' };
+  } catch (err) {
+    return { status: 'ERROR', error: err };
   }
 }

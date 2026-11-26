@@ -9,7 +9,11 @@ import type {
   ZoneSourceAssignmentItem,
   ZoneSourceStatusSensorItem,
 } from '../../types/zoneSource';
-import { getAcquisitionSupportMeta, getSensorTypeDisplayName } from './zoneSourceLabels';
+import {
+  formatSensorUnit,
+  getAcquisitionSupportMeta,
+  getSensorTypeDisplayName,
+} from './zoneSourceLabels';
 
 interface ZoneSourcePickerViewProps {
   targetSensor: ZoneSourceStatusSensorItem;
@@ -180,7 +184,7 @@ export default function ZoneSourcePickerView({
                 replacingAssignment.publicProviderLabel,
                 getSensorTypeDisplayName(targetSensor.sensorType, t),
                 targetSensor.sensorId,
-                targetSensor.unit,
+                formatSensorUnit(targetSensor.unit, t),
               ])}
             </span>
           ) : (
@@ -188,7 +192,7 @@ export default function ZoneSourcePickerView({
               {t('Một cảm biến có thể nhận dữ liệu từ nhiều nguồn đã gán. Đang chọn nguồn cho {0} (#{1} · {2}).', [
                 getSensorTypeDisplayName(targetSensor.sensorType, t),
                 targetSensor.sensorId,
-                targetSensor.unit,
+                formatSensorUnit(targetSensor.unit, t),
               ])}
             </span>
           )}

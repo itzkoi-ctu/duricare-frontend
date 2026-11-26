@@ -6,6 +6,16 @@ import type {
   ZoneSourceOperationKind,
 } from '../../types/zoneSource';
 
+export function formatSensorUnit(
+  unit: string | null | undefined,
+  t: (k: string) => string = k => k
+): string {
+  if (!unit || unit === 'NONE') {
+    return t('Không có đơn vị');
+  }
+  return unit;
+}
+
 export function getSensorTypeDisplayName(
   type: SensorType | string,
   t: (k: string) => string = k => k

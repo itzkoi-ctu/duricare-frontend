@@ -9,7 +9,7 @@ import type {
   ZoneSourceStatusSensorItem,
 } from '../../types/zoneSource';
 import { formatGmt7DateTime } from '../../utils/zoneSourceValidation';
-import { getSensorTypeDisplayName } from './zoneSourceLabels';
+import { formatSensorUnit, getSensorTypeDisplayName } from './zoneSourceLabels';
 
 interface ZoneSourceHistoryTabProps {
   isOwner: boolean;
@@ -72,7 +72,7 @@ export default function ZoneSourceHistoryTab({
         >
           {sensors.map(s => (
             <option key={s.sensorId} value={s.sensorId}>
-              {getSensorTypeDisplayName(s.sensorType, t)} (#{s.sensorId} · {s.unit})
+              {getSensorTypeDisplayName(s.sensorType, t)} (#{s.sensorId} · {formatSensorUnit(s.unit, t)})
             </option>
           ))}
         </select>
