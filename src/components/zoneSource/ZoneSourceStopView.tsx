@@ -12,7 +12,7 @@ import {
   formatTextValidationMessage,
   validateStrictText,
 } from '../../utils/zoneSourceValidation';
-import { getSensorTypeDisplayName } from './zoneSourceLabels';
+import { formatSensorUnit, getSensorTypeDisplayName } from './zoneSourceLabels';
 
 interface ZoneSourceStopViewProps {
   zoneCode: string;
@@ -84,7 +84,7 @@ export default function ZoneSourceStopView({
       streamLabel: assignment.publicStreamLabel,
       providerLabel: assignment.publicProviderLabel,
       sensorId: targetSensor.sensorId,
-      sensorLabel: `${targetSensor.sensorType} #${targetSensor.sensorId} (${targetSensor.unit})`,
+      sensorLabel: `${targetSensor.sensorType} #${targetSensor.sensorId} (${formatSensorUnit(targetSensor.unit, t)})`,
       assignmentId: assignment.assignmentId,
       version: assignment.latestAssignmentVersion ?? assignment.version,
       assignmentState: assignment.assignmentState,
@@ -116,7 +116,7 @@ export default function ZoneSourceStopView({
         <div>
           {t('Cảm biến')}:{' '}
           <strong className="text-[#0F172A] dark:text-[#F8FAFC]">
-            {getSensorTypeDisplayName(targetSensor.sensorType, t)} (#{targetSensor.sensorId} · {targetSensor.unit})
+            {getSensorTypeDisplayName(targetSensor.sensorType, t)} (#{targetSensor.sensorId} · {formatSensorUnit(targetSensor.unit, t)})
           </strong>
         </div>
         {assignment.mqttTopic && (

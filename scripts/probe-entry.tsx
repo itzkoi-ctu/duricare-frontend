@@ -12,6 +12,7 @@ g.capturedCommand = null;
 g.formProps = null;
 g.deferStatus = false;
 g.deferLists = false;
+g.assignmentsHandler = null;
 
 client.defaults.adapter = async (config: any) => {
   g.calls.push({ method: config.method, url: config.url, data: config.data });
@@ -41,6 +42,13 @@ client.defaults.adapter = async (config: any) => {
     return await new Promise(resolve =>
       g.pending.push({ url: config.url, resolve: (data: any) => resolve(response(data)) })
     );
+  }
+
+  if (config.url.includes('/source-assignments')) {
+    if (typeof g.assignmentsHandler === 'function') {
+      const custom = await g.assignmentsHandler(config);
+      if (custom) return response(custom.data ?? custom, custom.status ?? 200);
+    }
   }
 
   if (/source-operations\//.test(config.url)) {

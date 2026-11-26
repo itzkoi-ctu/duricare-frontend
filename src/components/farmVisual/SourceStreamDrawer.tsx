@@ -48,6 +48,7 @@ export default function SourceStreamDrawer({
   const panel = useZoneSourcePanel({
     isOpen,
     zoneCode: zone?.code ?? null,
+    zoneId: zone?.id ?? null,
     farmId,
     actorId: user?.id ?? null,
     isOwner,
@@ -627,8 +628,11 @@ export default function SourceStreamDrawer({
 
           {panel.subflow.view === 'ASSIGN_OR_REPLACE' && (
             <ZoneSourceAssignOrReplaceView
+              key={`${panel.subflow.mode}-${panel.subflow.targetSensor.sensorId}-${panel.subflow.streamDetail.id}-${panel.subflow.streamDetail.latestAssignmentVersion ?? 0}`}
               mode={panel.subflow.mode}
               zoneCode={zone.code}
+              zoneId={zone.id}
+              farmId={farmId}
               targetSensor={panel.subflow.targetSensor}
               streamDetail={panel.subflow.streamDetail}
               currentAssignment={panel.subflow.currentAssignment}

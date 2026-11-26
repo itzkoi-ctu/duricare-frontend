@@ -169,8 +169,10 @@ export interface IotLabMappingAdminItem {
   blockedSince: string | null;
   restartFrom: string | null;
   observedCadenceMillis: number | null;
-  /** Server DTO (MappingResponse) omits version; populated only if future server read contract exposes @Version. */
+  /** Server DTO (MappingResponse) exposes optimistic JPA version (@Version). */
   version?: number | DecimalVersion | null;
+  providerId?: number | DecimalId | null;
+  sourceStreamId?: number | DecimalId | null;
 }
 
 export interface RegisterNodeOperationRequest {
@@ -608,4 +610,36 @@ export function toDecimalVersion(value: number | string, fieldName: string): Dec
     throw new Error(`UNSAFE_NUMERIC_ID:${fieldName}`);
   }
   return String(value);
+}
+
+export function isSafeNumericVersion(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value >= 0;
+  }
+  if (typeof value === 'string') {
+    return isValidDecimalVersion(value);
+  }
+  return false;
+}
+
+export function isSafeNumericId(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value > 0;
+  }
+  if (typeof value === 'string') {
+    return isValidPositiveDecimalId(value);
+  }
+  return false;
+}
+
+export function isExactUnitMatch(
+  unitA: string | null | undefined,
+  unitB: string | null | undefined
+): boolean {
+  if (unitA === null || unitA === undefined || unitB === null || unitB === undefined) {
+    return false;
+  }
+  return unitA === unitB;
 }

@@ -129,6 +129,7 @@ export interface UseZoneSourcePanelParams {
   isOpen: boolean;
   zoneCode: string | null;
   farmId: number | null;
+  zoneId?: number | string | null;
   actorId: number | null;
   isOwner: boolean;
   onClose: () => void;
@@ -139,6 +140,7 @@ interface ActiveScope {
   actorId: DecimalId | null;
   farmId: number | null;
   zoneCode: string | null;
+  zoneId: string | null;
   isOwner: boolean;
   generation: number;
 }
@@ -147,11 +149,13 @@ export function useZoneSourcePanel({
   isOpen,
   zoneCode,
   farmId,
+  zoneId,
   actorId,
   isOwner,
   onClose,
 }: UseZoneSourcePanelParams) {
   const actorDecimalId = actorId && actorId > 0 ? String(actorId) : null;
+  const zoneIdStr = zoneId != null ? String(zoneId) : null;
 
   const generationRef = useRef(0);
   const selectionGenerationRef = useRef(0);
@@ -165,6 +169,7 @@ export function useZoneSourcePanel({
     actorId: null,
     farmId: null,
     zoneCode: null,
+    zoneId: null,
     isOwner: false,
     generation: 0,
   });
@@ -244,6 +249,7 @@ export function useZoneSourcePanel({
       cur.actorId === captured.actorId &&
       cur.farmId === captured.farmId &&
       cur.zoneCode === captured.zoneCode &&
+      (captured.zoneId == null || cur.zoneId === captured.zoneId) &&
       cur.isOwner === captured.isOwner
     );
   }, []);
@@ -593,6 +599,7 @@ export function useZoneSourcePanel({
       actorId: actorDecimalId,
       farmId,
       zoneCode,
+      zoneId: zoneIdStr,
       isOwner,
       generation: gen,
     };
@@ -649,7 +656,7 @@ export function useZoneSourcePanel({
 
     void loadSourceStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, zoneCode, farmId, actorDecimalId, isOwner]);
+  }, [isOpen, zoneCode, farmId, zoneIdStr, actorDecimalId, isOwner]);
 
   const submitCommand = useCallback(
     async (

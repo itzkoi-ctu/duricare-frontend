@@ -104,6 +104,9 @@ async function run() {
       `export * from ${JSON.stringify(path.join(WORKTREE_ROOT, 'src/types/zoneSource.ts'))};`,
       `export * from ${JSON.stringify(path.join(WORKTREE_ROOT, 'src/utils/zoneSourceValidation.ts'))};`,
       `export * from ${JSON.stringify(path.join(WORKTREE_ROOT, 'src/utils/zoneSourceOperationStorage.ts'))};`,
+      `export * from ${JSON.stringify(path.join(WORKTREE_ROOT, 'src/components/zoneSource/zoneSourceLabels.ts'))};`,
+      `export * from ${JSON.stringify(path.join(WORKTREE_ROOT, 'src/api/zoneSource.ts'))};`,
+      `export { default as apiClient } from ${JSON.stringify(path.join(WORKTREE_ROOT, 'src/api/client.ts'))};`,
     ].join('\n'),
     'utf8'
   );
@@ -127,19 +130,57 @@ async function run() {
 
   // T1: BigInt 64-bit decimal IDs & versions vs unsafe integer guard
   const bigIdValid = typesMod.isValidPositiveDecimalId('9007199254740993');
+  const maxInt64Valid = typesMod.isValidPositiveDecimalId('9223372036854775807');
   const overflowIdRejected = !typesMod.isValidPositiveDecimalId('9223372036854775808');
-  const zeroVerValid = typesMod.isValidDecimalVersion('0');
-  const leadingZeroRejected = !typesMod.isValidDecimalVersion('01');
+  const leadingZeroRejected = !typesMod.isValidPositiveDecimalId('01');
+  const whitespaceRejected =
+    !typesMod.isValidPositiveDecimalId(' 801 ') &&
+    !typesMod.isValidPositiveDecimalId('9007199254740993 ');
+  const zeroIdRejected =
+    !typesMod.isValidPositiveDecimalId('0') &&
+    !typesMod.isSafeNumericId(0) &&
+    !typesMod.isSafeNumericId('0');
+  const zeroVerValid =
+    typesMod.isValidDecimalVersion('0') &&
+    typesMod.isSafeNumericVersion(0) &&
+    typesMod.isSafeNumericVersion('0');
+  const maxInt64VerValid =
+    typesMod.isValidDecimalVersion('9223372036854775807') &&
+    typesMod.isSafeNumericVersion('9223372036854775807');
+  const overflowVerRejected =
+    !typesMod.isValidDecimalVersion('9223372036854775808') &&
+    !typesMod.isSafeNumericVersion('9223372036854775808');
   let threwUnsafe = false;
   try {
     typesMod.assertSafeIntegerId(Number.MAX_SAFE_INTEGER + 2, 'id');
   } catch {
     threwUnsafe = true;
   }
+  const unsafeNumberRejected =
+    !typesMod.isSafeNumericId(9007199254740993) &&
+    !typesMod.isSafeNumericVersion(9007199254740993);
+  const safeNumberAccepted =
+    typesMod.isSafeNumericId(801) &&
+    typesMod.isSafeNumericVersion(801);
+  const canonicalStringAboveJsSafeIntAccepted =
+    typesMod.isSafeNumericId('9007199254740993') &&
+    typesMod.isSafeNumericVersion('9007199254740993');
   record(
     'ZS_UNIT_DECIMAL_ID',
-    'Canonical 64-bit decimal ID/version strings preserve BigInt precision & reject overflow',
-    bigIdValid && overflowIdRejected && zeroVerValid && leadingZeroRejected && threwUnsafe
+    'Canonical 64-bit decimal ID/version strings preserve BigInt precision & reject overflow and unsafe numbers',
+    bigIdValid &&
+      maxInt64Valid &&
+      overflowIdRejected &&
+      leadingZeroRejected &&
+      whitespaceRejected &&
+      zeroIdRejected &&
+      zeroVerValid &&
+      maxInt64VerValid &&
+      overflowVerRejected &&
+      threwUnsafe &&
+      unsafeNumberRejected &&
+      safeNumberAccepted &&
+      canonicalStringAboveJsSafeIntAccepted
   );
 
   // T2: Strict text validation (no silent trim, NUL, ISO control, unpaired surrogate)
@@ -306,6 +347,179 @@ async function run() {
       extractedStream?.id === '309' &&
       extractedStream?.sensorType === 'SOIL_MOISTURE' &&
       extractedWrappedNode?.id === '411'
+  );
+
+  // T7: Safe numeric version & ID validation
+  const verZeroOk = typesMod.isSafeNumericVersion(0);
+  const verPosOk = typesMod.isSafeNumericVersion(1) && typesMod.isSafeNumericVersion(42);
+  const verStrOk = typesMod.isSafeNumericVersion('0') && typesMod.isSafeNumericVersion('5');
+  const verNegBad = !typesMod.isSafeNumericVersion(-1) && !typesMod.isSafeNumericVersion('-1');
+  const verFloatBad = !typesMod.isSafeNumericVersion(1.5) && !typesMod.isSafeNumericVersion('1.5');
+  const verNullBad = !typesMod.isSafeNumericVersion(null) && !typesMod.isSafeNumericVersion(undefined);
+  const verStrBad = !typesMod.isSafeNumericVersion('abc') && !typesMod.isSafeNumericVersion('1a');
+  const verUnsafeBad = !typesMod.isSafeNumericVersion(Number.MAX_SAFE_INTEGER + 2);
+
+  const idPosOk = typesMod.isSafeNumericId(1) && typesMod.isSafeNumericId('401');
+  const idZeroBad = !typesMod.isSafeNumericId(0) && !typesMod.isSafeNumericId('0');
+  const idNegBad = !typesMod.isSafeNumericId(-1) && !typesMod.isSafeNumericId('-1');
+  const idNullBad = !typesMod.isSafeNumericId(null) && !typesMod.isSafeNumericId(undefined);
+  record(
+    'ZS_UNIT_NUMERIC_VERSION_ID',
+    'Safe numeric version and ID predicates enforce non-negative integer version and positive integer ID boundaries',
+    verZeroOk &&
+      verPosOk &&
+      verStrOk &&
+      verNegBad &&
+      verFloatBad &&
+      verNullBad &&
+      verStrBad &&
+      verUnsafeBad &&
+      idPosOk &&
+      idZeroBad &&
+      idNegBad &&
+      idNullBad
+  );
+
+  // T8: Exact unit matching (no silent normalization/conversion)
+  const exactMatchOk =
+    typesMod.isExactUnitMatch('%', '%') &&
+    typesMod.isExactUnitMatch('°C', '°C') &&
+    typesMod.isExactUnitMatch('ppm', 'ppm');
+  const rHMismatch =
+    !typesMod.isExactUnitMatch('%rH', '%') &&
+    !typesMod.isExactUnitMatch('%RH', '%') &&
+    !typesMod.isExactUnitMatch('%', '%rH');
+  const degMismatch =
+    !typesMod.isExactUnitMatch('°C', 'C') && !typesMod.isExactUnitMatch('C', '°C');
+  const nullMismatch =
+    !typesMod.isExactUnitMatch(null, '%') &&
+    !typesMod.isExactUnitMatch('%', null) &&
+    !typesMod.isExactUnitMatch(null, null);
+  record(
+    'ZS_UNIT_EXACT_UNIT_MATCH',
+    'isExactUnitMatch requires identical character equality, rejecting %rH vs %, °C vs C, and null/undefined',
+    exactMatchOk && rHMismatch && degMismatch && nullMismatch
+  );
+
+  // T9: Localized unitless display formatting (while wire token remains NONE)
+  const mockViT = key => key;
+  const mockEnT = key => (key === 'Không có đơn vị' ? 'Unitless' : key);
+  const viNone = bundled.formatSensorUnit('NONE', mockViT);
+  const viNull = bundled.formatSensorUnit(null, mockViT);
+  const viNorm = bundled.formatSensorUnit('%', mockViT);
+  const enNone = bundled.formatSensorUnit('NONE', mockEnT);
+  record(
+    'ZS_UNIT_UNITLESS_DISPLAY',
+    'formatSensorUnit localizes NONE/null/undefined as "Không có đơn vị" (VI) and "Unitless" (EN) while preserving wire token',
+    viNone === 'Không có đơn vị' &&
+      viNull === 'Không có đơn vị' &&
+      viNorm === '%' &&
+      enNone === 'Unitless'
+  );
+
+  // T10: CLOSED assignment history cursor traversal (resolveClosedAssignmentId)
+  const clientMod = bundled.apiClient;
+  const originalAdapter = clientMod.defaults.adapter;
+
+  let pageCalls = 0;
+  clientMod.defaults.adapter = async config => {
+    pageCalls++;
+    const params = config.params || {};
+    if (params.afterAssignmentId === '99') {
+      return {
+        status: 200,
+        data: {
+          items: [
+            {
+              assignmentId: '688',
+              streamId: '302',
+              version: '1',
+              sensorId: '503',
+              effectiveTo: '2026-11-20T00:00:00Z',
+            },
+          ],
+          page: { nextAfterAssignmentId: null },
+        },
+      };
+    }
+    return {
+      status: 200,
+      data: {
+        items: [
+          {
+            assignmentId: '700',
+            streamId: '999',
+            version: '1',
+            sensorId: '503',
+            effectiveTo: '2026-11-21T00:00:00Z',
+          },
+        ],
+        page: { nextAfterAssignmentId: '99' },
+      },
+    };
+  };
+
+  const traverseResult = await bundled.resolveClosedAssignmentId(
+    'TEST-ZS-A',
+    '503',
+    '302',
+    '1',
+    { maxPages: 5, pageSize: 20 }
+  );
+  const traverseOk =
+    traverseResult.status === 'FOUND' &&
+    traverseResult.assignmentId === '688' &&
+    pageCalls === 2;
+
+  // Not found scenario
+  clientMod.defaults.adapter = async () => ({
+    status: 200,
+    data: { items: [], page: { nextAfterAssignmentId: null } },
+  });
+  const notFoundResult = await bundled.resolveClosedAssignmentId(
+    'TEST-ZS-A',
+    '503',
+    '302',
+    '1',
+    { maxPages: 5, pageSize: 20 }
+  );
+  const notFoundOk = notFoundResult.status === 'NOT_FOUND';
+
+  // Budget exhausted scenario (> 5 pages without target)
+  let loopCount = 0;
+  clientMod.defaults.adapter = async () => {
+    loopCount++;
+    return {
+      status: 200,
+      data: {
+        items: [
+          {
+            assignmentId: '10',
+            streamId: '999',
+            version: '1',
+            sensorId: '503',
+            effectiveTo: '2026-11-01',
+          },
+        ],
+        page: { nextAfterAssignmentId: String(loopCount) },
+      },
+    };
+  };
+  const budgetResult = await bundled.resolveClosedAssignmentId(
+    'TEST-ZS-A',
+    '503',
+    '302',
+    '1',
+    { maxPages: 5, pageSize: 20 }
+  );
+  const budgetOk = budgetResult.status === 'BUDGET_EXHAUSTED' && loopCount === 5;
+
+  clientMod.defaults.adapter = originalAdapter;
+
+  record(
+    'ZS_UNIT_CLOSED_HISTORY_TRAVERSAL',
+    'resolveClosedAssignmentId correctly traverses pages via nextAfterAssignmentId, finds match, respects 5-page budget, and fails closed',
+    traverseOk && notFoundOk && budgetOk
   );
 
   // ------------------------------------------------------------------
@@ -650,6 +864,992 @@ async function run() {
       'REGRESSION_PROBE_R9_PROCEED_AFTER_NEW_SENSOR_PICKER',
       'R9: Delayed picker continuation is discarded after navigating to new sensor picker (tested against production hook)',
       r9Res.view === 'PICKER' && r9Res.pickerTarget === '502'
+    );
+
+    // ------------------------------------------------------------------
+    // Successor Contract Integration Probes (R10 - R19)
+    // ------------------------------------------------------------------
+
+    const iotStreamDetail = (id, version = 0, currentAssignment = null) => ({
+      id,
+      providerId: 2,
+      nodeId: 401,
+      externalNamespace: 'IOTLAB:9001:9011',
+      externalId: '9011',
+      sensorType: 'SOIL_MOISTURE',
+      retiredAt: null,
+      provider: {
+        id: 2,
+        code: 'IOTLAB_CTU',
+        adapterKind: 'IOTLAB_HTTP',
+        displayName: 'IoTLab trạm TEST',
+        adapterSupport: 'LEGACY_CONFIGURED',
+        retiredAt: null,
+      },
+      node: {
+        id: 401,
+        providerId: 2,
+        kind: 'STATION',
+        externalId: '9001',
+        displayName: 'Trạm 9001',
+        retiredAt: null,
+      },
+      latestAssignmentVersion: version,
+      currentAssignment,
+      acquisitionSupport: 'IOTLAB_BOUND_MAPPING',
+    });
+
+    const targetSoil = {
+      sensorId: '503',
+      sensorType: 'SOIL_MOISTURE',
+      unit: '%',
+    };
+
+    // Probe R10: Initial IoTLab Happy Path with Disabled Unbound Mapping (version: 0)
+    await reset();
+    const r10Mapping = {
+      id: 801,
+      stationId: 9001,
+      streamId: 9011,
+      zoneId: 10,
+      sensorType: 'SOIL_MOISTURE',
+      expectedUnit: '%',
+      enabled: false,
+      version: 0,
+      sourceStreamId: null,
+      state: 'DISABLED',
+    };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: '11111111-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 0), targetSensor: targetSoil, mapping: r10Mapping }
+    );
+    await page.waitForSelector('[data-testid="btn-assign-submit"]');
+    const r10SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await setReactValue(page, '[data-testid="assign-reason-input"]', 'Gán nguồn IoTLab ban đầu hợp lệ v0');
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    await new Promise(r => setTimeout(r, 40));
+    const r10Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R10_IOTLAB_INITIAL_VERSION_ZERO',
+      'R10: Disabled unbound candidate with @Version=0 enables submit and emits ZS-1 command with expectedMappingVersion: "0" and reactivatePolling: false',
+      !r10SubmitDisabled &&
+        r10Command?.kind === 'ASSIGN' &&
+        r10Command?.mappingId === '801' &&
+        r10Command?.expectedMappingVersion === '0' &&
+        r10Command?.reactivatePolling === false &&
+        r10Command?.expectedUnit === '%'
+    );
+
+    // Probe R11: Initial IoTLab Happy Path with Disabled Unbound Mapping (version > 0) & Reactivate Polling Toggle
+    await reset();
+    const r11Mapping = { ...r10Mapping, version: 3 };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: '22222222-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 0), targetSensor: targetSoil, mapping: r11Mapping }
+    );
+    await page.waitForSelector('[data-testid="iotlab-reactivate-polling-checkbox"]');
+    const r11InitialPollOff = await page.$eval(
+      '[data-testid="iotlab-reactivate-polling-checkbox"]',
+      el => !el.checked
+    );
+    await page.click('[data-testid="iotlab-reactivate-polling-checkbox"]');
+    const r11ToggledPollOn = await page.$eval(
+      '[data-testid="iotlab-reactivate-polling-checkbox"]',
+      el => el.checked
+    );
+    await setReactValue(page, '[data-testid="assign-reason-input"]', 'Gán nguồn IoTLab có bật lại polling');
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    await new Promise(r => setTimeout(r, 40));
+    const r11Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R11_IOTLAB_INITIAL_VERSION_POS_AND_POLL_TOGGLE',
+      'R11: Disabled unbound candidate with @Version=3 defaults reactivatePolling OFF, permits toggle ON, and emits expectedMappingVersion: "3"',
+      r11InitialPollOff &&
+        r11ToggledPollOn &&
+        r11Command?.kind === 'ASSIGN' &&
+        r11Command?.expectedMappingVersion === '3' &&
+        r11Command?.reactivatePolling === true
+    );
+
+    // Probe R12: IoTLab Candidate with Unsafe Server @Version (version: -1)
+    await reset();
+    const r12Mapping = { ...r10Mapping, version: -1 };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: '33333333-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 0), targetSensor: targetSoil, mapping: r12Mapping }
+    );
+    await page.waitForSelector('[data-testid="btn-assign-submit"]');
+    const r12SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    const r12Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R12_IOTLAB_UNSAFE_VERSION_REFUSAL',
+      'R12: Candidate with unsafe @Version (-1) is rejected by isSafeNumericVersion, disabling submission and blocking write',
+      r12SubmitDisabled && r12Command === null
+    );
+
+    // Probe R13: IoTLab Candidate Ambiguity (Multiple Matches)
+    await reset();
+    const r13MappingA = { ...r10Mapping, id: 801 };
+    const r13MappingB = { ...r10Mapping, id: 802 };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mappings }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: mappings,
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: '44444444-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 0), targetSensor: targetSoil, mappings: [r13MappingA, r13MappingB] }
+    );
+    await page.waitForSelector('[data-testid="btn-assign-submit"]');
+    const r13SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    const r13HasNotice = Boolean(await page.$('[data-testid="iotlab-unbound-blocked-notice"]'));
+    record(
+      'REGRESSION_PROBE_R13_IOTLAB_AMBIGUOUS_CANDIDATE_REFUSAL',
+      'R13: Multiple candidate mappings for station/stream/zone are treated as ambiguous and safely blocked',
+      r13SubmitDisabled && r13HasNotice
+    );
+
+    // Probe R14: IoTLab Candidate Already Bound Elsewhere
+    await reset();
+    const r14Mapping = { ...r10Mapping, sourceStreamId: 999 };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: '55555555-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 0), targetSensor: targetSoil, mapping: r14Mapping }
+    );
+    await page.waitForSelector('[data-testid="btn-assign-submit"]');
+    const r14SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    record(
+      'REGRESSION_PROBE_R14_IOTLAB_ALREADY_BOUND_REFUSAL',
+      'R14: Candidate mapping already bound to a different stream (sourceStreamId: 999) blocks initial assignment',
+      r14SubmitDisabled
+    );
+
+    // Probe R15: IoTLab Enabled Candidate Refusal
+    await reset();
+    const r15Mapping = { ...r10Mapping, enabled: true };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: '66666666-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 0), targetSensor: targetSoil, mapping: r15Mapping }
+    );
+    await page.waitForSelector('[data-testid="btn-assign-submit"]');
+    const r15SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    record(
+      'REGRESSION_PROBE_R15_IOTLAB_ENABLED_CANDIDATE_REFUSAL',
+      'R15: Candidate mapping with enabled: true is rejected (initial candidates must be disabled and unbound)',
+      r15SubmitDisabled
+    );
+
+    // Probe R16: Live TESTTH Fixture Verification (Station 23, Stream 95, Sensor 17, enabled: true, %rH vs %)
+    await reset();
+    const testthStream = {
+      id: 50,
+      providerId: 2,
+      nodeId: 23,
+      externalNamespace: 'IOTLAB:23:95',
+      externalId: '95',
+      sensorType: 'SOIL_MOISTURE',
+      retiredAt: null,
+      provider: { id: 2, code: 'IOTLAB_CTU', adapterKind: 'IOTLAB_HTTP', displayName: 'IoTLab', retiredAt: null },
+      node: { id: 23, providerId: 2, kind: 'STATION', externalId: '23', displayName: 'Trạm 23', retiredAt: null },
+      latestAssignmentVersion: 0,
+      currentAssignment: null,
+      acquisitionSupport: 'IOTLAB_BOUND_MAPPING',
+    };
+    const testthSensor = { sensorId: '17', sensorType: 'SOIL_MOISTURE', unit: '%' };
+    const testthMapping = {
+      id: 3,
+      stationId: 23,
+      streamId: 95,
+      zoneId: 9,
+      sensorType: 'SOIL_MOISTURE',
+      expectedSensorId: 5,
+      expectedUnit: '%rH',
+      enabled: true,
+      version: 0,
+      sourceStreamId: null,
+      state: 'ACTIVE',
+    };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TESTTH',
+          zoneId: 9,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: '77777777-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: testthStream, targetSensor: testthSensor, mapping: testthMapping }
+    );
+    await page.waitForSelector('[data-testid="btn-assign-submit"]');
+    const r16SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    record(
+      'REGRESSION_PROBE_R16_LIVE_TESTTH_FIXTURE_BLOCKED',
+      'R16: Live TESTTH fixture (mapping 3: enabled: true & %rH vs %) is strictly blocked from initial assignment',
+      r16SubmitDisabled
+    );
+
+    // Probe R17: Strict Unit Matching vs Mismatches
+    await reset();
+    const r17MismatchMapping = { ...r10Mapping, expectedUnit: '%rH' };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: '88888888-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 0), targetSensor: targetSoil, mapping: r17MismatchMapping }
+    );
+    await page.waitForSelector('[data-testid="btn-assign-submit"]');
+    const r17MismatchDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    const r17HasUnitNotice = Boolean(await page.$('[data-testid="iotlab-unit-mismatch-notice"]'));
+    record(
+      'REGRESSION_PROBE_R17_STRICT_UNIT_MISMATCH_REFUSAL',
+      'R17: Unit mismatch (%rH vs %) renders dedicated unit mismatch notice and disables submission without normalization',
+      r17MismatchDisabled && r17HasUnitNotice
+    );
+
+    // Probe R18: CLOSED Assignment Resolution via Production Component
+    await reset();
+    const closedMqttStream = {
+      id: 301,
+      providerId: 1,
+      nodeId: null,
+      externalNamespace: 'TOPIC:durian/TEST-ZS-A/sensors',
+      externalId: 'soil-mqtt-301',
+      sensorType: 'SOIL_MOISTURE',
+      retiredAt: null,
+      provider: {
+        id: 1,
+        code: 'MQTT_DEFAULT',
+        adapterKind: 'MQTT',
+        displayName: 'MQTT khu B',
+        adapterSupport: 'LEGACY_CONFIGURED',
+        retiredAt: null,
+      },
+      node: null,
+      latestAssignmentVersion: 2,
+      currentAssignment: null,
+      acquisitionSupport: 'LEGACY_MQTT_COMPATIBLE',
+    };
+    await page.evaluate(() => {
+      window.capturedCommand = null;
+      window.assignmentsHandler = async () => ({
+        status: 200,
+        data: {
+          items: [
+            {
+              assignmentId: '688',
+              streamId: '301',
+              version: '2',
+              sensorId: '503',
+              effectiveTo: '2026-11-20T00:00:00Z',
+            },
+          ],
+          page: { nextAfterAssignmentId: null },
+        },
+      });
+    });
+    await page.evaluate(
+      ({ streamDetail, targetSensor }) => {
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: '99999999-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: closedMqttStream, targetSensor: targetSoil }
+    );
+    await page.waitForSelector('[data-testid="zs-closed-stream-resolved-banner"]');
+    const r18SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await setReactValue(page, '[data-testid="assign-reason-input"]', 'Khôi phục luồng closed hợp lệ');
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    await new Promise(r => setTimeout(r, 40));
+    const r18Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R18_CLOSED_ASSIGNMENT_COMPONENT_RESOLUTION',
+      'R18: CLOSED stream traverses history, resolves assignmentId: "688", enables submit, and emits expectedCurrentAssignmentId: "688"',
+      !r18SubmitDisabled &&
+        r18Command?.expectedCurrentAssignmentId === '688' &&
+        r18Command?.expectedCurrentState === 'CLOSED'
+    );
+
+    // Probe R19: CLOSED Assignment Recovery Failure Fails Closed
+    await reset();
+    await page.evaluate(() => {
+      window.capturedCommand = null;
+      window.assignmentsHandler = async () => ({
+        status: 200,
+        data: { items: [], page: { nextAfterAssignmentId: null } },
+      });
+    });
+    await page.evaluate(
+      ({ streamDetail, targetSensor }) => {
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: 'aaaaaaaa-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: closedMqttStream, targetSensor: targetSoil }
+    );
+    await page.waitForSelector('[data-testid="zs-closed-stream-missing-id-banner"]');
+    const r19SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    const r19Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R19_CLOSED_ASSIGNMENT_COMPONENT_FAIL_CLOSED',
+      'R19: CLOSED stream with missing historical assignment displays warning and fails closed without emitting command',
+      r19SubmitDisabled && r19Command === null
+    );
+
+    // Probe R20: Binding Checkbox Consent (F1)
+    await reset();
+    const r20Mapping = {
+      id: 88,
+      stationId: 9001,
+      streamId: 9011,
+      zoneId: 10,
+      sensorType: 'SOIL_MOISTURE',
+      expectedSensorId: 101,
+      expectedUnit: '%',
+      enabled: false,
+      version: 1,
+      sourceStreamId: null,
+      state: 'DISABLED',
+    };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: 'b1111111-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 0), targetSensor: targetSoil, mapping: r20Mapping }
+    );
+    await page.waitForSelector('[data-testid="iotlab-bind-if-unbound-checkbox"]');
+    // Uncheck bindIfUnbound
+    await page.click('[data-testid="iotlab-bind-if-unbound-checkbox"]');
+    await page.waitForSelector('[data-testid="iotlab-binding-consent-required-notice"]');
+    const r20SubmitDisabledUnchecked = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    const r20NoCommandWhenUnchecked = (await page.evaluate(() => window.capturedCommand)) === null;
+
+    // Re-check bindIfUnbound, enter reason, submit
+    await page.click('[data-testid="iotlab-bind-if-unbound-checkbox"]');
+    await setReactValue(page, '[data-testid="assign-reason-input"]', 'Đồng ý liên kết mapping ban đầu');
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    await new Promise(r => setTimeout(r, 40));
+    const r20Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R20_BINDING_CHECKBOX_CONSENT',
+      'R20: Unchecking bindIfUnbound renders consent notice, disables submit; rechecking serializes bindIfUnbound: true',
+      r20SubmitDisabledUnchecked &&
+        r20NoCommandWhenUnchecked &&
+        r20Command?.bindIfUnbound === true
+    );
+
+    // Probe R21: Unsafe Numeric Mapping ID (F2)
+    await reset();
+    const r21Mapping = {
+      id: 9007199254740993, // > Number.MAX_SAFE_INTEGER
+      stationId: 9001,
+      streamId: 9011,
+      zoneId: 10,
+      sensorType: 'SOIL_MOISTURE',
+      expectedSensorId: 101,
+      expectedUnit: '%',
+      enabled: false,
+      version: 1,
+      sourceStreamId: null,
+      state: 'DISABLED',
+    };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: 'b2222222-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 0), targetSensor: targetSoil, mapping: r21Mapping }
+    );
+    await page.waitForSelector('[data-testid="iotlab-unbound-blocked-notice"]');
+    const r21SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    const r21Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R21_UNSAFE_NUMERIC_MAPPING_ID',
+      'R21: Numeric mapping ID exceeding Number.MAX_SAFE_INTEGER is rejected as INVALID_METADATA and fails closed',
+      r21SubmitDisabled && r21Command === null
+    );
+
+    // Probe R22: Mapping Refresh Loading Blocks Submit (F3)
+    await reset();
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: true, // Pending refresh
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: 'b3333333-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 0), targetSensor: targetSoil, mapping: r20Mapping }
+    );
+    await page.waitForSelector('[data-testid="btn-assign-submit"]');
+    const r22SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    const r22Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R22_MAPPINGS_REFRESH_LOADING_BLOCKS_SUBMIT',
+      'R22: Form blocks submit while iotLabMappingsLoading is true despite cached candidate mapping',
+      r22SubmitDisabled && r22Command === null
+    );
+
+    // Probe R23: Mapping Refresh Error Blocks Submit (F3)
+    await reset();
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: { kind: 'NETWORK_ERROR', message: 'Không thể kết nối đến máy chủ IoTLab.' },
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: 'b4444444-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 0), targetSensor: targetSoil, mapping: r20Mapping }
+    );
+    await page.waitForSelector('[data-testid="iotlab-mappings-error-banner"]');
+    const r23SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    const r23Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R23_MAPPINGS_ERROR_BLOCKS_SUBMIT',
+      'R23: Form renders error banner and blocks submit when iotLabMappingsError is present',
+      r23SubmitDisabled && r23Command === null
+    );
+
+    // Probe R24: Already-bound Enabled Mapping for Same Stream (F4)
+    await reset();
+    const r24Stream = iotStreamDetail(302, 2, {
+      id: 701,
+      sensorId: 503,
+      effectiveTo: null,
+    });
+    const r24Mapping = {
+      id: 801,
+      stationId: 9001,
+      streamId: 9011,
+      zoneId: 10,
+      sensorType: 'SOIL_MOISTURE',
+      expectedSensorId: 101,
+      expectedUnit: '%',
+      enabled: true, // enabled is allowed when already bound to this exact stream
+      version: 3,
+      sourceStreamId: 302, // Matches streamDetail.id
+      state: 'READY',
+    };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: 'b5555555-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: r24Stream, targetSensor: targetSoil, mapping: r24Mapping }
+    );
+    await page.waitForSelector('[data-testid="btn-assign-submit"]');
+    const r24SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    const r24HasBindCheckbox = Boolean(await page.$('[data-testid="iotlab-bind-if-unbound-checkbox"]'));
+    await setReactValue(page, '[data-testid="assign-reason-input"]', 'Gán lại luồng IoTLab đã liên kết cùng stream');
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    await new Promise(r => setTimeout(r, 40));
+    const r24Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R24_ALREADY_BOUND_ENABLED_MAPPING_ALLOWED',
+      'R24: Enabled mapping already bound to this stream is classified as EXISTING_BOUND, omits bind checkbox, and enables submit',
+      !r24SubmitDisabled &&
+        !r24HasBindCheckbox &&
+        r24Command?.mappingId === '801' &&
+        r24Command?.bindIfUnbound === false &&
+        r24Command?.expectedCurrentAssignmentId === '701'
+    );
+
+    // Probe R25: Target Change Synchronously Clears Resolved Closed Assignment ID (F5)
+    await reset();
+    await page.evaluate(() => {
+      window.capturedCommand = null;
+      window.assignmentsHandler = async () => ({
+        status: 200,
+        data: {
+          items: [
+            {
+              assignmentId: '688',
+              streamId: '301',
+              version: '2',
+              sensorId: '503',
+              effectiveTo: '2026-11-20T00:00:00Z',
+            },
+          ],
+          page: { nextAfterAssignmentId: null },
+        },
+      });
+    });
+    // First, mount with stream 301 (resolved to 688)
+    await page.evaluate(
+      ({ streamDetail, targetSensor }) => {
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: 'b6666666-1111-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: closedMqttStream, targetSensor: targetSoil }
+    );
+    await page.waitForSelector('[data-testid="zs-closed-stream-resolved-banner"]');
+
+    // Now change props on the SAME mounted component to stream 305 with version 3 without unmounting
+    const stream305 = {
+      ...closedMqttStream,
+      id: 305,
+      latestAssignmentVersion: 3,
+    };
+    await page.evaluate(() => {
+      window.capturedCommand = null;
+      window.assignmentsHandler = async () => ({
+        status: 200,
+        data: { items: [], page: { nextAfterAssignmentId: null } },
+      });
+    });
+    await page.evaluate(
+      ({ streamDetail, targetSensor }) => {
+        window.form({
+          mode: 'ASSIGN',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          routingContract: null,
+          iotLabMappings: [],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: 'b6666666-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: stream305, targetSensor: targetSoil }
+    );
+    await page.waitForSelector('[data-testid="zs-closed-stream-missing-id-banner"]');
+    const r25SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    const r25Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R25_TARGET_CHANGE_CLEARS_CLOSED_ASSIGNMENT_ID',
+      'R25: Changing target stream to stream305 synchronously clears cached assignment 688 and fails closed',
+      r25SubmitDisabled && r25Command === null
+    );
+
+    // Probe R26: Bound Canonical Decimal ID above JS Safe Integer (F2 remediation)
+    await reset();
+    const r26Bound = {
+      assignmentId: '701',
+      streamId: '302',
+      version: '2',
+      latestAssignmentVersion: '2',
+      sensorId: '503',
+      sensorType: 'SOIL_MOISTURE',
+      effectiveTo: null,
+      assignmentState: 'OPEN',
+      expectedUnit: '%',
+      expectedExternalSensorId: '5',
+      mapping: {
+        id: '9007199254740993',
+        version: '0',
+        state: 'READY',
+        enabled: true,
+      },
+    };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, boundAssignment }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'CONFIGURE',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          currentAssignment: boundAssignment,
+          routingContract: null,
+          iotLabMappings: [],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: 'b7777777-1111-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 2, r26Bound), targetSensor: targetSoil, boundAssignment: r26Bound }
+    );
+    await page.waitForSelector('[data-testid="btn-assign-submit"]');
+    const r26SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await setReactValue(page, '[data-testid="assign-reason-input"]', 'Cấu hình mapping canonical BIGINT id');
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    await new Promise(r => setTimeout(r, 40));
+    const r26Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R26_BOUND_CANONICAL_BIGINT_ID_ACCEPTED',
+      'R26: Bound mapping with canonical string ID above MAX_SAFE_INTEGER ("9007199254740993") is accepted without Number conversion',
+      !r26SubmitDisabled &&
+        r26Command?.mappingId === '9007199254740993' &&
+        r26Command?.expectedMappingVersion === '0'
+    );
+
+    // Probe R27: Bound Canonical Decimal Version above JS Safe Integer (F2 remediation)
+    await reset();
+    const r27Bound = {
+      ...r26Bound,
+      mapping: {
+        id: '801',
+        version: '9007199254740993',
+        state: 'READY',
+        enabled: true,
+      },
+    };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, boundAssignment }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'CONFIGURE',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          currentAssignment: boundAssignment,
+          routingContract: null,
+          iotLabMappings: [],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: 'b7777777-2222-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      { streamDetail: iotStreamDetail(302, 2, r27Bound), targetSensor: targetSoil, boundAssignment: r27Bound }
+    );
+    await page.waitForSelector('[data-testid="btn-assign-submit"]');
+    const r27SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await setReactValue(page, '[data-testid="assign-reason-input"]', 'Cấu hình mapping canonical BIGINT version');
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    await new Promise(r => setTimeout(r, 40));
+    const r27Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R27_BOUND_CANONICAL_BIGINT_VERSION_ACCEPTED',
+      'R27: Bound mapping with canonical string version above MAX_SAFE_INTEGER ("9007199254740993") is accepted and preserved exactly',
+      !r27SubmitDisabled &&
+        r27Command?.mappingId === '801' &&
+        r27Command?.expectedMappingVersion === '9007199254740993'
+    );
+
+    // Probe R28: REPLACE Mode Missing Binding Consent Fails Closed
+    await reset();
+    const oldReplacing = {
+      assignmentId: '699',
+      streamId: '299',
+      version: '1',
+      latestAssignmentVersion: '1',
+      sensorId: '503',
+      sensorType: 'SOIL_MOISTURE',
+      effectiveTo: null,
+      mapping: null,
+    };
+    await page.evaluate(
+      ({ streamDetail, targetSensor, mapping, replacingAssignment }) => {
+        window.capturedCommand = null;
+        window.form({
+          mode: 'REPLACE',
+          zoneCode: 'TEST-ZS-A',
+          zoneId: 10,
+          farmId: 4,
+          targetSensor,
+          streamDetail,
+          replacingAssignment,
+          routingContract: null,
+          iotLabMappings: [mapping],
+          iotLabMappingsLoading: false,
+          iotLabMappingsError: null,
+          submitting: false,
+          storageUnavailable: false,
+          serverError: null,
+          operationId: 'b8888888-1111-4333-8444-555555555555',
+          makeTargetSnapshot: () => ({}),
+        });
+      },
+      {
+        streamDetail: iotStreamDetail(302, 0),
+        targetSensor: targetSoil,
+        mapping: r20Mapping,
+        replacingAssignment: oldReplacing,
+      }
+    );
+    await page.waitForSelector('[data-testid="iotlab-bind-if-unbound-checkbox"]');
+    // Uncheck bindIfUnbound in REPLACE mode
+    await page.click('[data-testid="iotlab-bind-if-unbound-checkbox"]');
+    await page.waitForSelector('[data-testid="iotlab-binding-consent-required-notice"]');
+    const r28SubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
+    await page.evaluate(() => document.querySelector('form')?.requestSubmit());
+    const r28Command = await page.evaluate(() => window.capturedCommand);
+    record(
+      'REGRESSION_PROBE_R28_REPLACE_BIND_CONSENT_OFF_BLOCKS_SUBMIT',
+      'R28: Deselecting bindIfUnbound in REPLACE mode renders consent warning and blocks submit',
+      r28SubmitDisabled && r28Command === null
     );
   } finally {
     await probeBrowser.close();
@@ -1134,8 +2334,9 @@ async function run() {
             expectedUnit: '%',
             lastObservedUnit: '%',
             enabled: false,
-            state: 'BLOCKED',
-            blockedSince: '2026-11-24T09:00:00Z',
+            version: 0,
+            sourceStreamId: null,
+            state: 'DISABLED',
           },
         ]);
       }
@@ -1184,7 +2385,7 @@ async function run() {
           retiredAt: null,
           provider: { id: 2, code: 'IOTLAB_CTU', adapterKind: 'IOTLAB_HTTP', displayName: 'IoTLab trạm TEST', adapterSupport: 'LEGACY_CONFIGURED', retiredAt: null },
           node: { id: 401, providerId: 2, kind: 'STATION', externalId: '9001', displayName: 'Trạm Khu B', retiredAt: null },
-          latestAssignmentVersion: 2,
+          latestAssignmentVersion: 0,
           currentAssignment: null,
           acquisitionSupport: 'IOTLAB_BOUND_MAPPING',
         });
@@ -1217,7 +2418,7 @@ async function run() {
               retiredAt: null,
               provider: { id: 2, code: 'IOTLAB_CTU', adapterKind: 'IOTLAB_HTTP', displayName: 'IoTLab trạm TEST', adapterSupport: 'LEGACY_CONFIGURED', retiredAt: null },
               node: { id: 401, providerId: 2, kind: 'STATION', externalId: '9001', displayName: 'Trạm Khu B', retiredAt: null },
-              latestAssignmentVersion: 2,
+              latestAssignmentVersion: 0,
               currentAssignment: null,
               acquisitionSupport: 'IOTLAB_BOUND_MAPPING',
             },
@@ -1411,13 +2612,13 @@ async function run() {
     await page.click('[data-testid="btn-picker-proceed"]');
     await page.waitForSelector('[data-testid="zs-assign-replace-form"]');
     const iotDefaultOff = await page.$eval('[data-testid="iotlab-reactivate-polling-checkbox"]', el => !el.checked);
-    const hasBlockedWarn = Boolean(await page.$('[data-testid="iotlab-blocked-warning"]'));
-    const hasUnboundBlockedNotice = Boolean(await page.$('[data-testid="iotlab-unbound-blocked-notice"]'));
+    const hasEligibleBadge = Boolean(await page.$('[data-testid="iotlab-eligible-initial-badge"]'));
+    const mappingIdText = await page.$eval('[data-testid="iotlab-mapping-id-display"]', el => el.textContent?.trim());
     const assignSubmitDisabled = await page.$eval('[data-testid="btn-assign-submit"]', el => el.disabled);
     record(
       'ZS_UI07_IOTLAB_FORM',
-      'IoTLab configure/assign keeps reactivatePolling default OFF, warns BLOCKED, and disables unbound submission without server @Version',
-      iotDefaultOff && hasBlockedWarn && hasUnboundBlockedNotice && assignSubmitDisabled
+      'IoTLab configure/assign identifies eligible initial candidate with @Version=0, keeps reactivatePolling default OFF, and enables submission',
+      iotDefaultOff && hasEligibleBadge && mappingIdText === '#801' && !assignSubmitDisabled
     );
     await page.screenshot({ path: path.join(EVIDENCE_DIR, 'zs_07_desktop_assign_iotlab.png') });
 
