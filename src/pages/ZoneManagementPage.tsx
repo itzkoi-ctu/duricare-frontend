@@ -840,6 +840,9 @@ export default function ZoneManagementPage() {
       <SourceStreamDrawer
         isOpen={isSourceDrawerOpen}
         zone={zoneForSource}
+        farmId={activeFarmId}
+        farmName={farms.find(f => f.id === activeFarmId)?.name ?? null}
+        isOwner={isOwner}
         onClose={() => {
           setIsSourceDrawerOpen(false);
           setZoneForSource(null);

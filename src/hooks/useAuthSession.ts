@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 import * as auth from '../api/auth';
 import type { AuthContextValue, LoginResponse } from '../types/auth';
 import { bindAuthSession } from '../api/authSessionBridge';
+import { clearAllZoneSourceStorageForActor } from '../utils/zoneSourceOperationStorage';
 
 export default function useAuthSession(): AuthContextValue {
   const [session, setSession] = useState<LoginResponse | null>(null);
@@ -30,6 +31,7 @@ export default function useAuthSession(): AuthContextValue {
     },
     invalidate: expectedToken => {
       if (sessionRef.current?.accessToken !== expectedToken) return;
+      clearAllZoneSourceStorageForActor(sessionRef.current?.user?.id);
       updateSession(null);
       navigate('/login', { replace: true, state: {
         from: location.pathname + location.search + location.hash,
@@ -63,7 +65,11 @@ export default function useAuthSession(): AuthContextValue {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    const prevId = sessionRef.current?.user?.id;
     const result = await auth.login(email, password);
+    if (prevId && prevId !== result.user.id) {
+      clearAllZoneSourceStorageForActor(prevId);
+    }
     updateSession(result);
     return result.user;
   }, [updateSession]);
@@ -72,6 +78,7 @@ export default function useAuthSession(): AuthContextValue {
     // If revocation fails, retain the session so the caller can retry server-side logout.
     const current = sessionRef.current;
     if (current) await auth.logout(current.accessToken);
+    clearAllZoneSourceStorageForActor(current?.user?.id);
     updateSession(null);
     navigate('/login', { replace: true, state: null });
   }, [navigate, updateSession]);
