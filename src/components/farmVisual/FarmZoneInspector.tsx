@@ -216,18 +216,18 @@ export default function FarmZoneInspector({
           </button>
         )}
 
-        {/* 3. Tertiary CTA: Cấu hình nguồn nhận dữ liệu (ADMIN only) */}
-        {!isOwner && (
-          <button
-            type="button"
-            data-testid="btn-open-source-drawer"
-            onClick={() => onConfigureSource(zone)}
-            className="w-full h-[44px] min-h-[44px] px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[#004489] dark:text-[#60a5fa] text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
-          >
-            <span className="material-symbols-outlined text-base">settings_input_component</span>
-            <span>{t('Cấu hình nguồn nhận dữ liệu')}</span>
-          </button>
-        )}
+        {/* 3. Tertiary CTA: Nguồn nhận dữ liệu (ADMIN cấu hình / OWNER chỉ xem UI15) */}
+        <button
+          type="button"
+          data-testid="btn-open-source-drawer"
+          onClick={() => onConfigureSource(zone)}
+          className="w-full h-[44px] min-h-[44px] px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[#004489] dark:text-[#60a5fa] text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+        >
+          <span className="material-symbols-outlined text-base">settings_input_component</span>
+          <span>
+            {isOwner ? t('Xem nguồn nhận dữ liệu') : t('Cấu hình nguồn nhận dữ liệu')}
+          </span>
+        </button>
       </div>
     </div>
   );
